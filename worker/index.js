@@ -95,6 +95,66 @@ export default {
         return jsonResponse({ success: true });
       }
 
+      // GET /api/stock/comments/:code - 获取股吧评论（代理百度接口）
+      if (path.startsWith('/api/stock/comments/') && request.method === 'GET') {
+        const code = path.split('/').pop();
+        if (!code) {
+          return jsonResponse({ error: '股票代码不能为空' }, 400);
+        }
+
+        try {
+          // 调用百度股市通接口
+          const baiduUrl = `https://finance.pae.baidu.com/api/stockwidget?code=${code}&market=ab&type=stock&widgetType=talks&finClientType=pc`;
+          const baiduResponse = await fetch(baiduUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Referer': 'https://finance.baidu.com/'
+            }
+          });
+
+          if (!baiduResponse.ok) {
+            return jsonResponse({ error: '获取数据失败' }, 500);
+          }
+
+          const data = await baiduResponse.json();
+          
+          if (data.ResultCode !== '0' || !data.Result?.content?.list) {
+            return jsonResponse({ comments: [] });
+          }
+
+          // 格式化数据
+          const comments = data.Result.content.list.map(item => {
+            // 提取文本内容
+            let content = '';
+            if (item.content?.items) {
+              content = item.content.items
+                .filter(i => i.type === 'text')
+                .map(i => i.data)
+                .join('');
+            }
+
+            return {
+              id: item.comment_id || item.reply_id || '',
+              content: content.trim(),
+              author: {
+                name: item.author?.name || '匿名用户',
+                avatar: item.author?.image?.src || ''
+              },
+              source: item.provider || '股吧',
+              createTime: item.create_show_time || item.publish_time || '',
+              likeCount: parseInt(item.like_count || '0'),
+              replyCount: parseInt(item.reply_count || '0'),
+              url: item.loc || item.third_url || item.real_loc || ''
+            };
+          }).filter(c => c.content.length > 0);
+
+          return jsonResponse({ comments });
+        } catch (err) {
+          console.error('Failed to fetch comments:', err);
+          return jsonResponse({ error: '获取评论失败', comments: [] }, 500);
+        }
+      }
+
       return jsonResponse({ error: 'Not found' }, 404);
     } catch (err) {
       return jsonResponse({ error: err.message }, 500);

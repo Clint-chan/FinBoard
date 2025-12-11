@@ -66,7 +66,6 @@ export function StockInfoCard({ code, visible, onLoad }: StockInfoCardProps) {
 
   const pct = ((info.price - info.preClose) / info.preClose) * 100
   const isUp = pct >= 0
-  const change = info.price - info.preClose
 
   // 格式化函数 - 增加类型检查，防止非数字值导致错误
   const fmtNum = (val?: number, digits = 2) => {

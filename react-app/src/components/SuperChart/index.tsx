@@ -23,7 +23,6 @@ export function SuperChart({
   initialPrice,
   initialPreClose,
   pe,
-  turnover,
   onAddAlert
 }: SuperChartProps) {
   void _height // 避免 unused 警告
@@ -42,6 +41,7 @@ export function SuperChart({
   
   // 预警按钮状态 - 只记录 Y 位置和价格
   const [alertButtonPos, setAlertButtonPos] = useState<{ y: number; price: number } | null>(null)
+  const alertButtonTimerRef = useRef<number | null>(null)
   
   const {
     currentTab,
@@ -397,8 +397,19 @@ export function SuperChart({
               if (pos && crosshairData && (crosshairData.price || crosshairData.close)) {
                 const price = crosshairData.price || crosshairData.close || 0
                 setAlertButtonPos({ y: pos.y, price })
+                
+                // 清除之前的定时器
+                if (alertButtonTimerRef.current) {
+                  clearTimeout(alertButtonTimerRef.current)
+                }
               } else {
-                setAlertButtonPos(null)
+                // 延迟隐藏按钮，给用户时间点击
+                if (alertButtonTimerRef.current) {
+                  clearTimeout(alertButtonTimerRef.current)
+                }
+                alertButtonTimerRef.current = window.setTimeout(() => {
+                  setAlertButtonPos(null)
+                }, 300)
               }
             }}
             onWheel={handleWheel}
@@ -417,9 +428,26 @@ export function SuperChart({
             }}
             onClick={(e) => {
               e.stopPropagation()
-              onAddAlert(alertButtonPos.price)
+              e.preventDefault()
+              console.log('Alert button clicked, price:', alertButtonPos.price)
+              if (onAddAlert) {
+                onAddAlert(alertButtonPos.price)
+              }
             }}
-            onMouseEnter={(e) => e.stopPropagation()}
+            onMouseEnter={(e) => {
+              e.stopPropagation()
+              // 鼠标进入按钮时，清除隐藏定时器
+              if (alertButtonTimerRef.current) {
+                clearTimeout(alertButtonTimerRef.current)
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.stopPropagation()
+              // 鼠标离开按钮时，延迟隐藏
+              alertButtonTimerRef.current = window.setTimeout(() => {
+                setAlertButtonPos(null)
+              }, 300)
+            }}
             onMouseMove={(e) => e.stopPropagation()}
             title="添加价格预警"
           >

@@ -231,7 +231,6 @@ export function AnalysisDrawer({
               initialPrice={currentStock?.price}
               initialPreClose={currentStock?.preClose}
               pe={currentStock?.pe}
-              turnover={currentStock?.turnover}
               onAddAlert={(price) => onOpenAlert?.(currentCode, price)}
             />
           </div>

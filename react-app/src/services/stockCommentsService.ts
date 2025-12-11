@@ -17,57 +17,24 @@ export interface StockComment {
 }
 
 /**
- * 获取股吧评论 - 百度股市通接口
+ * 获取股吧评论 - 通过 Cloudflare Worker 代理
  */
 export async function fetchStockComments(code: string): Promise<StockComment[]> {
   const symbol = code.replace(/^(sh|sz)/, '')
   
-  // 判断市场代码
-  const market = symbol.startsWith('6') ? 'ab' : 'ab'
+  // 使用 Worker 代理接口
+  const apiUrl = 'https://market-api.newestgpt.com/api/stock/comments/' + symbol
   
-  const url = 'https://finance.pae.baidu.com/api/stockwidget'
-  const params = new URLSearchParams({
-    code: symbol,
-    market: market,
-    type: 'stock',
-    widgetType: 'talks',
-    finClientType: 'pc'
-  })
-
   try {
-    const response = await fetch(`${url}?${params}`)
-    const data = await response.json()
+    const response = await fetch(apiUrl)
     
-    if (data.ResultCode !== '0' || !data.Result?.content?.list) {
+    if (!response.ok) {
+      console.error('Failed to fetch comments:', response.status)
       return []
     }
 
-    const comments: StockComment[] = data.Result.content.list.map((item: any) => {
-      // 提取文本内容
-      let content = ''
-      if (item.content?.items) {
-        content = item.content.items
-          .filter((i: any) => i.type === 'text')
-          .map((i: any) => i.data)
-          .join('')
-      }
-
-      return {
-        id: item.comment_id || item.reply_id || '',
-        content: content.trim(),
-        author: {
-          name: item.author?.name || '匿名用户',
-          avatar: item.author?.image?.src || ''
-        },
-        source: item.provider || '股吧',
-        createTime: item.create_show_time || item.publish_time || '',
-        likeCount: parseInt(item.like_count || '0'),
-        replyCount: parseInt(item.reply_count || '0'),
-        url: item.loc || item.third_url || item.real_loc || ''
-      }
-    }).filter((c: StockComment) => c.content.length > 0) // 过滤空评论
-
-    return comments
+    const data = await response.json()
+    return data.comments || []
   } catch (error) {
     console.error('Failed to fetch stock comments:', error)
     return []

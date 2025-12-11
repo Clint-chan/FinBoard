@@ -123,40 +123,24 @@ export function StockNews({ code, isDark }: StockNewsProps) {
   const loading = activeTab === 'news' ? newsLoading : commentsLoading
   const currentData = activeTab === 'news' ? news : comments
 
-  if (collapsed) {
-    return (
-      <div className={`stock-info-panel collapsed ${isDark ? 'dark' : ''}`}>
-        <div className="panel-header">
-          <div 
-            className="panel-title clickable"
-            onClick={() => setCollapsed(false)}
-            title="点击展开"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
-            </svg>
-            <span>市场资讯</span>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className={`stock-info-panel ${isDark ? 'dark' : ''}`}>
-      {/* 头部：标题 + 标签页 */}
+    <div className={`stock-info-panel ${collapsed ? 'collapsed' : ''} ${isDark ? 'dark' : ''}`}>
+      {/* 头部：标题 */}
       <div className="panel-header">
         <div 
           className="panel-title clickable"
-          onClick={() => setCollapsed(true)}
-          title="点击收缩"
+          onClick={() => setCollapsed(!collapsed)}
+          title={collapsed ? "点击展开" : "点击收缩"}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
           </svg>
           <span>市场资讯</span>
         </div>
-        
+      </div>
+      
+      {/* 标签页 */}
+      <div className="panel-tabs-wrapper">
         <div className="panel-tabs">
           <button
             className={`tab-btn ${activeTab === 'news' ? 'active' : ''}`}
@@ -230,44 +214,44 @@ export function StockNews({ code, isDark }: StockNewsProps) {
               ))
             ) : (
               comments.map((item, index) => (
-                <a
-                  key={index}
-                  className="list-item comment-item"
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <div className="item-avatar">
-                    {item.author.avatar ? (
-                      <img src={item.author.avatar} alt={item.author.name} />
-                    ) : (
-                      <div className="avatar-placeholder">
-                        {item.author.name.charAt(0)}
-                      </div>
-                    )}
-                  </div>
-                  <div className="item-content">
-                    <div className="item-author">{item.author.name}</div>
-                    <div className="item-text">{item.content}</div>
-                    <div className="item-meta">
-                      <span className="meta-source">{item.source}</span>
-                      <span className="meta-dot">·</span>
-                      <span className="meta-time">{formatTime(item.createTime)}</span>
-                      {item.likeCount > 0 && (
-                        <>
-                          <span className="meta-dot">·</span>
-                          <span className="meta-like">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                            </svg>
-                            {item.likeCount}
-                          </span>
-                        </>
+                  <a
+                    key={index}
+                    className="list-item comment-item"
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <div className="item-avatar">
+                      {item.author.avatar ? (
+                        <img src={item.author.avatar} alt={item.author.name} />
+                      ) : (
+                        <div className="avatar-placeholder">
+                          {item.author.name.charAt(0)}
+                        </div>
                       )}
                     </div>
-                  </div>
-                </a>
-              ))
+                    <div className="item-content">
+                      <div className="item-author">{item.author.name}</div>
+                      <div className="item-text">{item.content}</div>
+                      <div className="item-meta">
+                        <span className="meta-source">{item.source}</span>
+                        <span className="meta-dot">·</span>
+                        <span className="meta-time">{formatTime(item.createTime)}</span>
+                        {item.likeCount > 0 && (
+                          <>
+                            <span className="meta-dot">·</span>
+                            <span className="meta-like">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                              </svg>
+                              {item.likeCount}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </a>
+                ))
             )}
           </div>
         )}
