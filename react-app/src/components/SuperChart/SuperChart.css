@@ -231,40 +231,40 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* 十字线预警按钮 */
+/* 十字线预警按钮 - 固定在右侧 */
 .sc-alert-btn {
   position: absolute;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
-  border-radius: 4px;
+  border-radius: 50%;
   cursor: pointer;
-  color: var(--text-secondary);
-  transition: all 0.15s;
+  color: #f59e0b;
+  transition: all 0.2s;
   box-shadow: var(--shadow-sm);
   z-index: 100;
   pointer-events: auto;
 }
 
 .sc-alert-btn:hover {
-  color: var(--color-down);
-  border-color: var(--color-down);
-  background: var(--bg-hover);
-  transform: scale(1.1);
+  color: #f59e0b;
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
 }
 
 .sc-alert-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.9);
 }
 
 .sc-alert-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
 .sc-settings {

@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useSuperChart } from './useSuperChart'
 import { ChartCanvas, type CrosshairData } from './ChartCanvas'
 import { StockInfoCard } from '@/components/StockInfoCard'
-import { PERIODS, type ChartPeriod, type SubIndicator, type SuperChartProps } from './types'
+import { PERIODS, DEFAULT_LAYOUT, type ChartPeriod, type SubIndicator, type SuperChartProps } from './types'
 import './SuperChart.css'
 
 export function SuperChart({
@@ -40,8 +40,8 @@ export function SuperChart({
   const [showStockInfo, setShowStockInfo] = useState(false)
   const stockInfoTimerRef = useRef<number | null>(null)
   
-  // 预警按钮状态
-  const [alertButtonPos, setAlertButtonPos] = useState<{ x: number; y: number; price: number } | null>(null)
+  // 预警按钮状态 - 只记录 Y 位置和价格
+  const [alertButtonPos, setAlertButtonPos] = useState<{ y: number; price: number } | null>(null)
   
   const {
     currentTab,
@@ -393,10 +393,10 @@ export function SuperChart({
             crosshair={crosshair}
             onCrosshairChange={(pos) => {
               setCrosshair(pos)
-              // 更新预警按钮位置
+              // 更新预警按钮位置 - 只记录 Y 位置
               if (pos && crosshairData && (crosshairData.price || crosshairData.close)) {
                 const price = crosshairData.price || crosshairData.close || 0
-                setAlertButtonPos({ x: pos.x, y: pos.y, price })
+                setAlertButtonPos({ y: pos.y, price })
               } else {
                 setAlertButtonPos(null)
               }
@@ -407,19 +407,26 @@ export function SuperChart({
           />
         )}
         
-        {/* 十字线预警按钮 */}
+        {/* 十字线预警按钮 - 固定在右侧价格标签左侧 */}
         {alertButtonPos && onAddAlert && (
           <button
             className="sc-alert-btn"
             style={{
-              left: `${alertButtonPos.x + 65}px`,
+              right: `${DEFAULT_LAYOUT.padding.right + 8}px`,
               top: `${alertButtonPos.y - 12}px`
             }}
-            onClick={() => onAddAlert(alertButtonPos.price)}
+            onClick={(e) => {
+              e.stopPropagation()
+              onAddAlert(alertButtonPos.price)
+            }}
+            onMouseEnter={(e) => e.stopPropagation()}
+            onMouseMove={(e) => e.stopPropagation()}
             title="添加价格预警"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M8 1.5C7.17 1.5 6.5 2.17 6.5 3V7.5H2C1.17 7.5 0.5 8.17 0.5 9C0.5 9.83 1.17 10.5 2 10.5H6.5V15C6.5 15.83 7.17 16.5 8 16.5C8.83 16.5 9.5 15.83 9.5 15V10.5H14C14.83 10.5 15.5 9.83 15.5 9C15.5 8.17 14.83 7.5 14 7.5H9.5V3C9.5 2.17 8.83 1.5 8 1.5Z" fill="currentColor"/>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
           </button>
         )}
