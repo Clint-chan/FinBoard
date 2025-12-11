@@ -54,6 +54,11 @@ export async function fetchStockDetailInfo(code: string): Promise<StockDetailInf
   })
 
   const response = await fetch(`${url}?${params}`)
+  
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`)
+  }
+  
   const data = await response.json()
   
   if (!data.data) {
@@ -62,11 +67,17 @@ export async function fetchStockDetailInfo(code: string): Promise<StockDetailInf
 
   const d = data.data
   
+  // 安全地转换数值，避免 NaN
+  const safeNum = (val: any, divisor = 1): number | undefined => {
+    const num = Number(val)
+    return !isNaN(num) && num !== 0 ? num / divisor : undefined
+  }
+  
   // 计算振幅
-  const high = (d.f44 || 0) / 100
-  const low = (d.f45 || 0) / 100
-  const preClose = (d.f60 || 0) / 100
-  const amplitude = preClose > 0 ? ((high - low) / preClose) * 100 : 0
+  const high = safeNum(d.f44, 100)
+  const low = safeNum(d.f45, 100)
+  const preClose = safeNum(d.f60, 100) || 0
+  const amplitude = (high && low && preClose > 0) ? ((high - low) / preClose) * 100 : undefined
   
   // 格式化上市时间
   const listDateStr = d.f189 ? String(d.f189) : ''
@@ -77,22 +88,22 @@ export async function fetchStockDetailInfo(code: string): Promise<StockDetailInf
   return {
     code,
     name: d.f58 || '--',
-    price: (d.f43 || 0) / 100,
+    price: safeNum(d.f43, 100) || 0,
     preClose: preClose,
     
     // 市场数据（股本单位：股，需转换为万股；市值单位：元，需转换为亿元）
-    totalShares: d.f84 ? d.f84 / 10000 : undefined,
-    floatShares: d.f85 ? d.f85 / 10000 : undefined,
-    totalMarketCap: d.f116 ? d.f116 / 100000000 : undefined,
-    floatMarketCap: d.f117 ? d.f117 / 100000000 : undefined,
+    totalShares: safeNum(d.f84, 10000),
+    floatShares: safeNum(d.f85, 10000),
+    totalMarketCap: safeNum(d.f116, 100000000),
+    floatMarketCap: safeNum(d.f117, 100000000),
     
     // 行业与上市信息
     industry: d.f127 || undefined,
     listDate: listDate,
     
     // 估值指标
-    pe: d.f162 || undefined,
-    pb: d.f167 || undefined,
+    pe: safeNum(d.f162),
+    pb: safeNum(d.f167),
     ps: undefined, // 东方财富接口暂不提供市销率
     
     // 财务指标（这些需要从其他接口获取，暂时留空）
@@ -101,10 +112,10 @@ export async function fetchStockDetailInfo(code: string): Promise<StockDetailInf
     bvps: undefined,
     
     // 交易数据
-    turnoverRate: d.f168 ? d.f168 / 100 : undefined,
-    amplitude: amplitude > 0 ? amplitude : undefined,
-    volume: d.f47 || undefined,
-    amount: d.f48 || undefined,
+    turnoverRate: safeNum(d.f168, 100),
+    amplitude: amplitude,
+    volume: safeNum(d.f47),
+    amount: safeNum(d.f48),
   }
 }
 

@@ -136,6 +136,7 @@ export interface SuperChartProps {
   initialPreClose?: number
   pe?: number // 市盈率
   turnover?: number // 换手率
+  onAddAlert?: (price: number) => void // 添加预警回调
 }
 
 // 处理后的 K 线数据

@@ -30,7 +30,7 @@
 }
 
 .sc-name-hoverable {
-  cursor: help;
+  cursor: pointer;
   transition: color 0.2s;
 }
 
@@ -229,6 +229,42 @@
   display: block;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* 十字线预警按钮 */
+.sc-alert-btn {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+  box-shadow: var(--shadow-sm);
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.sc-alert-btn:hover {
+  color: var(--color-down);
+  border-color: var(--color-down);
+  background: var(--bg-hover);
+  transform: scale(1.1);
+}
+
+.sc-alert-btn:active {
+  transform: scale(0.95);
+}
+
+.sc-alert-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .sc-settings {

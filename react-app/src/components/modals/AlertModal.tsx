@@ -10,16 +10,24 @@ interface AlertModalProps {
   conditions: AlertCondition[]
   onClose: () => void
   onSave: (code: string, conditions: AlertCondition[]) => void
+  initialPrice?: number // 预填充的价格
 }
 
-function AlertModal({ open, code, stockData, conditions: initialConditions, onClose, onSave }: AlertModalProps) {
+function AlertModal({ open, code, stockData, conditions: initialConditions, onClose, onSave, initialPrice }: AlertModalProps) {
   const [conditions, setConditions] = useState<AlertCondition[]>([])
 
   useEffect(() => {
     if (open) {
-      setConditions(initialConditions?.length ? [...initialConditions] : [])
+      if (initialPrice && !initialConditions?.length) {
+        // 如果提供了初始价格且没有现有条件，自动添加一个价格预警
+        const currentPrice = stockData?.price || initialPrice
+        const operator = initialPrice > currentPrice ? 'above' : 'below'
+        setConditions([{ type: 'price', operator, value: initialPrice }])
+      } else {
+        setConditions(initialConditions?.length ? [...initialConditions] : [])
+      }
     }
-  }, [open, initialConditions])
+  }, [open, initialConditions, initialPrice, stockData])
 
   const addCondition = () => {
     setConditions([...conditions, { type: 'price', operator: 'above', value: 0 }])

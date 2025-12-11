@@ -3,6 +3,7 @@
  */
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { SuperChart } from '@/components/SuperChart'
+import { StockNews } from '@/components/StockNews'
 import type { StockData } from '@/types'
 import { type AIMode, AI_MODES, type ChatMessage } from './types'
 import { renderMarkdown } from './markdown'
@@ -15,6 +16,7 @@ interface AnalysisDrawerProps {
   stockList: string[]
   stockData: Record<string, StockData>
   isDark?: boolean
+  onOpenAlert?: (code: string, price?: number) => void
 }
 
 export function AnalysisDrawer({
@@ -23,7 +25,8 @@ export function AnalysisDrawer({
   onClose,
   stockList,
   stockData,
-  isDark = false
+  isDark = false,
+  onOpenAlert
 }: AnalysisDrawerProps) {
   // 当前选中的股票
   const [currentCode, setCurrentCode] = useState(initialCode)
@@ -229,6 +232,7 @@ export function AnalysisDrawer({
               initialPreClose={currentStock?.preClose}
               pe={currentStock?.pe}
               turnover={currentStock?.turnover}
+              onAddAlert={(price) => onOpenAlert?.(currentCode, price)}
             />
           </div>
         </div>
@@ -241,19 +245,30 @@ export function AnalysisDrawer({
         />
 
 
-        {/* 右侧聊天面板 */}
+        {/* 右侧面板 */}
         <div className="chat-section" style={{ width: chatWidth }}>
-          <div className="chat-header">
-            <div className="ai-identity">
-              <div className="ai-avatar">F</div>
-              <div className="ai-info">
-                <span className="ai-name">Fintell</span>
-                <span className="ai-status">在线</span>
-              </div>
-            </div>
+          {/* 新闻区域 */}
+          <div className="news-section">
+            <StockNews 
+              code={currentCode} 
+              stockName={currentStock?.name}
+              isDark={isDark}
+            />
           </div>
 
-          <div className="chat-messages" ref={messagesRef}>
+          {/* AI 聊天面板 */}
+          <div className="chat-container">
+            <div className="chat-header">
+              <div className="ai-identity">
+                <div className="ai-avatar">F</div>
+                <div className="ai-info">
+                  <span className="ai-name">Fintell</span>
+                  <span className="ai-status">在线</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="chat-messages" ref={messagesRef}>
             {messages.map((msg, i) => (
               <div key={i} className={`chat-message ${msg.role}`}>
                 <div 
@@ -349,6 +364,7 @@ export function AnalysisDrawer({
                 </div>
               </div>
             </div>
+          </div>
           </div>
         </div>
       </div>

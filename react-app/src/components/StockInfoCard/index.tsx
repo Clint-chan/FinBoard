@@ -27,10 +27,16 @@ export function StockInfoCard({ code, visible, onLoad }: StockInfoCardProps) {
 
       try {
         const data = await fetchStockDetailInfoCached(code)
+        
+        // 验证数据有效性
+        if (!data || !data.name) {
+          throw new Error('数据无效')
+        }
+        
         setInfo(data)
         onLoad?.(data)
       } catch (err) {
-        setError('加载失败')
+        setError('暂无数据')
         console.error('Failed to fetch stock info:', err)
       } finally {
         setLoading(false)
@@ -62,14 +68,20 @@ export function StockInfoCard({ code, visible, onLoad }: StockInfoCardProps) {
   const isUp = pct >= 0
   const change = info.price - info.preClose
 
-  // 格式化函数
-  const fmtNum = (val?: number, digits = 2) => val != null ? val.toFixed(digits) : '--'
+  // 格式化函数 - 增加类型检查，防止非数字值导致错误
+  const fmtNum = (val?: number, digits = 2) => {
+    if (val == null || typeof val !== 'number' || isNaN(val)) return '--'
+    return val.toFixed(digits)
+  }
   const fmtBigNum = (val?: number) => {
-    if (val == null) return '--'
+    if (val == null || typeof val !== 'number' || isNaN(val)) return '--'
     if (val >= 10000) return (val / 10000).toFixed(2) + '万'
     return val.toFixed(2)
   }
-  const fmtMarketCap = (val?: number) => val != null ? val.toFixed(2) + '亿' : '--'
+  const fmtMarketCap = (val?: number) => {
+    if (val == null || typeof val !== 'number' || isNaN(val)) return '--'
+    return val.toFixed(2) + '亿'
+  }
 
   return (
     <div className="stock-info-card">
@@ -82,9 +94,6 @@ export function StockInfoCard({ code, visible, onLoad }: StockInfoCardProps) {
         <div className="info-price-section">
           <div className={`info-price ${isUp ? 'up' : 'down'}`}>
             ¥{fmtNum(info.price)}
-          </div>
-          <div className={`info-change ${isUp ? 'up' : 'down'}`}>
-            {isUp ? '+' : ''}{fmtNum(change)} ({isUp ? '+' : ''}{fmtNum(pct)}%)
           </div>
         </div>
       </div>

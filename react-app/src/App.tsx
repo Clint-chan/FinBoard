@@ -25,7 +25,7 @@ function App() {
   // UI 状态
   const [activePage, setActivePage] = useState<PageType>('watchlist')
   const [addStockOpen, setAddStockOpen] = useState(false)
-  const [alertModal, setAlertModal] = useState<{ open: boolean; code: string | null }>({ open: false, code: null })
+  const [alertModal, setAlertModal] = useState<{ open: boolean; code: string | null; initialPrice?: number }>({ open: false, code: null })
   const [costModal, setCostModal] = useState<{ open: boolean; code: string | null }>({ open: false, code: null })
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ open: false, x: 0, y: 0, code: null })
   const [chartTooltip, setChartTooltip] = useState<ChartTooltipState>({ visible: false, code: null, x: 0, y: 0 })
@@ -408,6 +408,7 @@ function App() {
         conditions={alertModal.code ? config.alerts[alertModal.code]?.conditions || [] : []}
         onClose={() => setAlertModal({ open: false, code: null })}
         onSave={saveAlert}
+        initialPrice={alertModal.initialPrice}
       />
       
       <CostModal
@@ -449,6 +450,9 @@ function App() {
         stockList={config.codes}
         stockData={stockData}
         isDark={isDark}
+        onOpenAlert={(code, price) => {
+          setAlertModal({ open: true, code, initialPrice: price })
+        }}
       />
 
       {/* 老板键遮罩 */}
