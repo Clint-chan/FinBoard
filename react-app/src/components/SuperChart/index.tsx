@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useSuperChart } from './useSuperChart'
 import { ChartCanvas, type CrosshairData } from './ChartCanvas'
+import { StockInfoCard } from '@/components/StockInfoCard'
 import { PERIODS, type ChartPeriod, type SubIndicator, type SuperChartProps } from './types'
 import './SuperChart.css'
 
@@ -34,6 +35,9 @@ export function SuperChart({
   const [crosshairData, setCrosshairData] = useState<CrosshairData | null>(null)
   // 容器高度 - 用于 fillContainer 模式
   const [containerHeight, setContainerHeight] = useState(400)
+  // 股票信息卡片显示状态
+  const [showStockInfo, setShowStockInfo] = useState(false)
+  const stockInfoTimerRef = useRef<number | null>(null)
   
   const {
     currentTab,
@@ -236,7 +240,37 @@ export function SuperChart({
       {/* 头部 - 对照原版 renderHeader，固定高度防止抖动 */}
       <div className="sc-header" style={{ height: headerH, flexShrink: 0 }}>
         <div className="sc-header-left">
-          <div className="sc-name">{stockName || '--'}</div>
+          <div 
+            className="sc-name sc-name-hoverable"
+            onMouseEnter={() => {
+              if (stockInfoTimerRef.current) clearTimeout(stockInfoTimerRef.current)
+              stockInfoTimerRef.current = window.setTimeout(() => {
+                setShowStockInfo(true)
+              }, 300)
+            }}
+            onMouseLeave={() => {
+              if (stockInfoTimerRef.current) clearTimeout(stockInfoTimerRef.current)
+              stockInfoTimerRef.current = window.setTimeout(() => {
+                setShowStockInfo(false)
+              }, 200)
+            }}
+          >
+            {stockName || '--'}
+            {/* 股票信息卡片 */}
+            {showStockInfo && (
+              <div 
+                className="sc-stock-info-popup"
+                onMouseEnter={() => {
+                  if (stockInfoTimerRef.current) clearTimeout(stockInfoTimerRef.current)
+                }}
+                onMouseLeave={() => {
+                  setShowStockInfo(false)
+                }}
+              >
+                <StockInfoCard code={code} visible={showStockInfo} />
+              </div>
+            )}
+          </div>
           <div className="sc-code">{code.toUpperCase()}</div>
           {renderOhlcInfo()}
         </div>

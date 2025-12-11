@@ -26,6 +26,36 @@
   font-weight: 700;
   font-size: 14px;
   color: var(--text-primary);
+  position: relative;
+}
+
+.sc-name-hoverable {
+  cursor: help;
+  transition: color 0.2s;
+}
+
+.sc-name-hoverable:hover {
+  color: var(--color-down);
+}
+
+.sc-stock-info-popup {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 8px;
+  z-index: 1000;
+  animation: fadeInUp 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .sc-code {

@@ -1,0 +1,204 @@
+/* StockInfoCard 样式 - 符合项目整体设计风格 */
+
+.stock-info-card {
+  background: var(--bg-surface);
+  border-radius: 8px;
+  padding: 16px;
+  min-width: 320px;
+  max-width: 380px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-light);
+}
+
+/* 加载和错误状态 */
+.info-loading,
+.info-error {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+}
+
+.info-error {
+  color: var(--color-up);
+}
+
+/* 头部：股票名称和价格 */
+.info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 16px;
+}
+
+.info-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.info-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.info-code {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.info-price-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.info-price {
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.info-price.up {
+  color: var(--color-up);
+}
+
+.info-price.down {
+  color: var(--color-down);
+}
+
+.info-change {
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.info-change.up {
+  color: var(--color-up);
+}
+
+.info-change.down {
+  color: var(--color-down);
+}
+
+/* 信息主体 */
+.info-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 信息分组 */
+.info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* 信息网格 */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 12px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  padding: 4px 0;
+}
+
+.info-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.item-label {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.item-value {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.item-value.highlight {
+  color: var(--color-down);
+  font-weight: 600;
+}
+
+/* 深色模式适配 */
+[data-theme="dark"] .stock-info-card {
+  background: var(--bg-surface);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .info-header {
+  border-bottom-color: var(--border-light);
+}
+
+[data-theme="dark"] .section-title {
+  border-bottom-color: var(--border-light);
+}
+
+/* 响应式设计 */
+@media (max-width: 480px) {
+  .stock-info-card {
+    min-width: 280px;
+    max-width: 100%;
+    padding: 12px;
+  }
+
+  .info-name {
+    font-size: 0.95rem;
+  }
+
+  .info-price {
+    font-size: 1.1rem;
+  }
+
+  .info-grid {
+    gap: 8px 10px;
+  }
+
+  .item-label,
+  .item-value {
+    font-size: 0.75rem;
+  }
+}
+
+/* 动画效果 */
+.stock-info-card {
+  animation: fadeInScale 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
