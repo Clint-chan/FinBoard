@@ -26,32 +26,48 @@
 .sidebar-logo {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
   padding: 20px 16px;
   min-height: 70px;
 }
 
-.sidebar-logo img {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  flex-shrink: 0;
-}
-
 .sidebar-logo-text {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   white-space: nowrap;
   opacity: 0;
-  transition: opacity 0.15s ease-out;
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
   pointer-events: none;
+  transform: translateX(-8px);
 }
 
 .sidebar:hover .sidebar-logo-text,
 .sidebar.expanded .sidebar-logo-text {
   opacity: 1;
-  pointer-events: auto;
+  transform: translateX(0);
+}
+
+/* 收缩状态显示首字母 */
+.sidebar-logo::before {
+  content: 'F';
+  font-size: 1.3rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  opacity: 1;
+  transition: opacity 0.2s ease-out;
+}
+
+.sidebar:hover .sidebar-logo::before,
+.sidebar.expanded .sidebar-logo::before {
+  opacity: 0;
 }
 
 .sidebar-nav {

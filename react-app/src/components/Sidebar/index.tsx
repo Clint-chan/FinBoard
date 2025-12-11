@@ -176,7 +176,6 @@ function Sidebar({
         onMouseLeave={() => setExpanded(false)}
       >
         <div className="sidebar-logo">
-          <img src="/logo.png" alt="Fintell" />
           <span className="sidebar-logo-text">Fintell</span>
         </div>
 
