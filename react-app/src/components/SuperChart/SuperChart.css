@@ -1,0 +1,308 @@
+/* 直接搬运自原版 index.html */
+.super-chart {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-surface);
+}
+
+.sc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 12px 14px 8px;
+  min-height: 90px;
+  box-sizing: border-box;
+  gap: 16px;
+}
+
+.sc-header-left {
+  flex: 1;
+  min-width: 0;
+  max-width: calc(100% - 120px);
+}
+
+.sc-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.sc-code {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.sc-ohlc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  font-size: 11px;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  max-width: 100%;
+  overflow: hidden;
+  max-height: 48px; /* 限制最大高度，避免遮挡工具栏 */
+}
+
+.sc-ohlc-time {
+  color: var(--text-tertiary);
+  margin-right: 4px;
+  flex-basis: 100%;
+}
+
+.sc-header-right {
+  text-align: right;
+  flex-shrink: 0;
+  min-width: 100px;
+}
+
+.sc-price {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sc-change {
+  font-size: 11px;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sc-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 14px 8px;
+}
+
+.sc-tabs {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.sc-tab {
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  transition: all 0.15s;
+}
+
+.sc-tab:hover {
+  color: var(--text-primary);
+}
+
+.sc-tab.active {
+  background: var(--text-primary);
+  color: var(--bg-surface);
+}
+
+.sc-tab-dropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 10px 5px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  transition: all 0.15s;
+}
+
+.sc-tab-dropdown:hover {
+  color: var(--text-primary);
+}
+
+.sc-tab-dropdown.active {
+  background: var(--text-primary);
+  color: var(--bg-surface);
+}
+
+.sc-tab-arrow {
+  transition: transform 0.2s;
+}
+
+.sc-tab-dropdown.open .sc-tab-arrow {
+  transform: rotate(180deg);
+}
+
+.sc-tab-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 80px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  box-shadow: var(--shadow-lg);
+  display: none;
+  z-index: 20;
+  overflow: hidden;
+}
+
+.sc-tab-dropdown.open .sc-tab-menu {
+  display: block;
+}
+
+.sc-tab-option {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.sc-tab-option:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.sc-tab-option.active {
+  color: var(--color-down);
+  font-weight: 600;
+}
+
+[data-theme="dark"] .sc-tab-dropdown.active {
+  background: var(--text-secondary);
+  color: var(--bg-surface);
+}
+
+[data-theme="dark"] .sc-tab-menu {
+  background: var(--bg-surface);
+  border-color: var(--border-light);
+}
+
+[data-theme="dark"] .sc-tab.active {
+  background: var(--text-secondary);
+  color: var(--bg-surface);
+}
+
+.sc-canvas-wrap {
+  flex: 1;
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+  transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sc-canvas {
+  display: block;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sc-settings {
+  position: relative;
+}
+
+.sc-gear-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  transition: all 0.15s;
+}
+
+.sc-gear-btn:hover {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+}
+
+.sc-menu {
+  position: absolute;
+  top: 32px;
+  right: 0;
+  min-width: 140px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  display: none;
+  z-index: 10;
+  overflow: hidden;
+}
+
+.sc-menu.show {
+  display: block;
+}
+
+.sc-menu-title {
+  padding: 8px 12px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sc-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background 0.1s;
+}
+
+.sc-menu-item:hover {
+  background: var(--bg-hover);
+}
+
+.sc-menu-item.active {
+  color: var(--text-primary);
+}
+
+.sc-menu-check {
+  width: 14px;
+  font-size: 11px;
+  color: var(--color-down);
+}
+
+.sc-menu-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 4px 0;
+}
+
+.sc-menu-hint {
+  padding: 6px 12px 10px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+[data-theme="dark"] .sc-menu {
+  background: var(--bg-surface);
+  border-color: var(--border-light);
+}
+
+.sc-loading,
+.sc-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+.sc-error {
+  color: var(--color-up);
+}

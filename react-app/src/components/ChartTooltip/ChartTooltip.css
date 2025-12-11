@@ -1,0 +1,33 @@
+/* 直接搬运自原版 index.html */
+.chart-tooltip {
+  position: fixed;
+  background: var(--bg-surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-light);
+  padding: 0;
+  z-index: 1000;
+  overflow: visible;
+  opacity: 0;
+  transform: scale(0.95);
+  transform-origin: top left;
+  transition: opacity 0.2s ease, 
+              transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  width: 460px; /* 固定宽度，避免突兀变化 */
+}
+
+.chart-tooltip.show {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.chart-tooltip.interactive {
+  pointer-events: auto;
+}
+
+[data-theme="dark"] .chart-tooltip {
+  background: var(--bg-surface);
+}

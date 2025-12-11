@@ -1,0 +1,29 @@
+/**
+ * Sparkline - 迷你走势图样式
+ */
+
+.sparkline {
+  width: 50px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.sparkline polyline {
+  fill: none;
+  stroke: var(--text-tertiary);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sparkline.up polyline {
+  stroke: var(--color-up);
+}
+
+.sparkline.down polyline {
+  stroke: var(--color-down);
+}
+
+.sparkline.flat polyline {
+  stroke: var(--text-tertiary);
+}

@@ -1,0 +1,378 @@
+/**
+ * AnalysisDrawer - 分析大屏组件
+ */
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { SuperChart } from '@/components/SuperChart'
+import type { StockData } from '@/types'
+import { type AIMode, AI_MODES, type ChatMessage } from './types'
+import { renderMarkdown } from './markdown'
+import './AnalysisDrawer.css'
+
+interface AnalysisDrawerProps {
+  open: boolean
+  code: string
+  onClose: () => void
+  stockList: string[]
+  stockData: Record<string, StockData>
+  isDark?: boolean
+}
+
+export function AnalysisDrawer({
+  open,
+  code: initialCode,
+  onClose,
+  stockList,
+  stockData,
+  isDark = false
+}: AnalysisDrawerProps) {
+  // 当前选中的股票
+  const [currentCode, setCurrentCode] = useState(initialCode)
+  
+  // AI 模式
+  const [aiMode, setAiMode] = useState<AIMode>('intraday')
+  const [aiModeOpen, setAiModeOpen] = useState(false)
+  const [stockSelectOpen, setStockSelectOpen] = useState(false)
+  
+  // 聊天历史（按股票代码存储）
+  const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>({})
+  
+  // 输入框
+  const [inputValue, setInputValue] = useState('')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const messagesRef = useRef<HTMLDivElement>(null)
+  
+  // 拖拽调整宽度
+  const [chatWidth, setChatWidth] = useState(400)
+  const resizerRef = useRef<HTMLDivElement>(null)
+  const isResizing = useRef(false)
+
+  // 同步初始代码
+  useEffect(() => {
+    if (open && initialCode) {
+      setCurrentCode(initialCode)
+    }
+  }, [open, initialCode])
+
+  // 初始化聊天历史
+  useEffect(() => {
+    if (currentCode && !chatHistory[currentCode]) {
+      const stockName = stockData[currentCode]?.name || currentCode
+      setChatHistory(prev => ({
+        ...prev,
+        [currentCode]: [{
+          role: 'ai',
+          content: `我是 Fintell，你的智能投资助手。当前分析标的：**${stockName}**`
+        }]
+      }))
+    }
+  }, [currentCode, stockData, chatHistory])
+
+  // 切换股票
+  const switchStock = useCallback((code: string) => {
+    setCurrentCode(code)
+    setStockSelectOpen(false)
+  }, [])
+
+  // 发送消息
+  const sendMessage = useCallback(() => {
+    const text = inputValue.trim()
+    if (!text || !currentCode) return
+
+    // 添加用户消息
+    setChatHistory(prev => ({
+      ...prev,
+      [currentCode]: [...(prev[currentCode] || []), { role: 'user', content: text }]
+    }))
+
+    setInputValue('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
+
+    // 模拟 AI 回复
+    setTimeout(() => {
+      const stockName = stockData[currentCode]?.name || currentCode
+      const aiResponse = generateAIResponse(text, stockName, aiMode)
+      setChatHistory(prev => ({
+        ...prev,
+        [currentCode]: [...(prev[currentCode] || []), { role: 'ai', content: aiResponse }]
+      }))
+    }, 500)
+  }, [inputValue, currentCode, stockData, aiMode])
+
+  // 处理输入框变化
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputValue(e.target.value)
+    e.target.style.height = 'auto'
+    e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px'
+  }, [])
+
+  // 处理键盘事件
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  }, [sendMessage])
+
+  // 拖拽调整宽度
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current) return
+      const newWidth = window.innerWidth - e.clientX - 12
+      if (newWidth >= 250 && newWidth <= 800) {
+        setChatWidth(newWidth)
+      }
+    }
+
+    const handleMouseUp = () => {
+      isResizing.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [])
+
+  const startResize = useCallback(() => {
+    isResizing.current = true
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }, [])
+
+  // 滚动到底部
+  useEffect(() => {
+    if (messagesRef.current) {
+      messagesRef.current.scrollTop = messagesRef.current.scrollHeight
+    }
+  }, [chatHistory, currentCode])
+
+  // ESC 关闭
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && open) {
+        e.stopPropagation()
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleEsc)
+    return () => document.removeEventListener('keydown', handleEsc)
+  }, [open, onClose])
+
+  if (!open) return null
+
+  const currentStock = stockData[currentCode]
+  const messages = chatHistory[currentCode] || []
+
+  return (
+    <div className={`analysis-drawer ${open ? 'open' : ''}`}>
+      <div className="drawer-content">
+        {/* 关闭按钮 */}
+        <button className="close-drawer-btn" onClick={onClose} title="关闭">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+
+        {/* 左侧自选股列表 */}
+        <div className="stock-sidebar">
+          <div className="sidebar-header">自选股</div>
+          <div className="sidebar-list">
+            {stockList.map(code => {
+              const d = stockData[code]
+              if (!d) return null
+              const pct = d.preClose ? ((d.price - d.preClose) / d.preClose * 100) : 0
+              const isUp = pct >= 0
+              const isActive = code === currentCode
+
+              return (
+                <div
+                  key={code}
+                  className={`sidebar-item ${isActive ? 'active' : ''}`}
+                  onClick={() => switchStock(code)}
+                >
+                  <div className="item-left">
+                    <span className="item-name">{d.name || '--'}</span>
+                  </div>
+                  <div className="item-right">
+                    <span className={`item-price ${isUp ? 'up' : 'down'}`}>
+                      {d.price?.toFixed(2) || '--'}
+                    </span>
+                    <span className={`item-pct ${isUp ? 'up' : 'down'}`}>
+                      {isUp ? '+' : ''}{pct.toFixed(2)}%
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* 中间图表区域 */}
+        <div className="chart-section">
+          <div className="chart-wrapper">
+            <SuperChart
+              code={currentCode}
+              fillContainer
+              isDark={isDark}
+              defaultTab="daily"
+              defaultSubIndicators={['vol', 'macd', 'rsi']}
+              initialName={currentStock?.name}
+              initialPrice={currentStock?.price}
+              initialPreClose={currentStock?.preClose}
+              pe={currentStock?.pe}
+              turnover={currentStock?.turnover}
+            />
+          </div>
+        </div>
+
+        {/* 拖拽手柄 */}
+        <div
+          ref={resizerRef}
+          className="drawer-resizer"
+          onMouseDown={startResize}
+        />
+
+
+        {/* 右侧聊天面板 */}
+        <div className="chat-section" style={{ width: chatWidth }}>
+          <div className="chat-header">
+            <div className="ai-identity">
+              <div className="ai-avatar">F</div>
+              <div className="ai-info">
+                <span className="ai-name">Fintell</span>
+                <span className="ai-status">在线</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="chat-messages" ref={messagesRef}>
+            {messages.map((msg, i) => (
+              <div key={i} className={`chat-message ${msg.role}`}>
+                <div 
+                  className="bubble"
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="chat-input-zone">
+            <div className="input-wrapper">
+              <div className="input-main">
+                <textarea
+                  ref={textareaRef}
+                  className="chat-textarea"
+                  placeholder="想了解什么..."
+                  rows={1}
+                  value={inputValue}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                />
+                <button
+                  className="send-btn"
+                  disabled={!inputValue.trim()}
+                  onClick={sendMessage}
+                >
+                  {/* 对照原版：回车箭头图标 */}
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 10l-5 5 5 5"/>
+                    <path d="M20 4v7a4 4 0 0 1-4 4H4"/>
+                  </svg>
+                </button>
+              </div>
+
+              <div className="input-toolbar">
+                {/* AI 模式选择 */}
+                <div 
+                  className={`toolbar-select ${aiModeOpen ? 'open' : ''}`}
+                  onClick={() => { setAiModeOpen(!aiModeOpen); setStockSelectOpen(false) }}
+                >
+                  <svg className="select-icon ai" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+                    <circle cx="8.5" cy="16" r="1"></circle>
+                    <circle cx="15.5" cy="16" r="1"></circle>
+                    <path d="M12 11V6"></path>
+                    <path d="M8 6h8"></path>
+                  </svg>
+                  <span className="select-text">{AI_MODES[aiMode].replace('分析', '')}</span>
+                  <svg className="arrow" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                  <div className="select-dropdown">
+                    {(Object.keys(AI_MODES) as AIMode[]).map(mode => (
+                      <div
+                        key={mode}
+                        className={`select-option ${aiMode === mode ? 'active' : ''}`}
+                        onClick={(e) => { e.stopPropagation(); setAiMode(mode); setAiModeOpen(false) }}
+                      >
+                        {AI_MODES[mode]}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 股票选择 */}
+                <div 
+                  className={`toolbar-select ${stockSelectOpen ? 'open' : ''}`}
+                  onClick={() => { setStockSelectOpen(!stockSelectOpen); setAiModeOpen(false) }}
+                >
+                  <svg className="select-icon stock" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+                    <polyline points="16 7 22 7 22 13"></polyline>
+                  </svg>
+                  <span className="select-text">{currentStock?.name || currentCode}</span>
+                  <svg className="arrow" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                  <div className="select-dropdown">
+                    {stockList.map(code => {
+                      const d = stockData[code]
+                      return (
+                        <div
+                          key={code}
+                          className={`select-option ${code === currentCode ? 'active' : ''}`}
+                          onClick={(e) => { e.stopPropagation(); switchStock(code) }}
+                        >
+                          {d?.name || code}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// 模拟 AI 回复生成
+function generateAIResponse(_question: string, stockName: string, mode: AIMode): string {
+  const responses: Record<AIMode, string[]> = {
+    intraday: [
+      `## ${stockName} 日内分析\n\n根据今日走势，该股呈现以下特征：\n\n- **开盘表现**：平开后震荡上行\n- **量能分析**：成交量较昨日放大\n- **支撑位**：关注5日均线支撑\n\n> 建议关注盘中回调机会`,
+      `### 技术面分析\n\n${stockName}今日走势偏强，MACD金叉形成，短期有望继续上攻。\n\n**操作建议**：可在回调至均线附近轻仓介入。`
+    ],
+    trend: [
+      `## ${stockName} 中期趋势\n\n从周线级别来看：\n\n1. 均线系统多头排列\n2. MACD 处于零轴上方\n3. 成交量温和放大\n\n**结论**：中期趋势向好，可持股待涨。`,
+    ],
+    fundamental: [
+      `## ${stockName} 基本面概览\n\n- **市盈率 (PE)**：15.2x\n- **市净率 (PB)**：1.8x\n- **ROE**：12.5%\n\n公司基本面稳健，估值处于合理区间。`
+    ]
+  }
+
+  const modeResponses = responses[mode]
+  return modeResponses[Math.floor(Math.random() * modeResponses.length)]
+}
+
+export default AnalysisDrawer
