@@ -26,48 +26,45 @@
 .sidebar-logo {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 20px 16px;
   min-height: 70px;
+  position: relative;
+  overflow: hidden;
 }
 
-.sidebar-logo-text {
-  font-size: 1.1rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  white-space: nowrap;
-  opacity: 0;
-  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
-  pointer-events: none;
-  transform: translateX(-8px);
-}
-
-.sidebar:hover .sidebar-logo-text,
-.sidebar.expanded .sidebar-logo-text {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-/* 收缩状态显示首字母 */
+/* 收缩状态显示 "Fin" */
 .sidebar-logo::before {
-  content: 'F';
-  font-size: 1.3rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  content: 'Fin';
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
   opacity: 1;
   transition: opacity 0.2s ease-out;
+  position: absolute;
+  left: 16px;
 }
 
 .sidebar:hover .sidebar-logo::before,
 .sidebar.expanded .sidebar-logo::before {
   opacity: 0;
+}
+
+/* 展开状态显示完整 "Fintell" */
+.sidebar-logo-text {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+  pointer-events: none;
+}
+
+.sidebar:hover .sidebar-logo-text,
+.sidebar.expanded .sidebar-logo-text {
+  opacity: 1;
 }
 
 .sidebar-nav {
