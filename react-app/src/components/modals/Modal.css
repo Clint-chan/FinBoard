@@ -8,7 +8,7 @@
   backdrop-filter: blur(2px);
   display: grid;
   place-items: center;
-  z-index: 100;
+  z-index: 3000; /* 提高到比 AnalysisDrawer (2000) 更高 */
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.2s ease, visibility 0.2s ease;

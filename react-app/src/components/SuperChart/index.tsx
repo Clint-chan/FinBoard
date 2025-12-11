@@ -417,48 +417,48 @@ export function SuperChart({
             onPanToEdge={handlePanToEdge}
           />
         )}
-        
-        {/* 十字线预警按钮 - 固定在右侧价格标签左侧 */}
-        {alertButtonPos && onAddAlert && (
-          <button
-            className="sc-alert-btn"
-            style={{
-              right: `${DEFAULT_LAYOUT.padding.right + 8}px`,
-              top: `${alertButtonPos.y - 12}px`
-            }}
-            onClick={(e) => {
-              e.stopPropagation()
-              e.preventDefault()
-              console.log('Alert button clicked, price:', alertButtonPos.price)
-              if (onAddAlert) {
-                onAddAlert(alertButtonPos.price)
-              }
-            }}
-            onMouseEnter={(e) => {
-              e.stopPropagation()
-              // 鼠标进入按钮时，清除隐藏定时器
-              if (alertButtonTimerRef.current) {
-                clearTimeout(alertButtonTimerRef.current)
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.stopPropagation()
-              // 鼠标离开按钮时，延迟隐藏
-              alertButtonTimerRef.current = window.setTimeout(() => {
-                setAlertButtonPos(null)
-              }, 300)
-            }}
-            onMouseMove={(e) => e.stopPropagation()}
-            title="添加价格预警"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-          </button>
-        )}
       </div>
+
+      {/* 十字线预警按钮 - 移到外层，避免被 overflow:hidden 裁剪 */}
+      {alertButtonPos && onAddAlert && (
+        <button
+          className="sc-alert-btn"
+          style={{
+            right: `${DEFAULT_LAYOUT.padding.right + 8}px`,
+            top: `${headerH + toolbarH + alertButtonPos.y - 12}px`
+          }}
+          onClick={(e) => {
+            e.stopPropagation()
+            e.preventDefault()
+            console.log('Alert button clicked, price:', alertButtonPos.price)
+            if (onAddAlert) {
+              onAddAlert(alertButtonPos.price)
+            }
+          }}
+          onMouseEnter={(e) => {
+            e.stopPropagation()
+            // 鼠标进入按钮时，清除隐藏定时器
+            if (alertButtonTimerRef.current) {
+              clearTimeout(alertButtonTimerRef.current)
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.stopPropagation()
+            // 鼠标离开按钮时，延迟隐藏
+            alertButtonTimerRef.current = window.setTimeout(() => {
+              setAlertButtonPos(null)
+            }, 300)
+          }}
+          onMouseMove={(e) => e.stopPropagation()}
+          title="添加价格预警"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </button>
+      )}
     </div>
   )
 }
