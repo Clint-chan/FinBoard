@@ -42,10 +42,32 @@ export function BossScreen({ visible, onClose, isDark = false }: BossScreenProps
     return () => window.removeEventListener('message', handleMessage)
   }, [onClose])
 
-  // 同步主题到 iframe
+  // 监听 ESC 键（在主窗口）
+  useEffect(() => {
+    if (!visible) return
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        onClose()
+      }
+    }
+    
+    // 使用 capture 阶段捕获，优先级更高
+    document.addEventListener('keydown', handleKeyDown, true)
+    return () => document.removeEventListener('keydown', handleKeyDown, true)
+  }, [visible, onClose])
+
+  // 同步主题到 iframe 并设置焦点
   const handleIframeLoad = useCallback((iframe: HTMLIFrameElement | null) => {
     if (iframe?.contentWindow && visible) {
+      // 发送主题消息
       iframe.contentWindow.postMessage({ type: 'theme', theme: isDark ? 'dark' : 'light' }, '*')
+      // 设置焦点到 iframe，确保可以接收键盘事件
+      setTimeout(() => {
+        iframe.focus()
+      }, 100)
     }
   }, [visible, isDark])
 
@@ -55,9 +77,10 @@ export function BossScreen({ visible, onClose, isDark = false }: BossScreenProps
     <div className="boss-screen">
       <iframe
         ref={handleIframeLoad}
-        src="/boss.html"
+        src="/github-fake.html"
         title="GitHub"
         className="boss-iframe"
+        tabIndex={0}
       />
       <div className="boss-hint">
         按 <kbd>ESC</kbd> 返回
