@@ -2,9 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { fetchQuotes, normalizeCode } from '@/services/dataService'
 import type { StockData, LoadingStatus, QuoteSource } from '@/types'
 
-// 缓存 key
+// 缓存 key - 仅用于首次加载时快速显示
 const CACHE_KEY = 'market_board_quotes_cache'
-const CACHE_DURATION = 30000 // 30秒缓存有效期
 
 // 判断是否为交易时间
 function isMarketOpen(): boolean {
@@ -26,7 +25,7 @@ function isMarketOpen(): boolean {
 }
 
 // 从 localStorage 读取缓存
-function loadCache(): { data: Record<string, StockData>; time: number } | null {
+function loadCache(): Record<string, StockData> | null {
   try {
     const cached = localStorage.getItem(CACHE_KEY)
     if (cached) {
@@ -41,7 +40,7 @@ function loadCache(): { data: Record<string, StockData>; time: number } | null {
 // 保存缓存到 localStorage
 function saveCache(data: Record<string, StockData>) {
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ data, time: Date.now() }))
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data))
   } catch (e) {
     console.warn('Failed to save quotes cache:', e)
   }
@@ -59,19 +58,16 @@ export function useQuotes(
   interval = 5, 
   source: QuoteSource = 'eastmoney'
 ): UseQuotesReturn {
-  // 初始化时尝试从缓存加载数据
+  // 初始化时尝试从缓存加载数据，实现"秒开"
   const [stockData, setStockData] = useState<Record<string, StockData>>(() => {
-    const cached = loadCache()
-    if (cached && Date.now() - cached.time < CACHE_DURATION) {
-      return cached.data
-    }
-    return {}
+    return loadCache() || {}
   })
   const [status, setStatus] = useState<LoadingStatus>('loading')
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const timerRef = useRef<number | null>(null)
 
   const refresh = useCallback(async (force = false) => {
+    // 非交易时间且非强制刷新时，标记为休市
     if (!force && !isMarketOpen()) {
       setStatus('closed')
       return
@@ -82,15 +78,10 @@ export function useQuotes(
       return
     }
 
-    // 如果不是强制刷新，先显示缓存数据，后台更新
-    const cached = loadCache()
-    if (!force && cached && Date.now() - cached.time < CACHE_DURATION) {
-      setStockData(prev => ({ ...prev, ...cached.data }))
-      setStatus('success')
-      return
+    // 只在首次加载时显示 loading 状态，后续刷新不显示
+    if (Object.keys(stockData).length === 0) {
+      setStatus('loading')
     }
-
-    setStatus('loading')
     
     try {
       const normalizedCodes = codes.map(c => normalizeCode(c))
@@ -103,19 +94,15 @@ export function useQuotes(
     } catch (error) {
       console.error('Failed to fetch quotes:', error)
       setStatus('error')
-      // 请求失败时尝试使用缓存数据
-      if (cached) {
-        setStockData(prev => ({ ...prev, ...cached.data }))
-      }
     }
-  }, [codes, source])
+  }, [codes, source, stockData])
 
   // 初始加载
   useEffect(() => {
     refresh(true)
-  }, [refresh])
+  }, []) // 只在组件挂载时执行一次
 
-  // 定时刷新
+  // 定时刷新 - 始终请求最新数据
   useEffect(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current)
@@ -125,7 +112,8 @@ export function useQuotes(
     const actualInterval = isMarketOpen() ? 1.5 : interval
     
     timerRef.current = window.setInterval(() => {
-      refresh()
+      // 定时刷新时强制请求新数据
+      refresh(true)
     }, actualInterval * 1000)
 
     return () => {
