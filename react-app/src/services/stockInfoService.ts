@@ -68,15 +68,16 @@ export async function fetchStockDetailInfo(code: string): Promise<StockDetailInf
   const d = data.data
   
   // 安全地转换数值，避免 NaN
+  // 注意：fltt=2 参数表示返回的价格已经是"元"为单位，不需要除以100
   const safeNum = (val: any, divisor = 1): number | undefined => {
     const num = Number(val)
     return !isNaN(num) && num !== 0 ? num / divisor : undefined
   }
   
-  // 计算振幅
-  const high = safeNum(d.f44, 100)
-  const low = safeNum(d.f45, 100)
-  const preClose = safeNum(d.f60, 100) || 0
+  // 计算振幅 - 价格字段不需要除以100
+  const high = safeNum(d.f44)
+  const low = safeNum(d.f45)
+  const preClose = safeNum(d.f60) || 0
   const amplitude = (high && low && preClose > 0) ? ((high - low) / preClose) * 100 : undefined
   
   // 格式化上市时间
@@ -88,7 +89,7 @@ export async function fetchStockDetailInfo(code: string): Promise<StockDetailInf
   return {
     code,
     name: d.f58 || '--',
-    price: safeNum(d.f43, 100) || 0,
+    price: safeNum(d.f43) || 0, // 价格不需要除以100
     preClose: preClose,
     
     // 市场数据（股本单位：股，需转换为万股；市值单位：元，需转换为亿元）

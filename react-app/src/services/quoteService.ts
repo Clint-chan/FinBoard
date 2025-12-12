@@ -62,19 +62,21 @@ async function fetchFromEastmoney(codes: string[]): Promise<Record<string, Quote
       
       if (data.data) {
         const d = data.data
+        // 注意：fltt=2 参数表示返回的价格已经是"元"为单位，不需要除以100
+        // 只有涨跌幅(f170)和换手率(f168)需要除以100
         result[code] = {
           name: d.f58 || '--',
-          price: (d.f43 || 0) / 100, // f43: 最新价（需除以100）
-          preClose: (d.f60 || 0) / 100, // f60: 昨收
-          open: (d.f46 || 0) / 100, // f46: 今开
-          high: (d.f44 || 0) / 100, // f44: 最高
-          low: (d.f45 || 0) / 100, // f45: 最低
+          price: d.f43 || 0, // f43: 最新价（元）
+          preClose: d.f60 || 0, // f60: 昨收（元）
+          open: d.f46 || 0, // f46: 今开（元）
+          high: d.f44 || 0, // f44: 最高（元）
+          low: d.f45 || 0, // f45: 最低（元）
           volume: d.f47 || 0, // f47: 成交量（手）
           amount: d.f48 || 0, // f48: 成交额
           pctChg: (d.f170 || 0) / 100, // f170: 涨跌幅（需除以100）
           turnover: d.f168 ? d.f168 / 100 : undefined, // f168: 换手率（需除以100）
-          pe: d.f162 || undefined, // f162: 市盈率（动态），已经是倍数，不需要除以100
-          pb: d.f167 || undefined, // f167: 市净率，已经是倍数，不需要除以100
+          pe: d.f162 || undefined, // f162: 市盈率（动态）
+          pb: d.f167 || undefined, // f167: 市净率
           marketCap: d.f116 // f116: 总市值
         }
       } else {
