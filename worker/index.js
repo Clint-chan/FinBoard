@@ -155,6 +155,16 @@ export default {
         }
       }
 
+      // POST /api/ai/chat - AI 聊天
+      if (path === '/api/ai/chat' && request.method === 'POST') {
+        return handleAIChat(request, env);
+      }
+
+      // GET/POST /api/ai/config - AI 配置
+      if (path === '/api/ai/config') {
+        return handleAIConfig(request, env);
+      }
+
       return jsonResponse({ error: 'Not found' }, 404);
     } catch (err) {
       return jsonResponse({ error: err.message }, 500);
@@ -231,4 +241,253 @@ function jsonResponse(data, status = 200) {
       ...corsHeaders()
     }
   });
+}
+
+// ============ AI Chat 功能 ============
+
+const AI_DEFAULT_CONFIG = {
+  apiUrl: 'http://frp3.ccszxc.site:14266/v1/chat/completions',
+  apiKey: 'zxc123',
+  model: 'gemini-3-pro-preview-thinking'
+}
+
+async function fetchRealtimeData(symbol) {
+  const url = 'https://82.push2.eastmoney.com/api/qt/clist/get'
+  const params = new URLSearchParams({
+    pn: '1', pz: '5000', po: '1', np: '1',
+    ut: 'bd1d9ddb04089700cf9c27f6f7426281',
+    fltt: '2', invt: '2', fid: 'f3',
+    fs: 'm:0 t:6,m:0 t:80,m:1 t:2,m:1 t:23,m:0 t:81 s:2048',
+    fields: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f12,f14,f15,f16,f17,f18'
+  })
+
+  const response = await fetch(`${url}?${params}`)
+  const data = await response.json()
+  const stock = data.data?.diff?.find(item => item.f12 === symbol)
+  if (!stock) throw new Error(`未找到股票 ${symbol}`)
+
+  return {
+    name: stock.f14, price: stock.f2, change_pct: stock.f3, change_amount: stock.f4,
+    high: stock.f15, low: stock.f16, open: stock.f17, pre_close: stock.f18,
+    amplitude: stock.f7, turnover_rate: stock.f8, volume_ratio: stock.f10
+  }
+}
+
+async function fetchKlineData(symbol, limit = 30) {
+  const marketCode = symbol.startsWith('6') ? 1 : 0
+  const url = 'https://push2his.eastmoney.com/api/qt/stock/kline/get'
+  const params = new URLSearchParams({
+    fields1: 'f1,f2,f3,f4,f5,f6',
+    fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
+    ut: '7eea3edcaed734bea9cbfc24409ed989',
+    klt: '101', fqt: '1',
+    secid: `${marketCode}.${symbol}`,
+    beg: '0', end: '20500101', lmt: limit.toString()
+  })
+
+  const response = await fetch(`${url}?${params}`)
+  const data = await response.json()
+  if (!data.data?.klines) throw new Error('获取K线失败')
+
+  return data.data.klines.map(line => {
+    const [date, open, close, high, low, volume] = line.split(',')
+    return { date, open: parseFloat(open), close: parseFloat(close), 
+             high: parseFloat(high), low: parseFloat(low), volume: parseFloat(volume) }
+  })
+}
+
+function calculateIndicators(klines) {
+  const closes = klines.map(k => k.close)
+  const ma5 = closes.slice(-5).reduce((a, b) => a + b) / 5
+  const ma10 = closes.slice(-10).reduce((a, b) => a + b) / 10
+  const ma20 = closes.slice(-20).reduce((a, b) => a + b) / 20
+  
+  let ema12 = closes[0], ema26 = closes[0], dif = []
+  closes.forEach(c => {
+    ema12 = (c * 2 + ema12 * 11) / 13
+    ema26 = (c * 2 + ema26 * 25) / 27
+    dif.push(ema12 - ema26)
+  })
+  
+  let dea = dif[0], deaArr = [], macd = []
+  dif.forEach(d => {
+    dea = (d * 2 + dea * 8) / 10
+    deaArr.push(dea)
+    macd.push((d - dea) * 2)
+  })
+  
+  const calcRSI = (period) => {
+    let gains = 0, losses = 0
+    for (let i = closes.length - period; i < closes.length; i++) {
+      const change = closes[i] - closes[i - 1]
+      if (change > 0) gains += change
+      else losses += Math.abs(change)
+    }
+    const rs = gains / losses
+    return 100 - (100 / (1 + rs))
+  }
+  
+  return {
+    ma: { ma5, ma10, ma20 },
+    macd: { dif: dif[dif.length - 1], dea: deaArr[deaArr.length - 1], 
+            macd: macd[macd.length - 1], prevMacd: macd[macd.length - 2] || 0 },
+    rsi: { rsi6: calcRSI(6), rsi12: calcRSI(12) }
+  }
+}
+
+async function collectStockData(symbol) {
+  const rt = await fetchRealtimeData(symbol)
+  const klines = await fetchKlineData(symbol, 30)
+  const ind = calculateIndicators(klines)
+  const price = rt.price
+  const recent3 = klines.slice(-3)
+  
+  let text = `## 1. 当前状态
+股票：${rt.name} (${symbol})
+现价：${price} 元，涨跌幅：${rt.change_pct >= 0 ? '+' : ''}${rt.change_pct.toFixed(2)}%
+今日高低：${rt.high} / ${rt.low} 元
+当前位置：${price === rt.high ? '日内高点' : price === rt.low ? '日内低点' : '中间'}
+振幅：${rt.amplitude.toFixed(2)}%，换手率：${rt.turnover_rate.toFixed(2)}%，量比：${rt.volume_ratio.toFixed(2)}
+
+## 2. 最近3根K线
+`
+  recent3.forEach((k, i) => {
+    const trend = k.close > k.open ? '涨' : '跌'
+    const pct = ((k.close - k.open) / k.open * 100).toFixed(2)
+    let vol = ''
+    if (i > 0) {
+      const vc = ((k.volume - recent3[i-1].volume) / recent3[i-1].volume * 100).toFixed(0)
+      vol = `, ${vc > 0 ? '放量' : '缩量'}${Math.abs(vc)}%`
+    }
+    text += `${k.date}: ${trend}${pct}%${vol}\n`
+  })
+  
+  text += `
+## 3. 均线
+MA5: ${ind.ma.ma5.toFixed(2)} ${price > ind.ma.ma5 ? '站上' : '跌破'}
+MA10: ${ind.ma.ma10.toFixed(2)} ${price > ind.ma.ma10 ? '站上' : '跌破'}
+MA20: ${ind.ma.ma20.toFixed(2)} ${price > ind.ma.ma20 ? '站上' : '跌破'}
+压力：${Math.max(ind.ma.ma5, ind.ma.ma10, ind.ma.ma20).toFixed(2)}，支撑：${Math.min(ind.ma.ma5, ind.ma.ma10, ind.ma.ma20).toFixed(2)}
+
+## 4. MACD
+${ind.macd.macd > 0 ? '红柱' : '绿柱'}${ind.macd.macd > ind.macd.prevMacd ? '变长' : '变短'}
+DIF: ${ind.macd.dif.toFixed(4)}, DEA: ${ind.macd.dea.toFixed(4)}
+
+## 5. RSI
+RSI(6): ${ind.rsi.rsi6.toFixed(2)}${ind.rsi.rsi6 > 80 ? ' 超买' : ind.rsi.rsi6 < 20 ? ' 超卖' : ''}
+RSI(12): ${ind.rsi.rsi12.toFixed(2)}${ind.rsi.rsi12 > 80 ? ' 超买' : ind.rsi.rsi12 < 20 ? ' 超卖' : ''}
+
+## 6. 关键点位
+前高：${Math.max(...recent3.map(k => k.high)).toFixed(2)}，前低：${Math.min(...recent3.map(k => k.low)).toFixed(2)}
+`
+  return text
+}
+
+async function handleAIChat(request, env) {
+  try {
+    const { messages, stockData, mode = 'intraday' } = await request.json()
+    
+    let config = AI_DEFAULT_CONFIG
+    if (env.CONFIG_KV) {
+      const saved = await env.CONFIG_KV.get('ai_config', 'json')
+      if (saved) config = { ...AI_DEFAULT_CONFIG, ...saved }
+    }
+
+    const systemPrompt = mode === 'intraday' 
+      ? '你是专业的A股短线交易分析师，专注日内做T策略。基于多周期K线、量价配合、技术指标，给出具体买卖点位、止损止盈和仓位建议。'
+      : ''
+
+    const dataContext = stockData?.code ? await collectStockData(stockData.code) : ''
+
+    const fullMessages = [
+      { role: 'system', content: systemPrompt },
+      ...messages.map((msg, idx) => 
+        msg.role === 'user' && dataContext && idx === 0
+          ? { role: 'user', content: `${dataContext}\n\n${msg.content}` }
+          : msg
+      )
+    ]
+
+    const llmRes = await fetch(config.apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${config.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model: config.model, messages: fullMessages, stream: true })
+    })
+
+    if (!llmRes.ok) throw new Error(`LLM API error: ${llmRes.status}`)
+
+    const { readable, writable } = new TransformStream()
+    const writer = writable.getWriter()
+    const reader = llmRes.body.getReader()
+    const decoder = new TextDecoder()
+
+    ;(async () => {
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          const chunk = decoder.decode(value, { stream: true })
+          chunk.split('\n').filter(l => l.trim()).forEach(line => {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6)
+              if (data === '[DONE]') return
+              try {
+                const json = JSON.parse(data)
+                const content = json.choices?.[0]?.delta?.content
+                if (content) {
+                  writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ content })}\n\n`))
+                }
+              } catch (e) {}
+            }
+          })
+        }
+        writer.write(new TextEncoder().encode('data: [DONE]\n\n'))
+      } catch (error) {
+        writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ error: error.message })}\n\n`))
+      } finally {
+        writer.close()
+      }
+    })()
+
+    return new Response(readable, {
+      headers: {
+        ...corsHeaders(),
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      }
+    })
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 500)
+  }
+}
+
+async function handleAIConfig(request, env) {
+  if (request.method === 'GET') {
+    let config = AI_DEFAULT_CONFIG
+    if (env.CONFIG_KV) {
+      const saved = await env.CONFIG_KV.get('ai_config', 'json')
+      if (saved) config = { ...AI_DEFAULT_CONFIG, ...saved }
+    }
+    return jsonResponse({ apiUrl: config.apiUrl, model: config.model, hasApiKey: !!config.apiKey })
+  }
+
+  if (request.method === 'POST') {
+    const { apiUrl, apiKey, model } = await request.json()
+    if (!env.CONFIG_KV) return jsonResponse({ error: 'KV not configured' }, 500)
+    
+    await env.CONFIG_KV.put('ai_config', JSON.stringify({
+      apiUrl: apiUrl || AI_DEFAULT_CONFIG.apiUrl,
+      apiKey: apiKey || AI_DEFAULT_CONFIG.apiKey,
+      model: model || AI_DEFAULT_CONFIG.model
+    }))
+    
+    return jsonResponse({ success: true })
+  }
+
+  return jsonResponse({ error: 'Method not allowed' }, 405)
 }
