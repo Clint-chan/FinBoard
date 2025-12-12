@@ -252,24 +252,35 @@ const AI_DEFAULT_CONFIG = {
 }
 
 async function fetchRealtimeData(symbol) {
-  const url = 'https://82.push2.eastmoney.com/api/qt/clist/get'
+  // 使用单股票查询接口
+  const marketCode = symbol.startsWith('6') ? 1 : 0
+  const url = 'https://push2.eastmoney.com/api/qt/stock/get'
   const params = new URLSearchParams({
-    pn: '1', pz: '5000', po: '1', np: '1',
-    ut: 'bd1d9ddb04089700cf9c27f6f7426281',
-    fltt: '2', invt: '2', fid: 'f3',
-    fs: 'm:0 t:6,m:0 t:80,m:1 t:2,m:1 t:23,m:0 t:81 s:2048',
-    fields: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f12,f14,f15,f16,f17,f18'
+    ut: 'fa5fd1943c7b386f172d6893dbfba10b',
+    invt: '2',
+    fltt: '2',
+    fields: 'f43,f57,f58,f169,f170,f46,f44,f51,f168,f47,f164,f163,f116,f60,f45,f52,f50,f48,f167,f117,f71,f161,f49,f530,f135,f136,f137,f138,f139,f141,f142,f144,f145,f147,f148,f140,f143,f146,f149,f55,f62,f162,f92,f173,f104,f105,f84,f85,f183,f184,f185,f186,f187,f188,f189,f190,f191,f192,f107,f111,f86,f177,f78,f110,f262,f263,f264,f267,f268,f250,f251,f252,f253,f254,f255,f256,f257,f258,f266,f269,f270,f271,f273,f274,f275,f127,f199,f128,f198,f259,f260,f261,f171,f277,f278,f279,f288,f152,f250,f251,f252,f253,f254,f255,f256,f257,f258',
+    secid: `${marketCode}.${symbol}`
   })
 
   const response = await fetch(`${url}?${params}`)
   const data = await response.json()
-  const stock = data.data?.diff?.find(item => item.f12 === symbol)
-  if (!stock) throw new Error(`未找到股票 ${symbol}`)
-
+  
+  if (!data.data) throw new Error(`未找到股票 ${symbol}`)
+  
+  const stock = data.data
   return {
-    name: stock.f14, price: stock.f2, change_pct: stock.f3, change_amount: stock.f4,
-    high: stock.f15, low: stock.f16, open: stock.f17, pre_close: stock.f18,
-    amplitude: stock.f7, turnover_rate: stock.f8, volume_ratio: stock.f10
+    name: stock.f58, 
+    price: stock.f43, 
+    change_pct: stock.f170, 
+    change_amount: stock.f169,
+    high: stock.f44, 
+    low: stock.f45, 
+    open: stock.f46, 
+    pre_close: stock.f60,
+    amplitude: stock.f171, 
+    turnover_rate: stock.f168, 
+    volume_ratio: stock.f50
   }
 }
 
@@ -397,7 +408,15 @@ async function handleAIChat(request, env) {
       ? '你是专业的A股短线交易分析师，专注日内做T策略。基于多周期K线、量价配合、技术指标，给出具体买卖点位、止损止盈和仓位建议。'
       : ''
 
-    const dataContext = stockData?.code ? await collectStockData(stockData.code) : ''
+    let dataContext = ''
+    if (stockData?.code) {
+      try {
+        dataContext = await collectStockData(stockData.code)
+      } catch (error) {
+        console.error('数据采集失败:', error)
+        dataContext = `数据采集失败: ${error.message}`
+      }
+    }
 
     const fullMessages = [
       { role: 'system', content: systemPrompt },
@@ -462,7 +481,8 @@ async function handleAIChat(request, env) {
       }
     })
   } catch (error) {
-    return jsonResponse({ error: error.message }, 500)
+    console.error('AI Chat Error:', error)
+    return jsonResponse({ error: error.message, stack: error.stack }, 500)
   }
 }
 

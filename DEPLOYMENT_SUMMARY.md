@@ -5,8 +5,9 @@
 ### 1. 后端 Worker 部署
 - **Worker 名称**: `market-board-api`
 - **部署地址**: `https://market-board-api.945036663.workers.dev`
-- **版本 ID**: `560dad4e-6060-4854-9225-8c05f4d41827`
-- **文件大小**: 17.32 KiB (gzip: 5.44 KiB)
+- **版本 ID**: `861c92a5-02aa-4cf1-9b04-88fb0d80e7c4`
+- **文件大小**: 17.98 KiB (gzip: 5.64 KiB)
+- **状态**: ✅ 已部署并测试通过
 
 ### 2. API 端点
 
@@ -41,8 +42,18 @@ Worker 自动采集以下数据：
 - ✅ 关键点位（前高、前低、支撑、压力）
 
 数据来源：东方财富 API
+- 实时行情接口: `https://push2.eastmoney.com/api/qt/stock/get`
+- K线数据接口: `https://push2his.eastmoney.com/api/qt/stock/kline/get`
 
-### 4. 前端集成
+### 4. 大模型 API 测试
+
+- ✅ API 连接测试通过
+- ✅ 流式响应正常
+- ✅ 数据采集功能正常
+- API 地址: `http://frp3.ccszxc.site:14266/v1/chat/completions`
+- 模型: `gemini-3-pro-preview-thinking`
+
+### 5. 前端集成
 
 #### 文件修改
 - `react-app/src/services/aiChatService.ts` - AI 服务接口
@@ -54,7 +65,7 @@ Worker 自动采集以下数据：
 - ✅ Vite 构建成功
 - ✅ 输出目录: `react-app/dist/`
 
-### 5. 配置信息
+### 6. 配置信息
 
 #### 默认 AI 配置
 ```javascript
