@@ -12,7 +12,7 @@ interface BossScreenProps {
 }
 
 // 原始标题和图标
-const ORIGINAL_TITLE = 'Fintell - 行情看板'
+const ORIGINAL_TITLE = 'Fintell'
 const ORIGINAL_FAVICON = '/logo.png'
 const GITHUB_TITLE = 'GitHub'
 const GITHUB_FAVICON = 'https://github.githubassets.com/favicons/favicon.svg'

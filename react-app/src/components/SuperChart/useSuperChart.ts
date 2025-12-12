@@ -36,10 +36,10 @@ export function useSuperChart(options: UseSuperChartOptions) {
     initialName = ''
   } = options
 
-  // 状态
-  const [currentTab, setCurrentTab] = useState<ChartPeriod>(defaultTab)
-  const [subIndicators, setSubIndicators] = useState<SubIndicator[]>(defaultSubIndicators)
-  const [showBoll, setShowBoll] = useState(initialShowBoll)
+  // 状态 - 使用函数初始化确保每次挂载都使用最新的 default 值
+  const [currentTab, setCurrentTab] = useState<ChartPeriod>(() => defaultTab)
+  const [subIndicators, setSubIndicators] = useState<SubIndicator[]>(() => [...defaultSubIndicators])
+  const [showBoll, setShowBoll] = useState(() => initialShowBoll)
   const [klineCount, setKlineCount] = useState(initialKlineCount)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

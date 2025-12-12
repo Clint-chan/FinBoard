@@ -135,15 +135,19 @@ function ChartTooltip({
     }
   }, [visible, calculatePosition])
 
-  // 获取缓存的配置
-  const cachedConfig = code ? chartConfigCache[code] : null
+  // 获取缓存的配置 - 每次 visible 或 code 变化时重新读取
+  const cachedConfig = (visible && code) ? chartConfigCache[code] : null
   const defaultTab: ChartPeriod = cachedConfig?.tab || 'intraday'
   const defaultSubIndicators: SubIndicator[] = cachedConfig?.subIndicators || ['vol']
   const defaultShowBoll = cachedConfig?.showBoll || false
+  
+  // 调试日志
+  console.log('[ChartTooltip] code:', code, 'visible:', visible, 'cachedConfig:', cachedConfig)
 
   // 配置变化时保存到缓存
   const handleConfigChange = useCallback((config: ChartConfig) => {
     if (!code) return
+    console.log('[ChartTooltip] saving config for', code, ':', config)
     chartConfigCache[code] = config
     saveChartConfigCache(chartConfigCache)
   }, [code])
@@ -160,6 +164,7 @@ function ChartTooltip({
       onMouseLeave={handleMouseLeave}
     >
       <SuperChart
+        key={code}
         code={code}
         width={440}
         isDark={isDark}
