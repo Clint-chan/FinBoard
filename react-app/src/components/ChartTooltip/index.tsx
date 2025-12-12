@@ -8,43 +8,41 @@ import type { ChartConfig, ChartPeriod, SubIndicator } from '@/components/SuperC
 import './ChartTooltip.css'
 
 // 图表配置缓存 key
-const CHART_CONFIG_CACHE_KEY = 'market_board_chart_config'
+const CHART_CONFIG_CACHE_KEY = 'market_board_tooltip_config'
 
-// 从 localStorage 读取配置缓存
-function loadChartConfigCache(): Record<string, ChartConfig> {
+// 全局图表配置 - 所有股票共享同一个配置（周期、副图指标等）
+let globalChartConfig: ChartConfig = {
+  tab: 'intraday',
+  subIndicators: ['vol'],
+  showBoll: false
+}
+
+// 从 localStorage 加载全局配置
+function loadGlobalConfig(): void {
   try {
     const cached = localStorage.getItem(CHART_CONFIG_CACHE_KEY)
     if (cached) {
-      const data = JSON.parse(cached)
-      // 检查是否是今天的缓存
-      const today = new Date().toDateString()
-      if (data.date === today) {
-        return data.configs || {}
+      const config = JSON.parse(cached)
+      if (config.tab && config.subIndicators) {
+        globalChartConfig = config
       }
     }
   } catch (e) {
-    console.warn('Failed to load chart config cache:', e)
+    console.warn('Failed to load chart config:', e)
   }
-  return {}
 }
 
-// 保存配置缓存到 localStorage
-function saveChartConfigCache(configs: Record<string, ChartConfig>) {
+// 保存全局配置到 localStorage
+function saveGlobalConfig(): void {
   try {
-    localStorage.setItem(CHART_CONFIG_CACHE_KEY, JSON.stringify({
-      date: new Date().toDateString(),
-      configs
-    }))
+    localStorage.setItem(CHART_CONFIG_CACHE_KEY, JSON.stringify(globalChartConfig))
   } catch (e) {
-    console.warn('Failed to save chart config cache:', e)
+    console.warn('Failed to save chart config:', e)
   }
 }
 
-// 全局配置缓存 - 使用模块级变量确保跨组件共享
-let chartConfigCache: Record<string, ChartConfig> = loadChartConfigCache()
-
-// 全局当前配置 - 用于在图表隐藏时保持配置（解决拖拽时配置重置问题）
-let currentChartConfig: ChartConfig | null = null
+// 初始化加载配置
+loadGlobalConfig()
 
 interface ChartTooltipProps {
   visible: boolean
@@ -138,33 +136,16 @@ function ChartTooltip({
     }
   }, [visible, calculatePosition])
 
-  // 获取缓存的配置 - 优先使用当前配置（解决拖拽时配置重置问题）
-  // 如果当前有配置且 code 相同，使用当前配置；否则从缓存读取
-  const cachedConfig = (visible && code) ? (currentChartConfig || chartConfigCache[code]) : null
-  const defaultTab: ChartPeriod = cachedConfig?.tab || 'intraday'
-  const defaultSubIndicators: SubIndicator[] = cachedConfig?.subIndicators || ['vol']
-  const defaultShowBoll = cachedConfig?.showBoll || false
+  // 使用全局配置 - 所有股票共享
+  const defaultTab: ChartPeriod = globalChartConfig.tab
+  const defaultSubIndicators: SubIndicator[] = globalChartConfig.subIndicators
+  const defaultShowBoll = globalChartConfig.showBoll
 
-  // 配置变化时保存到缓存和当前配置
+  // 配置变化时立即更新全局配置并保存
   const handleConfigChange = useCallback((config: ChartConfig) => {
-    if (!code) return
-    // 保存到当前配置（用于拖拽时保持）
-    currentChartConfig = config
-    // 保存到持久化缓存
-    chartConfigCache[code] = config
-    saveChartConfigCache(chartConfigCache)
-  }, [code])
-  
-  // 当图表隐藏时，清除当前配置（延迟清除，避免快速重新显示时丢失）
-  useEffect(() => {
-    if (!visible) {
-      // 延迟 500ms 清除，给用户时间重新触发显示
-      const timer = setTimeout(() => {
-        currentChartConfig = null
-      }, 500)
-      return () => clearTimeout(timer)
-    }
-  }, [visible])
+    globalChartConfig = config
+    saveGlobalConfig()
+  }, [])
 
   // 不显示时返回 null
   if (!visible || !code) return null

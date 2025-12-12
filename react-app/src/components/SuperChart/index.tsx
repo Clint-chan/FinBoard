@@ -43,15 +43,6 @@ export function SuperChart({
   // 预警按钮状态 - 只记录 Y 位置和价格
   const [alertButtonPos, setAlertButtonPos] = useState<{ y: number; price: number } | null>(null)
   const alertButtonTimerRef = useRef<number | null>(null)
-
-  // 立即同步配置到父组件，避免快速卸载时丢失（例如悬浮框瞬时隐藏）
-  const syncConfig = useCallback((partial: Partial<ChartConfig> = {}) => {
-    onConfigChange?.({
-      tab: partial.tab ?? currentTab,
-      subIndicators: partial.subIndicators ?? subIndicators,
-      showBoll: partial.showBoll ?? showBoll
-    })
-  }, [currentTab, subIndicators, showBoll, onConfigChange])
   
   const {
     currentTab,
@@ -77,6 +68,15 @@ export function SuperChart({
     showBoll: initialShowBoll,
     initialName
   })
+
+  // 立即同步配置到父组件，避免快速卸载时丢失（例如悬浮框瞬时隐藏）
+  const syncConfig = useCallback((partial: Partial<ChartConfig> = {}) => {
+    onConfigChange?.({
+      tab: partial.tab ?? currentTab,
+      subIndicators: partial.subIndicators ?? subIndicators,
+      showBoll: partial.showBoll ?? showBoll
+    })
+  }, [currentTab, subIndicators, showBoll, onConfigChange])
 
   // 计算实际宽度
   const actualWidth = fillContainer && containerRef.current 
@@ -106,12 +106,6 @@ export function SuperChart({
       onLoad?.()
     }
   }, [loading, intradayData, processedData, onLoad])
-
-  // 配置变化回调 - 当 tab、副图指标、布林带变化时通知父组件
-  // 使用 layoutEffect 确保在组件被快速卸载前也能同步配置（用于 tooltip 快速隐藏场景）
-  useLayoutEffect(() => {
-    syncConfig()
-  }, [syncConfig])
 
   // 计算价格和涨跌幅 - 对照原版 renderHeader
   // 如果有 crosshairData（十字光标悬停），显示该K线/分时的价格
