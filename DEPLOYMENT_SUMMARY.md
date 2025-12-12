@@ -4,7 +4,8 @@
 
 ### 1. 后端 Worker 部署
 - **Worker 名称**: `market-board-api`
-- **部署地址**: `https://market-board-api.945036663.workers.dev`
+- **部署地址**: `https://market-api.newestgpt.com` (自定义域名)
+- **Worker 默认地址**: `https://market-board-api.945036663.workers.dev`
 - **版本 ID**: `861c92a5-02aa-4cf1-9b04-88fb0d80e7c4`
 - **文件大小**: 17.98 KiB (gzip: 5.64 KiB)
 - **状态**: ✅ 已部署并测试通过
@@ -58,7 +59,7 @@ Worker 自动采集以下数据：
 #### 文件修改
 - `react-app/src/services/aiChatService.ts` - AI 服务接口
 - `react-app/src/components/AnalysisDrawer/index.tsx` - 分析大屏组件
-- API 地址已更新为: `https://market-board-api.945036663.workers.dev`
+- API 地址已更新为: `https://market-api.newestgpt.com`
 
 #### 构建状态
 - ✅ TypeScript 编译成功
@@ -91,7 +92,7 @@ Worker 自动采集以下数据：
 ### 2. 直接调用 API
 
 ```javascript
-const response = await fetch('https://market-board-api.945036663.workers.dev/api/ai/chat', {
+const response = await fetch('https://market-api.newestgpt.com/api/ai/chat', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({

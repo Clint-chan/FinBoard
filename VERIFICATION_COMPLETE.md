@@ -18,7 +18,8 @@
 
 ### 3. Worker 部署
 - **状态**: ✅ 已部署
-- **地址**: `https://market-board-api.945036663.workers.dev`
+- **自定义域名**: `https://market-api.newestgpt.com`
+- **Worker 地址**: `https://market-board-api.945036663.workers.dev`
 - **版本**: `861c92a5-02aa-4cf1-9b04-88fb0d80e7c4`
 - **路由**: 
   - `/api/ai/chat` - AI 聊天（流式）
@@ -98,7 +99,7 @@
 ### API 调用示例
 
 ```javascript
-const response = await fetch('https://market-board-api.945036663.workers.dev/api/ai/chat', {
+const response = await fetch('https://market-api.newestgpt.com/api/ai/chat', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({

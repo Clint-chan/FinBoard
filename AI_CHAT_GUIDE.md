@@ -6,7 +6,7 @@ AI 聊天功能已集成到分析大屏中，可以对股票进行智能分析�
 
 ## 部署状态
 
-✅ **后端 Worker 已部署**: `https://market-board-api.945036663.workers.dev`
+✅ **后端 Worker 已部署**: `https://market-api.newestgpt.com`
 ✅ **前端已构建**: `react-app/dist/`
 ✅ **API 路由**: `/api/ai/chat` (流式响应)
 ✅ **配置接口**: `/api/ai/config` (GET/POST)
