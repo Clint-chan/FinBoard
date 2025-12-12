@@ -439,6 +439,8 @@ async function handleAIChat(request, env) {
       headers: {
         'Authorization': `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        'User-Agent': 'Cloudflare-Worker/1.0'
       },
       body: JSON.stringify({ model: config.model, messages: fullMessages, stream: true })
     })
