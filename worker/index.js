@@ -165,6 +165,20 @@ export default {
         return handleAIConfig(request, env);
       }
 
+      // GET /api/stock/data/:code - 获取股票数据（供前端 AI 使用）
+      if (path.startsWith('/api/stock/data/') && request.method === 'GET') {
+        const code = path.split('/').pop();
+        if (!code) {
+          return jsonResponse({ error: '股票代码不能为空' }, 400);
+        }
+        try {
+          const dataContext = await collectStockData(code);
+          return jsonResponse({ code, context: dataContext });
+        } catch (error) {
+          return jsonResponse({ error: error.message }, 500);
+        }
+      }
+
       return jsonResponse({ error: 'Not found' }, 404);
     } catch (err) {
       return jsonResponse({ error: err.message }, 500);
