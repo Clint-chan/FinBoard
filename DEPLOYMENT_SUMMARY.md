@@ -154,7 +154,17 @@ npm run deploy
 
 ## 🔧 故障排查
 
-### Worker 返回 500 错误
+### Worker 返回 500 错误 (LLM API error: 405)
+**原因**: Cloudflare Workers 不支持访问 HTTP（非 HTTPS）端点
+
+**解决方案**:
+1. 使用 HTTPS 的大模型 API 端点（推荐）
+2. 配置 SSL 证书使 API 支持 HTTPS
+3. 使用 Cloudflare Tunnel 暴露服务
+
+详见: `WORKER_HTTP_ISSUE.md`
+
+### 其他 500 错误
 1. 检查大模型 API 是否可访问
 2. 验证股票代码是否正确
 3. 查看 Worker 日志: `npx wrangler tail`

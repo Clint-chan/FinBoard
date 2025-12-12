@@ -251,6 +251,9 @@ const AI_DEFAULT_CONFIG = {
   model: 'gemini-3-pro-preview-thinking'
 }
 
+// 注意: Cloudflare Workers 可能不支持访问某些 HTTP 端点
+// 如果遇到 405 错误，可能需要使用 HTTPS 或配置 Worker 的网络设置
+
 async function fetchRealtimeData(symbol) {
   // 使用单股票查询接口
   const marketCode = symbol.startsWith('6') ? 1 : 0
@@ -427,6 +430,10 @@ async function handleAIChat(request, env) {
       )
     ]
 
+    console.log('调用大模型 API:', config.apiUrl)
+    console.log('模型:', config.model)
+    console.log('消息数量:', fullMessages.length)
+    
     const llmRes = await fetch(config.apiUrl, {
       method: 'POST',
       headers: {
@@ -436,7 +443,13 @@ async function handleAIChat(request, env) {
       body: JSON.stringify({ model: config.model, messages: fullMessages, stream: true })
     })
 
-    if (!llmRes.ok) throw new Error(`LLM API error: ${llmRes.status}`)
+    console.log('大模型 API 响应状态:', llmRes.status)
+    
+    if (!llmRes.ok) {
+      const errorText = await llmRes.text()
+      console.error('大模型 API 错误响应:', errorText)
+      throw new Error(`LLM API error: ${llmRes.status} - ${errorText}`)
+    }
 
     const { readable, writable } = new TransformStream()
     const writer = writable.getWriter()
@@ -482,7 +495,24 @@ async function handleAIChat(request, env) {
     })
   } catch (error) {
     console.error('AI Chat Error:', error)
-    return jsonResponse({ error: error.message, stack: error.stack }, 500)
+    
+    // 如果是 405 错误，可能是 Worker 无法访问 HTTP 端点
+    if (error.message.includes('405')) {
+      return jsonResponse({ 
+        error: '大模型 API 访问失败 (405)。可能原因：1) Worker 无法访问 HTTP 端点，需要使用 HTTPS；2) API 端点配置错误。',
+        details: error.message,
+        suggestion: '请检查 AI 配置中的 API URL 是否支持 HTTPS，或联系管理员配置 Worker 网络权限。'
+      }, 500)
+    }
+    
+    return jsonResponse({ 
+      error: error.message, 
+      stack: error.stack,
+      config: {
+        apiUrl: config.apiUrl,
+        model: config.model
+      }
+    }, 500)
   }
 }
 
