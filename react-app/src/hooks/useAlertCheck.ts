@@ -12,9 +12,40 @@ interface UseAlertCheckOptions {
   pctThreshold: number
 }
 
+const TRIGGER_STORAGE_KEY = 'market_board_triggered_alerts'
+
+function getToday(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function loadTriggered(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(TRIGGER_STORAGE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as { date?: string; triggers?: Record<string, boolean> }
+    if (parsed.date === getToday() && parsed.triggers) {
+      return parsed.triggers
+    }
+  } catch (err) {
+    console.warn('Failed to load triggered alerts cache:', err)
+  }
+  return {}
+}
+
 export function useAlertCheck({ stockData, alerts, pctThreshold }: UseAlertCheckOptions) {
   // 已触发的预警记录，避免重复通知
-  const triggeredAlerts = useRef<Record<string, boolean>>({})
+  const triggeredAlerts = useRef<Record<string, boolean>>(loadTriggered())
+
+  const persistTriggered = useCallback(() => {
+    try {
+      localStorage.setItem(TRIGGER_STORAGE_KEY, JSON.stringify({
+        date: getToday(),
+        triggers: triggeredAlerts.current
+      }))
+    } catch (err) {
+      console.warn('Failed to save triggered alerts cache:', err)
+    }
+  }, [])
 
   // 检查单个股票的预警
   const checkAlert = useCallback((code: string, price: number, pct: number): boolean => {
@@ -44,6 +75,7 @@ export function useAlertCheck({ stockData, alerts, pctThreshold }: UseAlertCheck
           triggered = true
           if (!triggeredAlerts.current[alertKey] && marketOpen) {
             triggeredAlerts.current[alertKey] = true
+            persistTriggered()
             sendNotification(`${d?.name || code} 预警`, msg)
           }
         }
@@ -56,6 +88,7 @@ export function useAlertCheck({ stockData, alerts, pctThreshold }: UseAlertCheck
       const alertKey = code + '_pct'
       if (!triggeredAlerts.current[alertKey] && marketOpen) {
         triggeredAlerts.current[alertKey] = true
+        persistTriggered()
         sendNotification(`${d?.name || code} 涨跌幅预警`, `当前涨跌幅 ${pct.toFixed(2)}%`)
       }
       triggered = true
@@ -95,6 +128,7 @@ export function useAlertCheck({ stockData, alerts, pctThreshold }: UseAlertCheck
       // 清除所有
       triggeredAlerts.current = {}
     }
+    persistTriggered()
   }, [])
 
   return {
