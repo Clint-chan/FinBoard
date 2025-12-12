@@ -45,6 +45,10 @@ function App() {
   
   // 主题
   const { isDark } = useTheme(config.theme)
+  // 固定页面标题
+  useEffect(() => {
+    document.title = 'Fintell'
+  }, [])
   
   // 行情数据
   const { stockData, status, lastUpdate, refresh } = useQuotes(

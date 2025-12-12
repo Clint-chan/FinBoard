@@ -43,6 +43,15 @@ export function SuperChart({
   // 预警按钮状态 - 只记录 Y 位置和价格
   const [alertButtonPos, setAlertButtonPos] = useState<{ y: number; price: number } | null>(null)
   const alertButtonTimerRef = useRef<number | null>(null)
+
+  // 立即同步配置到父组件，避免快速卸载时丢失（例如悬浮框瞬时隐藏）
+  const syncConfig = useCallback((partial: Partial<ChartConfig> = {}) => {
+    onConfigChange?.({
+      tab: partial.tab ?? currentTab,
+      subIndicators: partial.subIndicators ?? subIndicators,
+      showBoll: partial.showBoll ?? showBoll
+    })
+  }, [currentTab, subIndicators, showBoll, onConfigChange])
   
   const {
     currentTab,
@@ -101,12 +110,8 @@ export function SuperChart({
   // 配置变化回调 - 当 tab、副图指标、布林带变化时通知父组件
   // 使用 layoutEffect 确保在组件被快速卸载前也能同步配置（用于 tooltip 快速隐藏场景）
   useLayoutEffect(() => {
-    onConfigChange?.({
-      tab: currentTab,
-      subIndicators,
-      showBoll
-    })
-  }, [currentTab, subIndicators, showBoll, onConfigChange])
+    syncConfig()
+  }, [syncConfig])
 
   // 计算价格和涨跌幅 - 对照原版 renderHeader
   // 如果有 crosshairData（十字光标悬停），显示该K线/分时的价格
@@ -152,7 +157,8 @@ export function SuperChart({
     e.stopPropagation()
     switchTab(tab)
     setOpenDropdown(null)
-  }, [switchTab])
+    syncConfig({ tab })
+  }, [switchTab, syncConfig])
 
   // 点击齿轮按钮 - 对照原版
   const handleGearClick = useCallback((e: React.MouseEvent) => {
@@ -164,11 +170,25 @@ export function SuperChart({
   const handleMenuItemClick = useCallback((action: SubIndicator | 'boll', e: React.MouseEvent) => {
     e.stopPropagation()
     if (action === 'boll') {
-      setShowBoll(!showBoll)
+      const next = !showBoll
+      setShowBoll(next)
+      syncConfig({ showBoll: next })
     } else {
+      let nextSubs = subIndicators
+      const idx = subIndicators.indexOf(action)
+      if (idx >= 0) {
+        if (subIndicators.length > 1) {
+          nextSubs = subIndicators.filter(i => i !== action)
+        }
+      } else if (subIndicators.length < 3) {
+        nextSubs = [...subIndicators, action]
+      }
+      if (nextSubs !== subIndicators) {
+        syncConfig({ subIndicators: nextSubs })
+      }
       toggleSubIndicator(action)
     }
-  }, [showBoll, setShowBoll, toggleSubIndicator])
+  }, [showBoll, subIndicators, setShowBoll, toggleSubIndicator, syncConfig])
 
   // 点击外部关闭下拉菜单 - 对照原版
   useEffect(() => {
