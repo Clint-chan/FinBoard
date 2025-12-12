@@ -2,7 +2,7 @@
  * ChartTooltip - 分时图悬浮组件
  * 完全对照原版 js/view.js 的 moveChart 函数实现位置计算
  */
-import { useState, useCallback, useRef, useLayoutEffect, useEffect } from 'react'
+import { useState, useCallback, useRef, useLayoutEffect } from 'react'
 import { SuperChart } from '@/components/SuperChart'
 import type { ChartConfig, ChartPeriod, SubIndicator } from '@/components/SuperChart/types'
 import './ChartTooltip.css'

@@ -2,7 +2,7 @@
  * SuperChart 组件 - 完整 K 线图
  * 对照原版 js/superChart.js 实现，包括十字线数据更新 Header
  */
-import { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useSuperChart } from './useSuperChart'
 import { ChartCanvas, type CrosshairData } from './ChartCanvas'
 import { StockInfoCard } from '@/components/StockInfoCard'
