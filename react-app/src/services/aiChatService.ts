@@ -57,7 +57,7 @@ const LLM_CONFIG = {
 export async function sendChatMessage(
   messages: ChatMessage[],
   stockData?: StockDataForAI,
-  chartData?: ChartDataForAI,
+  _chartData?: ChartDataForAI, // 参数保留用于兼容性，但未使用
   mode: AIMode = 'intraday',
   onChunk?: (content: string) => void
 ): Promise<string> {
