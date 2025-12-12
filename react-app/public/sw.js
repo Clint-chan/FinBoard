@@ -30,7 +30,7 @@ self.addEventListener('message', (e) => {
   }
 });
 
-// 请求拦截：网络优先，失败时用缓存
+// 请求拦截：行情网络优先，静态资源走缓存优先
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
 
@@ -48,16 +48,20 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // 静态资源：网络优先，失败用缓存
+  // 静态资源：缓存优先，后台更新，避免每次刷新都等网络
   if (url.origin === location.origin) {
     e.respondWith(
-      fetch(e.request)
-        .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
-          return res;
-        })
-        .catch(() => caches.match(e.request))
+      caches.match(e.request).then((cached) => {
+        const fetchPromise = fetch(e.request)
+          .then((res) => {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+            return res;
+          })
+          .catch(() => cached);
+
+        return cached || fetchPromise;
+      })
     );
   }
 });
