@@ -39,6 +39,8 @@ export function AnalysisDrawer({
   // 聊天历史（按股票代码存储）
   const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>({})
   
+
+  
   // 输入框
   const [inputValue, setInputValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -77,14 +79,15 @@ export function AnalysisDrawer({
   }, [])
 
   // 发送消息
-  const sendMessage = useCallback(() => {
+  const sendMessage = useCallback(async () => {
     const text = inputValue.trim()
     if (!text || !currentCode) return
 
     // 添加用户消息
+    const userMsg = { role: 'user' as const, content: text }
     setChatHistory(prev => ({
       ...prev,
-      [currentCode]: [...(prev[currentCode] || []), { role: 'user', content: text }]
+      [currentCode]: [...(prev[currentCode] || []), userMsg]
     }))
 
     setInputValue('')
@@ -92,16 +95,68 @@ export function AnalysisDrawer({
       textareaRef.current.style.height = 'auto'
     }
 
-    // 模拟 AI 回复
-    setTimeout(() => {
-      const stockName = stockData[currentCode]?.name || currentCode
-      const aiResponse = generateAIResponse(text, stockName, aiMode)
-      setChatHistory(prev => ({
-        ...prev,
-        [currentCode]: [...(prev[currentCode] || []), { role: 'ai', content: aiResponse }]
+    // 添加空的 AI 消息用于流式更新
+    const aiMsgIndex = (chatHistory[currentCode] || []).length + 1
+    setChatHistory(prev => ({
+      ...prev,
+      [currentCode]: [...(prev[currentCode] || []), userMsg, { role: 'ai', content: '' }]
+    }))
+
+    try {
+      const { sendChatMessage } = await import('@/services/aiChatService')
+      
+      // 准备股票数据
+      const currentStock = stockData[currentCode]
+      const stockDataForAI = currentStock ? {
+        code: currentCode,
+        name: currentStock.name,
+        price: currentStock.price,
+        preClose: currentStock.preClose,
+        high: currentStock.high || currentStock.price,
+        low: currentStock.low || currentStock.price,
+        vol: currentStock.vol || 0,
+        amt: currentStock.amt || 0
+      } : undefined
+
+      // 获取历史消息
+      const historyMessages = (chatHistory[currentCode] || []).map(msg => ({
+        role: msg.role === 'ai' ? 'assistant' as const : msg.role,
+        content: msg.content
       }))
-    }, 500)
-  }, [inputValue, currentCode, stockData, aiMode])
+
+      await sendChatMessage(
+        [...historyMessages, { role: 'user', content: text }],
+        stockDataForAI,
+        undefined, // 图表数据暂时不传，后端直接调用 akshare
+        aiMode,
+        (chunk) => {
+          // 流式更新
+          setChatHistory(prev => {
+            const messages = [...(prev[currentCode] || [])]
+            if (messages[aiMsgIndex]) {
+              messages[aiMsgIndex] = {
+                ...messages[aiMsgIndex],
+                content: messages[aiMsgIndex].content + chunk
+              }
+            }
+            return { ...prev, [currentCode]: messages }
+          })
+        }
+      )
+    } catch (error) {
+      console.error('AI error:', error)
+      setChatHistory(prev => {
+        const messages = [...(prev[currentCode] || [])]
+        if (messages[aiMsgIndex]) {
+          messages[aiMsgIndex] = {
+            role: 'ai',
+            content: '抱歉，AI 服务暂时不可用。请稍后再试。'
+          }
+        }
+        return { ...prev, [currentCode]: messages }
+      })
+    }
+  }, [inputValue, currentCode, stockData, aiMode, chatHistory])
 
   // 处理输入框变化
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -369,25 +424,6 @@ export function AnalysisDrawer({
       </div>
     </div>
   )
-}
-
-// 模拟 AI 回复生成
-function generateAIResponse(_question: string, stockName: string, mode: AIMode): string {
-  const responses: Record<AIMode, string[]> = {
-    intraday: [
-      `## ${stockName} 日内分析\n\n根据今日走势，该股呈现以下特征：\n\n- **开盘表现**：平开后震荡上行\n- **量能分析**：成交量较昨日放大\n- **支撑位**：关注5日均线支撑\n\n> 建议关注盘中回调机会`,
-      `### 技术面分析\n\n${stockName}今日走势偏强，MACD金叉形成，短期有望继续上攻。\n\n**操作建议**：可在回调至均线附近轻仓介入。`
-    ],
-    trend: [
-      `## ${stockName} 中期趋势\n\n从周线级别来看：\n\n1. 均线系统多头排列\n2. MACD 处于零轴上方\n3. 成交量温和放大\n\n**结论**：中期趋势向好，可持股待涨。`,
-    ],
-    fundamental: [
-      `## ${stockName} 基本面概览\n\n- **市盈率 (PE)**：15.2x\n- **市净率 (PB)**：1.8x\n- **ROE**：12.5%\n\n公司基本面稳健，估值处于合理区间。`
-    ]
-  }
-
-  const modeResponses = responses[mode]
-  return modeResponses[Math.floor(Math.random() * modeResponses.length)]
 }
 
 export default AnalysisDrawer
