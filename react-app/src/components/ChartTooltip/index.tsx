@@ -4,7 +4,44 @@
  */
 import { useState, useCallback, useRef, useLayoutEffect } from 'react'
 import { SuperChart } from '@/components/SuperChart'
+import type { ChartConfig, ChartPeriod, SubIndicator } from '@/components/SuperChart/types'
 import './ChartTooltip.css'
+
+// 图表配置缓存 key
+const CHART_CONFIG_CACHE_KEY = 'market_board_chart_config'
+
+// 从 localStorage 读取配置缓存
+function loadChartConfigCache(): Record<string, ChartConfig> {
+  try {
+    const cached = localStorage.getItem(CHART_CONFIG_CACHE_KEY)
+    if (cached) {
+      const data = JSON.parse(cached)
+      // 检查是否是今天的缓存
+      const today = new Date().toDateString()
+      if (data.date === today) {
+        return data.configs || {}
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load chart config cache:', e)
+  }
+  return {}
+}
+
+// 保存配置缓存到 localStorage
+function saveChartConfigCache(configs: Record<string, ChartConfig>) {
+  try {
+    localStorage.setItem(CHART_CONFIG_CACHE_KEY, JSON.stringify({
+      date: new Date().toDateString(),
+      configs
+    }))
+  } catch (e) {
+    console.warn('Failed to save chart config cache:', e)
+  }
+}
+
+// 全局配置缓存
+const chartConfigCache = loadChartConfigCache()
 
 interface ChartTooltipProps {
   visible: boolean
@@ -98,6 +135,19 @@ function ChartTooltip({
     }
   }, [visible, calculatePosition])
 
+  // 获取缓存的配置
+  const cachedConfig = code ? chartConfigCache[code] : null
+  const defaultTab: ChartPeriod = cachedConfig?.tab || 'intraday'
+  const defaultSubIndicators: SubIndicator[] = cachedConfig?.subIndicators || ['vol']
+  const defaultShowBoll = cachedConfig?.showBoll || false
+
+  // 配置变化时保存到缓存
+  const handleConfigChange = useCallback((config: ChartConfig) => {
+    if (!code) return
+    chartConfigCache[code] = config
+    saveChartConfigCache(chartConfigCache)
+  }, [code])
+
   // 不显示时返回 null
   if (!visible || !code) return null
 
@@ -113,11 +163,13 @@ function ChartTooltip({
         code={code}
         width={440}
         isDark={isDark}
-        defaultTab="intraday"
-        defaultSubIndicators={['vol']}
+        defaultTab={defaultTab}
+        defaultSubIndicators={defaultSubIndicators}
+        showBoll={defaultShowBoll}
         initialName={stockName}
         initialPrice={stockPrice}
         initialPreClose={stockPreClose}
+        onConfigChange={handleConfigChange}
       />
     </div>
   )

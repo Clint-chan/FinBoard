@@ -65,6 +65,7 @@ export function useQuotes(
   const [status, setStatus] = useState<LoadingStatus>('loading')
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const timerRef = useRef<number | null>(null)
+  const initializedRef = useRef(false) // 防止 Strict Mode 重复请求
 
   const refresh = useCallback(async (force = false) => {
     // 非交易时间且非强制刷新时，标记为休市
@@ -94,10 +95,12 @@ export function useQuotes(
     }
   }, [codes, source]) // 移除 stockData 依赖，避免循环触发
 
-  // 初始加载
+  // 初始加载 - 使用 ref 防止 Strict Mode 重复请求
   useEffect(() => {
+    if (initializedRef.current) return
+    initializedRef.current = true
     refresh(true)
-  }, []) // 只在组件挂载时执行一次
+  }, [])
 
   // 定时刷新 - 使用用户配置的间隔
   useEffect(() => {

@@ -119,6 +119,13 @@ export const DEFAULT_LAYOUT: ChartLayout = {
   axisTextGap: 5
 }
 
+// 图表配置（用于缓存）
+export interface ChartConfig {
+  tab: ChartPeriod
+  subIndicators: SubIndicator[]
+  showBoll: boolean
+}
+
 // 组件 Props
 export interface SuperChartProps {
   code: string
@@ -136,6 +143,7 @@ export interface SuperChartProps {
   initialPreClose?: number
   pe?: number // 市盈率
   onAddAlert?: (price: number) => void // 添加预警回调
+  onConfigChange?: (config: ChartConfig) => void // 配置变化回调
 }
 
 // 处理后的 K 线数据

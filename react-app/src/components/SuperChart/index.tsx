@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useSuperChart } from './useSuperChart'
 import { ChartCanvas, type CrosshairData } from './ChartCanvas'
 import { StockInfoCard } from '@/components/StockInfoCard'
-import { PERIODS, DEFAULT_LAYOUT, type ChartPeriod, type SubIndicator, type SuperChartProps } from './types'
+import { PERIODS, DEFAULT_LAYOUT, type ChartPeriod, type SubIndicator, type SuperChartProps, type ChartConfig } from './types'
 import './SuperChart.css'
 
 export function SuperChart({
@@ -23,7 +23,8 @@ export function SuperChart({
   initialPrice,
   initialPreClose,
   pe,
-  onAddAlert
+  onAddAlert,
+  onConfigChange
 }: SuperChartProps) {
   void _height // 避免 unused 警告
   const containerRef = useRef<HTMLDivElement>(null)
@@ -96,6 +97,15 @@ export function SuperChart({
       onLoad?.()
     }
   }, [loading, intradayData, processedData, onLoad])
+
+  // 配置变化回调 - 当 tab、副图指标、布林带变化时通知父组件
+  useEffect(() => {
+    onConfigChange?.({
+      tab: currentTab,
+      subIndicators,
+      showBoll
+    })
+  }, [currentTab, subIndicators, showBoll, onConfigChange])
 
   // 计算价格和涨跌幅 - 对照原版 renderHeader
   // 如果有 crosshairData（十字光标悬停），显示该K线/分时的价格
