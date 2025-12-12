@@ -2,7 +2,7 @@
  * AI Chat Service - 调用后端 AI API
  */
 
-const AI_API_BASE = 'https://market-board-api.945036663.workers.dev' // Worker 默认地址
+const AI_API_BASE = 'https://market-api.newestgpt.com' // Worker 自定义域名
 
 export type AIMode = 'intraday' | 'trend' | 'fundamental'
 
