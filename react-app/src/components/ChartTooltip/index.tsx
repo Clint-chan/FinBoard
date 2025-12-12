@@ -2,7 +2,7 @@
  * ChartTooltip - 分时图悬浮组件
  * 完全对照原版 js/view.js 的 moveChart 函数实现位置计算
  */
-import { useState, useCallback, useRef, useLayoutEffect } from 'react'
+import { useState, useCallback, useRef, useLayoutEffect, useEffect } from 'react'
 import { SuperChart } from '@/components/SuperChart'
 import type { ChartConfig, ChartPeriod, SubIndicator } from '@/components/SuperChart/types'
 import './ChartTooltip.css'
@@ -42,6 +42,9 @@ function saveChartConfigCache(configs: Record<string, ChartConfig>) {
 
 // 全局配置缓存 - 使用模块级变量确保跨组件共享
 let chartConfigCache: Record<string, ChartConfig> = loadChartConfigCache()
+
+// 全局当前配置 - 用于在图表隐藏时保持配置（解决拖拽时配置重置问题）
+let currentChartConfig: ChartConfig | null = null
 
 interface ChartTooltipProps {
   visible: boolean
@@ -135,18 +138,33 @@ function ChartTooltip({
     }
   }, [visible, calculatePosition])
 
-  // 获取缓存的配置 - 每次显示时从缓存读取
-  const cachedConfig = (visible && code) ? chartConfigCache[code] : null
+  // 获取缓存的配置 - 优先使用当前配置（解决拖拽时配置重置问题）
+  // 如果当前有配置且 code 相同，使用当前配置；否则从缓存读取
+  const cachedConfig = (visible && code) ? (currentChartConfig || chartConfigCache[code]) : null
   const defaultTab: ChartPeriod = cachedConfig?.tab || 'intraday'
   const defaultSubIndicators: SubIndicator[] = cachedConfig?.subIndicators || ['vol']
   const defaultShowBoll = cachedConfig?.showBoll || false
 
-  // 配置变化时保存到缓存
+  // 配置变化时保存到缓存和当前配置
   const handleConfigChange = useCallback((config: ChartConfig) => {
     if (!code) return
+    // 保存到当前配置（用于拖拽时保持）
+    currentChartConfig = config
+    // 保存到持久化缓存
     chartConfigCache[code] = config
     saveChartConfigCache(chartConfigCache)
   }, [code])
+  
+  // 当图表隐藏时，清除当前配置（延迟清除，避免快速重新显示时丢失）
+  useEffect(() => {
+    if (!visible) {
+      // 延迟 500ms 清除，给用户时间重新触发显示
+      const timer = setTimeout(() => {
+        currentChartConfig = null
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+  }, [visible])
 
   // 不显示时返回 null
   if (!visible || !code) return null
