@@ -78,10 +78,7 @@ export function useQuotes(
       return
     }
 
-    // 只在首次加载时显示 loading 状态，后续刷新不显示
-    if (Object.keys(stockData).length === 0) {
-      setStatus('loading')
-    }
+    setStatus(prev => prev === 'loading' ? 'loading' : prev)
     
     try {
       const normalizedCodes = codes.map(c => normalizeCode(c))
@@ -95,26 +92,22 @@ export function useQuotes(
       console.error('Failed to fetch quotes:', error)
       setStatus('error')
     }
-  }, [codes, source, stockData])
+  }, [codes, source]) // 移除 stockData 依赖，避免循环触发
 
   // 初始加载
   useEffect(() => {
     refresh(true)
   }, []) // 只在组件挂载时执行一次
 
-  // 定时刷新 - 始终请求最新数据
+  // 定时刷新 - 使用用户配置的间隔
   useEffect(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current)
     }
     
-    // 开盘时间使用1.5秒刷新，否则使用配置的间隔
-    const actualInterval = isMarketOpen() ? 1.5 : interval
-    
     timerRef.current = window.setInterval(() => {
-      // 定时刷新时强制请求新数据
       refresh(true)
-    }, actualInterval * 1000)
+    }, interval * 1000)
 
     return () => {
       if (timerRef.current) {
