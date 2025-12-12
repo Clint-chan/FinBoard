@@ -40,8 +40,8 @@ function saveChartConfigCache(configs: Record<string, ChartConfig>) {
   }
 }
 
-// 全局配置缓存
-const chartConfigCache = loadChartConfigCache()
+// 全局配置缓存 - 使用模块级变量确保跨组件共享
+let chartConfigCache: Record<string, ChartConfig> = loadChartConfigCache()
 
 interface ChartTooltipProps {
   visible: boolean
@@ -135,19 +135,15 @@ function ChartTooltip({
     }
   }, [visible, calculatePosition])
 
-  // 获取缓存的配置 - 每次 visible 或 code 变化时重新读取
+  // 获取缓存的配置 - 每次显示时从缓存读取
   const cachedConfig = (visible && code) ? chartConfigCache[code] : null
   const defaultTab: ChartPeriod = cachedConfig?.tab || 'intraday'
   const defaultSubIndicators: SubIndicator[] = cachedConfig?.subIndicators || ['vol']
   const defaultShowBoll = cachedConfig?.showBoll || false
-  
-  // 调试日志
-  console.log('[ChartTooltip] code:', code, 'visible:', visible, 'cachedConfig:', cachedConfig)
 
   // 配置变化时保存到缓存
   const handleConfigChange = useCallback((config: ChartConfig) => {
     if (!code) return
-    console.log('[ChartTooltip] saving config for', code, ':', config)
     chartConfigCache[code] = config
     saveChartConfigCache(chartConfigCache)
   }, [code])
