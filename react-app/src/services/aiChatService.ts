@@ -44,6 +44,33 @@ export interface ChartDataForAI {
 }
 
 /**
+ * 获取用户 AI 配额
+ */
+export async function getUserQuota(): Promise<{
+  quota: number
+  used: number
+  remaining: number
+  isAdmin: boolean
+}> {
+  const token = localStorage.getItem('cloud_token')
+  if (!token) {
+    return { quota: 3, used: 0, remaining: 3, isAdmin: false }
+  }
+
+  const response = await fetch(`${AI_API_BASE}/api/user/quota`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  })
+
+  if (!response.ok) {
+    return { quota: 3, used: 0, remaining: 3, isAdmin: false }
+  }
+
+  return response.json()
+}
+
+/**
  * 发送聊天消息（流式）
  */
 export async function sendChatMessage(
@@ -53,6 +80,9 @@ export async function sendChatMessage(
   mode: AIMode = 'intraday',
   onChunk?: (content: string) => void
 ): Promise<string> {
+  // 获取 token 用于配额验证
+  const token = localStorage.getItem('cloud_token')
+  
   // 通过 Worker 调用 AI（Worker 负责系统提示词和数据采集）
   const response = await fetch(`${AI_API_BASE}/api/ai/chat`, {
     method: 'POST',
@@ -62,11 +92,17 @@ export async function sendChatMessage(
     body: JSON.stringify({
       messages,
       stockData,
-      mode
+      mode,
+      token // 传递 token 用于配额验证
     })
   })
 
   if (!response.ok) {
+    // 检查是否是配额用尽
+    if (response.status === 429) {
+      const data = await response.json()
+      throw new Error(data.error || '今日 AI 使用次数已用完')
+    }
     throw new Error(`AI API error: ${response.status}`)
   }
 

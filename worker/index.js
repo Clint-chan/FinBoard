@@ -1,5 +1,11 @@
 // Cloudflare Worker - Market Board 配置同步 API (带登录功能)
 
+// 管理员账号列表
+const ADMIN_USERS = ['cdg']
+
+// 默认 AI 配额（每日）
+const DEFAULT_AI_QUOTA = 3
+
 export default {
   async fetch(request, env) {
     // CORS 处理
@@ -34,10 +40,13 @@ export default {
         // 哈希密码
         const passwordHash = await hashPassword(password);
         
-        // 保存用户
+        // 保存用户（包含 AI 配额信息）
         await env.CONFIG_KV.put(`user:${username}`, JSON.stringify({
           passwordHash,
-          createdAt: Date.now()
+          createdAt: Date.now(),
+          aiQuota: DEFAULT_AI_QUOTA, // 每日 AI 配额
+          aiUsedToday: 0,
+          aiUsedDate: getTodayStr()
         }));
 
         return jsonResponse({ success: true, message: '注册成功' });
@@ -165,6 +174,105 @@ export default {
         return handleAIConfig(request, env);
       }
 
+      // GET /api/user/quota - 获取用户 AI 配额
+      if (path === '/api/user/quota' && request.method === 'GET') {
+        const username = await verifyToken(request, env);
+        if (!username) {
+          return jsonResponse({ error: '未登录' }, 401);
+        }
+
+        const userData = await env.CONFIG_KV.get(`user:${username}`, 'json');
+        if (!userData) {
+          return jsonResponse({ error: '用户不存在' }, 404);
+        }
+
+        // 检查是否需要重置每日配额
+        const today = getTodayStr();
+        let aiUsedToday = userData.aiUsedToday || 0;
+        if (userData.aiUsedDate !== today) {
+          aiUsedToday = 0;
+        }
+
+        const quota = userData.aiQuota || DEFAULT_AI_QUOTA;
+        const isAdmin = ADMIN_USERS.includes(username);
+
+        return jsonResponse({
+          quota,
+          used: aiUsedToday,
+          remaining: Math.max(0, quota - aiUsedToday),
+          isAdmin
+        });
+      }
+
+      // GET /api/admin/users - 管理员获取用户列表
+      if (path === '/api/admin/users' && request.method === 'GET') {
+        const username = await verifyToken(request, env);
+        if (!username) {
+          return jsonResponse({ error: '未登录' }, 401);
+        }
+
+        // 检查是否是管理员
+        if (!ADMIN_USERS.includes(username)) {
+          return jsonResponse({ error: '无权限' }, 403);
+        }
+
+        // 获取所有用户（通过 list 前缀）
+        const userList = await env.CONFIG_KV.list({ prefix: 'user:' });
+        const users = [];
+        const today = getTodayStr();
+
+        for (const key of userList.keys) {
+          const userData = await env.CONFIG_KV.get(key.name, 'json');
+          if (userData) {
+            const uname = key.name.replace('user:', '');
+            let aiUsedToday = userData.aiUsedToday || 0;
+            if (userData.aiUsedDate !== today) {
+              aiUsedToday = 0;
+            }
+            users.push({
+              username: uname,
+              createdAt: userData.createdAt,
+              aiQuota: userData.aiQuota || DEFAULT_AI_QUOTA,
+              aiUsedToday
+            });
+          }
+        }
+
+        return jsonResponse({ users });
+      }
+
+      // POST /api/admin/user/quota - 管理员设置用户配额
+      if (path === '/api/admin/user/quota' && request.method === 'POST') {
+        const adminUsername = await verifyToken(request, env);
+        if (!adminUsername) {
+          return jsonResponse({ error: '未登录' }, 401);
+        }
+
+        // 检查是否是管理员
+        if (!ADMIN_USERS.includes(adminUsername)) {
+          return jsonResponse({ error: '无权限' }, 403);
+        }
+
+        const { username, quota } = await request.json();
+        if (!username || typeof quota !== 'number') {
+          return jsonResponse({ error: '参数错误' }, 400);
+        }
+
+        const userData = await env.CONFIG_KV.get(`user:${username}`, 'json');
+        if (!userData) {
+          return jsonResponse({ error: '用户不存在' }, 404);
+        }
+
+        // 更新配额
+        userData.aiQuota = quota;
+        await env.CONFIG_KV.put(`user:${username}`, JSON.stringify(userData));
+
+        return jsonResponse({ success: true });
+      }
+
+      // DELETE /api/alerts/:code - 删除预警（通过配置接口实现）
+      // 注：实际删除通过 POST /api/config 更新配置实现
+
       // GET /api/stock/data/:code - 获取股票数据（供前端 AI 使用）
       if (path.startsWith('/api/stock/data/') && request.method === 'GET') {
         const code = path.split('/').pop();
@@ -248,6 +356,12 @@ function corsHeaders() {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization'
   };
+}
+
+// 获取今天的日期字符串 YYYY-MM-DD
+function getTodayStr() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
 function jsonResponse(data, status = 200) {
@@ -476,7 +590,58 @@ async function handleAIChat(request, env) {
   let config = AI_DEFAULT_CONFIG
   
   try {
-    const { messages, stockData, mode = 'intraday' } = await request.json()
+    const { messages, stockData, mode = 'intraday', token } = await request.json()
+    
+    // 验证用户并检查配额
+    let username = null
+    if (token) {
+      // 手动解析 token
+      const [payloadB64, sig] = token.split('.');
+      if (payloadB64 && sig) {
+        try {
+          const data = atob(payloadB64);
+          const payload = JSON.parse(data);
+          if (payload.exp >= Date.now()) {
+            const encoder = new TextEncoder();
+            const expectedSig = await crypto.subtle.digest('SHA-256', encoder.encode(data + 'token_secret_2024'));
+            const expectedSigStr = btoa(String.fromCharCode(...new Uint8Array(expectedSig))).slice(0, 16);
+            if (sig === expectedSigStr) {
+              username = payload.username;
+            }
+          }
+        } catch (e) {}
+      }
+    }
+    
+    // 如果有用户，检查配额
+    if (username && env.CONFIG_KV) {
+      const userData = await env.CONFIG_KV.get(`user:${username}`, 'json');
+      if (userData) {
+        const today = getTodayStr();
+        let aiUsedToday = userData.aiUsedToday || 0;
+        
+        // 如果是新的一天，重置计数
+        if (userData.aiUsedDate !== today) {
+          aiUsedToday = 0;
+        }
+        
+        const quota = userData.aiQuota || DEFAULT_AI_QUOTA;
+        
+        // 管理员不受配额限制
+        if (!ADMIN_USERS.includes(username) && aiUsedToday >= quota) {
+          return jsonResponse({ 
+            error: '今日 AI 使用次数已用完',
+            quota,
+            used: aiUsedToday
+          }, 429);
+        }
+        
+        // 扣减配额
+        userData.aiUsedToday = aiUsedToday + 1;
+        userData.aiUsedDate = today;
+        await env.CONFIG_KV.put(`user:${username}`, JSON.stringify(userData));
+      }
+    }
     
     // 获取配置
     if (env.CONFIG_KV) {

@@ -11,7 +11,7 @@ import StockTable from '@/components/StockTable'
 import StatusBar from '@/components/StatusBar'
 import ChartTooltip from '@/components/ChartTooltip'
 import ContextMenu from '@/components/ContextMenu'
-import { AddStockModal, AlertModal, CostModal, AuthModal } from '@/components/modals'
+import { AddStockModal, AlertModal, CostModal, AuthModal, AdminModal } from '@/components/modals'
 import { AnalysisDrawer } from '@/components/AnalysisDrawer'
 import { BossScreen } from '@/components/BossScreen'
 import { DEFAULT_CONFIG } from '@/services/config'
@@ -32,6 +32,11 @@ function App() {
   const [analysisDrawer, setAnalysisDrawer] = useState<{ open: boolean; code: string }>({ open: false, code: '' })
   const [bossMode, setBossMode] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [adminModalOpen, setAdminModalOpen] = useState(false)
+  const [expandedAlerts, setExpandedAlerts] = useState<Record<string, boolean>>({})
+  
+  // 管理员账号
+  const ADMIN_USERS = ['cdg']
   
   // 对照原版 app.js 的 chartHovered 变量 - 使用 ref 避免闭包问题
   const chartHoveredRef = useRef(false)
@@ -354,22 +359,71 @@ function App() {
               <h1>预警中心</h1>
               <p>管理所有股票的价格预警</p>
             </header>
-            <div className="settings-card">
+            <div className="alert-list">
               {Object.keys(config.alerts).length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-tertiary)' }}>
+                <div className="settings-card" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-tertiary)' }}>
                   <p>暂无预警设置</p>
                   <p style={{ fontSize: '0.85rem' }}>右键点击股票可添加预警条件</p>
                 </div>
               ) : (
-                Object.entries(config.alerts).map(([code, alert]) => (
-                  <div key={code} className="settings-row">
-                    <div>
-                      <label>{stockData[code]?.name || code}</label>
-                      <div className="hint">{alert.conditions.length} 个预警条件</div>
+                Object.entries(config.alerts).map(([code, alert]) => {
+                  const isExpanded = expandedAlerts[code] || false
+                  return (
+                    <div key={code} className={`alert-card ${isExpanded ? 'expanded' : ''}`}>
+                      <div 
+                        className="alert-card-header"
+                        onClick={() => setExpandedAlerts(prev => ({ ...prev, [code]: !prev[code] }))}
+                      >
+                        <div className="alert-card-left">
+                          <svg className="alert-card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                          </svg>
+                          <div className="alert-card-info">
+                            <span className="alert-card-name">{stockData[code]?.name || code}</span>
+                            <span className="alert-card-count">{alert.conditions.length} 个预警条件</span>
+                          </div>
+                        </div>
+                        <div className="alert-card-actions" onClick={e => e.stopPropagation()}>
+                          <button 
+                            className="alert-card-btn"
+                            onClick={() => setAlertModal({ open: true, code })}
+                          >
+                            编辑
+                          </button>
+                          <button 
+                            className="alert-card-btn delete"
+                            onClick={() => {
+                              const newAlerts = { ...config.alerts }
+                              delete newAlerts[code]
+                              updateConfig({ alerts: newAlerts })
+                            }}
+                          >
+                            删除
+                          </button>
+                        </div>
+                      </div>
+                      <div className="alert-card-body">
+                        <div className="alert-card-conditions">
+                          {alert.conditions.map((cond, idx) => (
+                            <div key={idx} className="alert-card-cond">
+                              <div className="alert-card-cond-icon"></div>
+                              <div className="alert-card-cond-content">
+                                <div className="alert-card-cond-text">
+                                  {cond.type === 'price' ? '价格' : '涨跌幅'}
+                                  {cond.operator === 'above' ? (cond.type === 'pct' ? ' ≥ ' : ' 突破 ') : (cond.type === 'pct' ? ' ≤ ' : ' 跌破 ')}
+                                  {cond.value}{cond.type === 'pct' ? '%' : ''}
+                                </div>
+                                {cond.note && (
+                                  <div className="alert-card-cond-note">{cond.note}</div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                    <button onClick={() => setAlertModal({ open: true, code })}>编辑</button>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           </div>
@@ -436,6 +490,19 @@ function App() {
                   </select>
                 </div>
               </div>
+              
+              {/* 管理员入口 - 只有管理员可见 */}
+              {cloudUsername && ADMIN_USERS.includes(cloudUsername) && (
+                <div className="settings-row">
+                  <div>
+                    <label>管理员面板</label>
+                    <div className="hint">管理用户和 AI 配额</div>
+                  </div>
+                  <button onClick={() => setAdminModalOpen(true)}>
+                    进入管理
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -516,6 +583,13 @@ function App() {
         open={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
+      />
+
+      {/* 管理员面板 */}
+      <AdminModal
+        open={adminModalOpen}
+        onClose={() => setAdminModalOpen(false)}
+        token={localStorage.getItem('cloud_token')}
       />
     </div>
   )

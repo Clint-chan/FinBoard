@@ -516,3 +516,312 @@
 [data-theme="dark"] .btn-primary:hover:not(:disabled) {
   background: #2563eb;
 }
+
+
+/* Admin Modal */
+.admin-modal {
+  max-width: 520px;
+}
+
+.admin-section {
+  margin-bottom: 20px;
+}
+
+.admin-section h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 12px 0;
+}
+
+.admin-loading,
+.admin-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+}
+
+.admin-user-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.admin-user-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--bg-hover);
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+}
+
+.admin-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-user-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.admin-user-date {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.admin-user-quota {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-quota-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.admin-quota-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-quota-edit input {
+  width: 50px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  font-size: 0.85rem;
+  text-align: center;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.admin-btn-edit,
+.admin-btn-save,
+.admin-btn-cancel {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.admin-btn-edit {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+}
+
+.admin-btn-edit:hover {
+  background: var(--border-light);
+  color: var(--text-primary);
+}
+
+.admin-btn-save {
+  background: #3b82f6;
+  border: none;
+  color: white;
+}
+
+.admin-btn-save:hover {
+  background: #2563eb;
+}
+
+.admin-btn-cancel {
+  background: none;
+  border: 1px solid var(--border-light);
+  color: var(--text-tertiary);
+}
+
+.admin-btn-cancel:hover {
+  background: var(--bg-hover);
+}
+
+/* Alert Card - 预警中心卡片样式 */
+.alert-card {
+  background: var(--bg-surface);
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.alert-card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.alert-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.alert-card-header:hover {
+  background: var(--bg-hover);
+}
+
+.alert-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alert-card-arrow {
+  width: 16px;
+  height: 16px;
+  color: var(--text-tertiary);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.alert-card.expanded .alert-card-arrow {
+  transform: rotate(90deg);
+}
+
+.alert-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.alert-card-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.alert-card-count {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+.alert-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.alert-card-btn {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+
+.alert-card-btn:hover {
+  background: var(--border-light);
+  color: var(--text-primary);
+}
+
+.alert-card-btn.delete {
+  color: #ef4444;
+}
+
+.alert-card-btn.delete:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+[data-theme="dark"] .alert-card-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.alert-card-body {
+  display: none;
+  padding: 0 16px 14px;
+  border-top: 1px solid var(--border-light);
+}
+
+.alert-card.expanded .alert-card-body {
+  display: block;
+}
+
+.alert-card-conditions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+}
+
+.alert-card-cond {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-hover);
+  border-radius: 8px;
+}
+
+.alert-card-cond-icon {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f59e0b;
+  margin-top: 5px;
+  flex-shrink: 0;
+}
+
+.alert-card-cond-content {
+  flex: 1;
+}
+
+.alert-card-cond-text {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.alert-card-cond-note {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+
+/* AI 配额显示 */
+.ai-quota-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--bg-hover);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.ai-quota-badge svg {
+  width: 12px;
+  height: 12px;
+}
+
+.ai-quota-badge.warning {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.ai-quota-badge.exhausted {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+[data-theme="dark"] .ai-quota-badge.warning {
+  background: rgba(217, 119, 6, 0.15);
+}
+
+[data-theme="dark"] .ai-quota-badge.exhausted {
+  background: rgba(220, 38, 38, 0.15);
+}

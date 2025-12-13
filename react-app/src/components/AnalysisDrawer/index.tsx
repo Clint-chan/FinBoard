@@ -41,7 +41,8 @@ export function AnalysisDrawer({
   // 聊天历史（按股票代码存储）
   const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>({})
   
-
+  // AI 配额
+  const [aiQuota, setAiQuota] = useState<{ quota: number; used: number; remaining: number; isAdmin: boolean } | null>(null)
   
   // 输入框
   const [inputValue, setInputValue] = useState('')
@@ -73,6 +74,15 @@ export function AnalysisDrawer({
       }))
     }
   }, [currentCode, stockData, chatHistory])
+
+  // 加载 AI 配额
+  useEffect(() => {
+    if (open) {
+      import('@/services/aiChatService').then(({ getUserQuota }) => {
+        getUserQuota().then(setAiQuota).catch(console.error)
+      })
+    }
+  }, [open])
 
   // 切换股票
   const switchStock = useCallback((code: string) => {
@@ -157,14 +167,20 @@ export function AnalysisDrawer({
         }
         return { ...prev, [currentCode]: messages }
       })
+      
+      // 更新配额显示
+      import('@/services/aiChatService').then(({ getUserQuota }) => {
+        getUserQuota().then(setAiQuota).catch(console.error)
+      })
     } catch (error) {
       console.error('AI error:', error)
+      const errorMsg = error instanceof Error ? error.message : 'AI 服务暂时不可用'
       setChatHistory(prev => {
         const messages = [...(prev[currentCode] || [])]
         if (messages[aiMsgIndex]) {
           messages[aiMsgIndex] = {
             role: 'ai',
-            content: '抱歉，AI 服务暂时不可用。请稍后再试。',
+            content: `抱歉，${errorMsg}`,
             isStreaming: false
           }
         }
@@ -335,6 +351,17 @@ export function AnalysisDrawer({
                   <span className="ai-status">在线</span>
                 </div>
               </div>
+              {/* AI 配额显示 */}
+              {aiQuota && (
+                <div className={`ai-quota-badge ${aiQuota.remaining <= 1 ? (aiQuota.remaining === 0 ? 'exhausted' : 'warning') : ''}`}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                    <path d="M2 17l10 5 10-5"></path>
+                    <path d="M2 12l10 5 10-5"></path>
+                  </svg>
+                  <span>{aiQuota.isAdmin ? '∞' : `${aiQuota.remaining}/${aiQuota.quota}`}</span>
+                </div>
+              )}
             </div>
 
             <div className="chat-messages" ref={messagesRef}>
