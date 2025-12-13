@@ -172,10 +172,13 @@ export default {
           return jsonResponse({ error: '股票代码不能为空' }, 400);
         }
         try {
-          const dataContext = await collectStockData(code);
-          return jsonResponse({ code, context: dataContext });
+          // 清理股票代码（移除 sh/sz 前缀）
+          const cleanCode = code.replace(/^(sh|sz)/i, '');
+          const dataContext = await collectStockData(cleanCode);
+          return jsonResponse({ code: cleanCode, context: dataContext });
         } catch (error) {
-          return jsonResponse({ error: error.message }, 500);
+          console.error('股票数据采集错误:', error);
+          return jsonResponse({ error: error.message, code }, 500);
         }
       }
 
