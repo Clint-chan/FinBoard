@@ -334,14 +334,20 @@ export function AnalysisDrawer({
                 }
               }}
             >
-            {messages.map((msg, i) => (
-              <div key={i} className={`chat-message ${msg.role}`}>
-                <div 
-                  className="bubble"
-                  dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }}
-                />
-              </div>
-            ))}
+            {messages.map((msg, i) => {
+              // 对于 AI 消息，找到前一条用户消息用于过滤重复问题
+              const prevUserMsg = msg.role === 'ai' && i > 0 
+                ? messages.slice(0, i).reverse().find(m => m.role === 'user')?.content 
+                : undefined
+              return (
+                <div key={i} className={`chat-message ${msg.role}`}>
+                  <div 
+                    className="bubble"
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content, prevUserMsg) }}
+                  />
+                </div>
+              )
+            })}
           </div>
 
           <div className="chat-input-zone">

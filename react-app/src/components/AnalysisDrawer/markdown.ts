@@ -15,6 +15,11 @@ function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (c) => map[c])
 }
 
+// 转义正则表达式特殊字符
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 // 解析行内 Markdown
 function parseInline(text: string): string {
   let result = text
@@ -75,23 +80,26 @@ function renderThinkingBlock(content: string, isComplete: boolean): string {
 
 /**
  * 渲染 Markdown 为 HTML
+ * @param markdown - Markdown 内容
+ * @param userQuestion - 用户的提问（可选），用于过滤 AI 重复的问题
  */
-export function renderMarkdown(markdown: string): string {
+export function renderMarkdown(markdown: string, userQuestion?: string): string {
   if (!markdown) return ''
 
   let content = markdown
-  const blocks: { html: string; placeholder: string }[] = []
 
-  // 0. 预处理：移除 AI 可能重复的用户问题（通常在 think 标签后紧跟）
-  // 匹配模式：</think> 后面紧跟的短句（通常是重复的用户问题）
-  content = content.replace(/<\/think>\s*([^<\n]{1,20})\n/g, (match, possibleQuestion) => {
-    // 如果这个短句看起来像是重复的问题（没有标点或只有简单标点），移除它
-    const trimmed = possibleQuestion.trim()
-    if (trimmed && !trimmed.includes('。') && !trimmed.includes('！') && !trimmed.includes('：')) {
-      return '</think>\n'
-    }
-    return match
-  })
+  // 0. 预处理：移除 <think> 前面重复的用户问题
+  if (userQuestion) {
+    const q = userQuestion.trim()
+    // 检查内容是否以用户问题开头（后面紧跟 <think>）
+    const pattern = new RegExp(`^\\s*${escapeRegex(q)}\\s*(?=<think>)`, 'i')
+    content = content.replace(pattern, '')
+  }
+  
+  // 也移除开头的短句（如果紧跟 <think>，通常是重复的问题）
+  content = content.replace(/^([^<\n]{1,30})\n\s*<think>/s, '<think>')
+
+  const blocks: { html: string; placeholder: string }[] = []
 
   // 1. 处理完整的 <think>...</think>
   content = content.replace(/<think>([\s\S]*?)<\/think>/g, (_, thinkContent) => {
