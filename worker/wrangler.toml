@@ -2,8 +2,13 @@ name = "market-board-api"
 main = "index.js"
 compatibility_date = "2024-01-01"
 
-# KV 绑定 - 需要先在 Cloudflare 控制台创建 KV namespace
-# 然后把下面的 id 替换成你的 namespace ID
+# KV 绑定 - 用于用户配置存储（JSON 结构，读多写少）
 [[kv_namespaces]]
 binding = "CONFIG_KV"
 id = "581a1195af51480b9b65fd50826fb33b"
+
+# D1 数据库绑定 - 用于用户管理和 AI 使用统计
+[[d1_databases]]
+binding = "DB"
+database_name = "fintell-db"
+database_id = "047dd4bc-6711-4e54-9719-dccff29c2d66"
