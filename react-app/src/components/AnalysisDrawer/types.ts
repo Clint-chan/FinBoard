@@ -17,6 +17,8 @@ export const AI_MODES: Record<AIMode, string> = {
 export interface ChatMessage {
   role: 'user' | 'ai'
   content: string
+  isStreaming?: boolean
+  streamStartTime?: number
 }
 
 // 组件 Props

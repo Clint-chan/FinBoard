@@ -4,9 +4,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { SuperChart } from '@/components/SuperChart'
 import { StockNews } from '@/components/StockNews'
+import { ChatMessage as ChatMessageComponent } from './ChatMessage'
 import type { StockData } from '@/types'
 import { type AIMode, AI_MODES, type ChatMessage } from './types'
-import { renderMarkdown } from './markdown'
 import './AnalysisDrawer.css'
 
 interface AnalysisDrawerProps {
@@ -92,12 +92,14 @@ export function AnalysisDrawer({
     // 计算 AI 消息的索引（当前消息数 + 1，因为要先加用户消息）
     const currentMessages = chatHistory[currentCode] || []
     const aiMsgIndex = currentMessages.length + 1
+    const streamStartTime = Date.now()
 
-    // 一次性添加用户消息和空的 AI 消息
+    // 一次性添加用户消息和空的 AI 消息（带流式状态）
     const userMsg = { role: 'user' as const, content: text }
+    const aiMsg = { role: 'ai' as const, content: '', isStreaming: true, streamStartTime }
     setChatHistory(prev => ({
       ...prev,
-      [currentCode]: [...(prev[currentCode] || []), userMsg, { role: 'ai', content: '' }]
+      [currentCode]: [...(prev[currentCode] || []), userMsg, aiMsg]
     }))
 
     try {
@@ -141,6 +143,18 @@ export function AnalysisDrawer({
           })
         }
       )
+      
+      // 流式完成，更新状态
+      setChatHistory(prev => {
+        const messages = [...(prev[currentCode] || [])]
+        if (messages[aiMsgIndex]) {
+          messages[aiMsgIndex] = {
+            ...messages[aiMsgIndex],
+            isStreaming: false
+          }
+        }
+        return { ...prev, [currentCode]: messages }
+      })
     } catch (error) {
       console.error('AI error:', error)
       setChatHistory(prev => {
@@ -148,7 +162,8 @@ export function AnalysisDrawer({
         if (messages[aiMsgIndex]) {
           messages[aiMsgIndex] = {
             role: 'ai',
-            content: '抱歉，AI 服务暂时不可用。请稍后再试。'
+            content: '抱歉，AI 服务暂时不可用。请稍后再试。',
+            isStreaming: false
           }
         }
         return { ...prev, [currentCode]: messages }
@@ -320,33 +335,17 @@ export function AnalysisDrawer({
               </div>
             </div>
 
-            <div 
-              className="chat-messages" 
-              ref={messagesRef}
-              onClick={(e) => {
-                // 事件委托：处理思考块的折叠/展开
-                const header = (e.target as HTMLElement).closest('.thinking-header')
-                if (header) {
-                  const block = header.closest('.thinking-block')
-                  block?.classList.toggle('collapsed')
-                }
-              }}
-            >
-            {messages.map((msg, i) => {
-              // 对于 AI 消息，找到前一条用户消息用于过滤重复问题
-              const prevUserMsg = msg.role === 'ai' && i > 0 
-                ? messages.slice(0, i).reverse().find(m => m.role === 'user')?.content 
-                : undefined
-              return (
-                <div key={i} className={`chat-message ${msg.role}`}>
-                  <div 
-                    className="bubble"
-                    dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content, prevUserMsg) }}
-                  />
-                </div>
-              )
-            })}
-          </div>
+            <div className="chat-messages" ref={messagesRef}>
+              {messages.map((msg, i) => (
+                <ChatMessageComponent
+                  key={i}
+                  role={msg.role}
+                  content={msg.content}
+                  isStreaming={msg.isStreaming}
+                  streamStartTime={msg.streamStartTime}
+                />
+              ))}
+            </div>
 
           <div className="chat-input-zone">
             <div className="input-wrapper">

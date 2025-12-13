@@ -1,6 +1,6 @@
 /**
  * Markdown 渲染工具
- * 支持 AI 思考过程的流式渲染
+ * 支持表格、列表、代码块等常用语法
  */
 
 // 转义 HTML 特殊字符
@@ -15,11 +15,6 @@ function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (c) => map[c])
 }
 
-// 转义正则表达式特殊字符
-function escapeRegex(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
 // 解析行内 Markdown
 function parseInline(text: string): string {
   let result = text
@@ -27,7 +22,7 @@ function parseInline(text: string): string {
   // 粗体 **text**
   result = result.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
 
-  // 斜体 *text*（不匹配 **）
+  // 斜体 *text*
   result = result.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
 
   // 行内代码 `code`
@@ -42,115 +37,48 @@ function parseInline(text: string): string {
   return result
 }
 
-// 思考块图标 SVG
-const THINKING_ICON = `<svg class="thinking-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-  <circle cx="12" cy="12" r="10"/>
-  <path d="M12 6v6l4 2"/>
-</svg>`
+// 检测是否是表格行
+function isTableRow(line: string): boolean {
+  return line.trim().startsWith('|') && line.trim().endsWith('|')
+}
 
-/**
- * 渲染思考块
- * @param content 思考内容
- * @param isComplete 是否已完成（有 </think> 结束标签）
- */
-function renderThinkingBlock(content: string, isComplete: boolean): string {
-  const statusText = isComplete ? '思考过程' : '思考中...'
-  const collapsedClass = isComplete ? 'collapsed' : ''
+// 检测是否是表格分隔行
+function isTableSeparator(line: string): boolean {
+  return /^\|[\s\-:|]+\|$/.test(line.trim())
+}
 
-  // 处理思考内容：转义 HTML，保留换行
-  const lines = content
+// 解析表格行
+function parseTableRow(line: string, isHeader: boolean = false): string {
+  const cells = line
     .trim()
-    .split('\n')
-    .filter((l) => l.trim())
-  const formattedContent = lines.map((line) => `<p>${escapeHtml(line)}</p>`).join('')
+    .slice(1, -1) // 移除首尾的 |
+    .split('|')
+    .map((cell) => cell.trim())
 
-  return `<div class="thinking-block ${collapsedClass}">
-    <div class="thinking-header">
-      ${THINKING_ICON}
-      <span class="thinking-status">${statusText}</span>
-      <svg class="thinking-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="6 9 12 15 18 9"/>
-      </svg>
-    </div>
-    <div class="thinking-body">
-      ${formattedContent}
-    </div>
-  </div>`
+  const tag = isHeader ? 'th' : 'td'
+  const cellsHtml = cells.map((cell) => `<${tag}>${parseInline(escapeHtml(cell))}</${tag}>`).join('')
+
+  return `<tr>${cellsHtml}</tr>`
 }
 
 /**
  * 渲染 Markdown 为 HTML
- * @param markdown - Markdown 内容
- * @param userQuestion - 用户的提问（可选），用于过滤 AI 重复的问题
  */
-export function renderMarkdown(markdown: string, userQuestion?: string): string {
+export function renderMarkdown(markdown: string): string {
   if (!markdown) return ''
 
-  let content = markdown
-
-  // 0. 预处理：移除 <think> 前面重复的用户问题
-  if (userQuestion) {
-    const q = userQuestion.trim()
-    // 检查内容是否以用户问题开头（后面紧跟 <think>）
-    // 支持有换行或无换行的情况
-    const pattern = new RegExp(`^\\s*${escapeRegex(q)}\\s*(?=<think>)`, 'i')
-    content = content.replace(pattern, '')
-  }
-  
-  // 也移除开头的短句（如果紧跟 <think>，通常是重复的问题）
-  // 匹配：开头的短文本（不含<和换行）+ 可选换行/空格 + <think>
-  content = content.replace(/^([^<\n]{1,30})[\n\s]*(?=<think>)/s, '')
-
-  const blocks: { html: string; placeholder: string }[] = []
-
-  // 1. 处理完整的 <think>...</think>
-  content = content.replace(/<think>([\s\S]*?)<\/think>/g, (_, thinkContent) => {
-    const placeholder = `\x00T${blocks.length}\x00`
-    blocks.push({
-      html: renderThinkingBlock(thinkContent, true),
-      placeholder,
-    })
-    return placeholder
-  })
-
-  // 2. 处理未闭合的 <think>...（流式场景）
-  const pendingMatch = content.match(/<think>([\s\S]*)$/)
-  if (pendingMatch) {
-    const placeholder = `\x00P${blocks.length}\x00`
-    blocks.push({
-      html: renderThinkingBlock(pendingMatch[1], false),
-      placeholder,
-    })
-    content = content.replace(/<think>([\s\S]*)$/, placeholder)
-  }
-
-  // 3. 渲染 Markdown
-  const lines = content.split('\n')
+  const lines = markdown.split('\n')
   const html: string[] = []
   let inList = false
   let inOrderedList = false
   let inCodeBlock = false
   let codeLines: string[] = []
   let inBlockquote = false
+  let inTable = false
 
-  for (const line of lines) {
-    // 占位符单独一行
-    if (/^\x00[TP]\d+\x00$/.test(line)) {
-      if (inList) {
-        html.push('</ul>')
-        inList = false
-      }
-      if (inOrderedList) {
-        html.push('</ol>')
-        inOrderedList = false
-      }
-      if (inBlockquote) {
-        html.push('</blockquote>')
-        inBlockquote = false
-      }
-      html.push(line)
-      continue
-    }
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const nextLine = lines[i + 1]
 
     // 代码块
     if (line.startsWith('```')) {
@@ -168,6 +96,36 @@ export function renderMarkdown(markdown: string, userQuestion?: string): string 
       continue
     }
 
+    // 表格处理
+    if (isTableRow(line)) {
+      // 检查下一行是否是分隔符（表示当前行是表头）
+      if (!inTable && nextLine && isTableSeparator(nextLine)) {
+        html.push('<table>')
+        html.push('<thead>')
+        html.push(parseTableRow(line, true))
+        html.push('</thead>')
+        html.push('<tbody>')
+        inTable = true
+        continue
+      }
+
+      // 跳过分隔行
+      if (isTableSeparator(line)) {
+        continue
+      }
+
+      // 表格数据行
+      if (inTable) {
+        html.push(parseTableRow(line, false))
+        continue
+      }
+    } else if (inTable) {
+      // 表格结束
+      html.push('</tbody>')
+      html.push('</table>')
+      inTable = false
+    }
+
     // 空行
     if (!line.trim()) {
       if (inList) {
@@ -181,6 +139,11 @@ export function renderMarkdown(markdown: string, userQuestion?: string): string 
       if (inBlockquote) {
         html.push('</blockquote>')
         inBlockquote = false
+      }
+      if (inTable) {
+        html.push('</tbody>')
+        html.push('</table>')
+        inTable = false
       }
       continue
     }
@@ -251,15 +214,12 @@ export function renderMarkdown(markdown: string, userQuestion?: string): string 
   if (inCodeBlock) {
     html.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`)
   }
+  if (inTable) {
+    html.push('</tbody>')
+    html.push('</table>')
+  }
 
-  // 4. 替换占位符
-  let result = html.join('')
-  blocks.forEach(({ html: blockHtml, placeholder }) => {
-    result = result.replace(placeholder, blockHtml)
-    result = result.replace(`<p>${placeholder}</p>`, blockHtml)
-  })
-
-  return result
+  return html.join('')
 }
 
 export default renderMarkdown

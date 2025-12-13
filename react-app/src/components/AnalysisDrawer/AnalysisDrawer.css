@@ -969,3 +969,79 @@
 [data-theme="dark"] .analysis-drawer .bubble .thinking-body::-webkit-scrollbar-thumb {
   background: #4b5563;
 }
+
+
+/* 加载动画 */
+.analysis-drawer .loading-dots {
+  display: flex;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.analysis-drawer .loading-dots span {
+  width: 6px;
+  height: 6px;
+  background: #9ca3af;
+  border-radius: 50%;
+  animation: loading-bounce 1.4s ease-in-out infinite both;
+}
+
+.analysis-drawer .loading-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.analysis-drawer .loading-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes loading-bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+/* 回复内容区域 */
+.analysis-drawer .reply-content {
+  margin-top: 4px;
+}
+
+
+/* 表格样式 */
+.analysis-drawer .bubble table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 0.85rem;
+}
+
+.analysis-drawer .bubble th,
+.analysis-drawer .bubble td {
+  padding: 8px 12px;
+  text-align: left;
+  border: 1px solid var(--border-light);
+}
+
+.analysis-drawer .bubble th {
+  background: var(--bg-hover);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.analysis-drawer .bubble td {
+  color: var(--text-secondary);
+}
+
+.analysis-drawer .bubble tr:hover td {
+  background: var(--bg-hover);
+}
+
+[data-theme="dark"] .analysis-drawer .bubble th {
+  background: #1e293b;
+}
+
+[data-theme="dark"] .analysis-drawer .bubble tr:hover td {
+  background: #1e293b;
+}

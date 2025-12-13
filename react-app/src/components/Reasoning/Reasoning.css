@@ -1,0 +1,91 @@
+/**
+ * Reasoning 组件样式
+ * 参考 Vercel AI SDK 设计风格
+ */
+
+.reasoning {
+  margin: 8px 0 16px;
+}
+
+/* 触发按钮 */
+.reasoning-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: #6b7280;
+  transition: color 0.15s;
+}
+
+.reasoning-trigger:hover {
+  color: #374151;
+}
+
+[data-theme="dark"] .reasoning-trigger:hover {
+  color: #d1d5db;
+}
+
+/* 图标 */
+.reasoning-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* 思考中旋转动画 */
+.reasoning.streaming .reasoning-icon {
+  animation: reasoning-spin 2s linear infinite;
+}
+
+@keyframes reasoning-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 状态文字 */
+.reasoning-status {
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+/* 箭头 */
+.reasoning-arrow {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  transition: transform 0.25s ease;
+}
+
+.reasoning.closed .reasoning-arrow {
+  transform: rotate(-90deg);
+}
+
+/* 内容包装器 - 用于动画 */
+.reasoning-content-wrapper {
+  overflow: hidden;
+  transition: height 0.25s ease;
+}
+
+/* 内容区域 */
+.reasoning-content {
+  padding: 12px 0 4px 22px;
+}
+
+.reasoning-content p {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: #4b5563;
+  margin: 0 0 8px;
+}
+
+.reasoning-content p:last-child {
+  margin-bottom: 0;
+}
+
+[data-theme="dark"] .reasoning-content p {
+  color: #9ca3af;
+}
