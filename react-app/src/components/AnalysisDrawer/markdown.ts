@@ -1,6 +1,6 @@
 /**
  * Markdown 渲染工具
- * 简单的 Markdown 解析器，支持常用语法
+ * 简单的 Markdown 解析器，支持常用语法和 AI 思考过程
  */
 
 // 转义 HTML 特殊字符
@@ -15,18 +15,17 @@ function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, c => map[c])
 }
 
-// 解析行内元素
-function parseInline(text: string): string {
-  // 转义 HTML
-  let result = escapeHtml(text)
+// 解析行内元素（不转义 HTML，因为我们已经处理过了）
+function parseInlineRaw(text: string): string {
+  let result = text
   
   // 粗体 **text** 或 __text__
   result = result.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
   result = result.replace(/__(.+?)__/g, '<strong>$1</strong>')
   
-  // 斜体 *text* 或 _text_
-  result = result.replace(/\*(.+?)\*/g, '<em>$1</em>')
-  result = result.replace(/_(.+?)_/g, '<em>$1</em>')
+  // 斜体 *text* 或 _text_（但不匹配 ** 或 __）
+  result = result.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
+  result = result.replace(/(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/g, '<em>$1</em>')
   
   // 行内代码 `code`
   result = result.replace(/`([^`]+)`/g, '<code>$1</code>')
@@ -38,32 +37,61 @@ function parseInline(text: string): string {
 }
 
 /**
+ * 渲染思考块为 HTML
+ */
+function renderThinkingBlock(content: string, isComplete: boolean): string {
+  const openAttr = isComplete ? '' : ' open'
+  
+  // 简单处理思考内容：保留换行，转义 HTML
+  const lines = content.trim().split('\n')
+  const formattedContent = lines
+    .map(line => escapeHtml(line))
+    .join('<br>')
+  
+  return `<div class="thinking-block"${openAttr}>
+    <div class="thinking-header" onclick="this.parentElement.classList.toggle('collapsed')">
+      <span class="thinking-icon">${isComplete ? '💭' : '🧠'}</span>
+      <span class="thinking-title">${isComplete ? '思考过程' : '思考中...'}</span>
+      <span class="thinking-toggle">▼</span>
+    </div>
+    <div class="thinking-content">${formattedContent}</div>
+  </div>`
+}
+
+/**
  * 渲染 Markdown 为 HTML
- * 支持流式渲染场景下的不完整 think 标签
+ * 支持流式渲染场景下的 think 标签
  */
 export function renderMarkdown(markdown: string): string {
   if (!markdown) return ''
   
-  // 处理 think 标签（支持流式场景）
-  const thinkPlaceholders: string[] = []
-  const pendingThinkPlaceholders: string[] = []
+  // 第一步：处理 think 标签
+  let content = markdown
+  const thinkBlocks: { html: string; placeholder: string }[] = []
   
-  // 1. 先处理完整的 <think>...</think> 标签
-  let processedMarkdown = markdown.replace(/<think>([\s\S]*?)<\/think>/g, (_, thinkContent) => {
-    const placeholder = `__THINK_PLACEHOLDER_${thinkPlaceholders.length}__`
-    thinkPlaceholders.push(thinkContent.trim())
+  // 处理完整的 <think>...</think>
+  content = content.replace(/<think>([\s\S]*?)<\/think>/g, (_, thinkContent) => {
+    const placeholder = `\x00THINK${thinkBlocks.length}\x00`
+    thinkBlocks.push({
+      html: renderThinkingBlock(thinkContent, true),
+      placeholder
+    })
     return placeholder
   })
   
-  // 2. 处理未闭合的 <think>...（流式场景，标签还没结束）
-  const pendingThinkMatch = processedMarkdown.match(/<think>([\s\S]*)$/)
-  if (pendingThinkMatch) {
-    const placeholder = `__PENDING_THINK_PLACEHOLDER_${pendingThinkPlaceholders.length}__`
-    pendingThinkPlaceholders.push(pendingThinkMatch[1].trim())
-    processedMarkdown = processedMarkdown.replace(/<think>([\s\S]*)$/, placeholder)
+  // 处理未闭合的 <think>...（流式场景）
+  const pendingMatch = content.match(/<think>([\s\S]*)$/)
+  if (pendingMatch) {
+    const placeholder = `\x00PENDING${thinkBlocks.length}\x00`
+    thinkBlocks.push({
+      html: renderThinkingBlock(pendingMatch[1], false),
+      placeholder
+    })
+    content = content.replace(/<think>([\s\S]*)$/, placeholder)
   }
   
-  const lines = processedMarkdown.split('\n')
+  // 第二步：渲染 Markdown
+  const lines = content.split('\n')
   const html: string[] = []
   let inList = false
   let inOrderedList = false
@@ -72,7 +100,18 @@ export function renderMarkdown(markdown: string): string {
   let inBlockquote = false
   
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
+    let line = lines[i]
+    
+    // 检查是否包含占位符（单独一行）
+    const placeholderMatch = line.match(/^\x00(THINK|PENDING)\d+\x00$/)
+    if (placeholderMatch) {
+      // 关闭之前的列表等
+      if (inList) { html.push('</ul>'); inList = false }
+      if (inOrderedList) { html.push('</ol>'); inOrderedList = false }
+      if (inBlockquote) { html.push('</blockquote>'); inBlockquote = false }
+      html.push(line) // 保留占位符，后面替换
+      continue
+    }
     
     // 代码块 ```
     if (line.startsWith('```')) {
@@ -93,80 +132,60 @@ export function renderMarkdown(markdown: string): string {
     
     // 空行
     if (!line.trim()) {
-      if (inList) {
-        html.push('</ul>')
-        inList = false
-      }
-      if (inOrderedList) {
-        html.push('</ol>')
-        inOrderedList = false
-      }
-      if (inBlockquote) {
-        html.push('</blockquote>')
-        inBlockquote = false
-      }
+      if (inList) { html.push('</ul>'); inList = false }
+      if (inOrderedList) { html.push('</ol>'); inOrderedList = false }
+      if (inBlockquote) { html.push('</blockquote>'); inBlockquote = false }
       continue
     }
     
-    // 标题 # ## ### #### ##### ######
+    // 标题
     const headingMatch = line.match(/^(#{1,6})\s+(.+)$/)
     if (headingMatch) {
       const level = headingMatch[1].length
-      const text = parseInline(headingMatch[2])
-      html.push(`<h${level}>${text}</h${level}>`)
+      html.push(`<h${level}>${parseInlineRaw(escapeHtml(headingMatch[2]))}</h${level}>`)
       continue
     }
     
-    // 引用 >
+    // 引用
     if (line.startsWith('>')) {
-      const text = parseInline(line.slice(1).trim())
-      if (!inBlockquote) {
-        html.push('<blockquote>')
-        inBlockquote = true
-      }
-      html.push(`<p>${text}</p>`)
+      if (!inBlockquote) { html.push('<blockquote>'); inBlockquote = true }
+      html.push(`<p>${parseInlineRaw(escapeHtml(line.slice(1).trim()))}</p>`)
       continue
     } else if (inBlockquote) {
       html.push('</blockquote>')
       inBlockquote = false
     }
     
-    // 无序列表 - 或 *
+    // 无序列表
     const ulMatch = line.match(/^[-*]\s+(.+)$/)
     if (ulMatch) {
-      if (!inList) {
-        html.push('<ul>')
-        inList = true
-      }
-      html.push(`<li>${parseInline(ulMatch[1])}</li>`)
+      if (!inList) { html.push('<ul>'); inList = true }
+      html.push(`<li>${parseInlineRaw(escapeHtml(ulMatch[1]))}</li>`)
       continue
     } else if (inList) {
       html.push('</ul>')
       inList = false
     }
     
-    // 有序列表 1. 2. 3.
+    // 有序列表
     const olMatch = line.match(/^\d+\.\s+(.+)$/)
     if (olMatch) {
-      if (!inOrderedList) {
-        html.push('<ol>')
-        inOrderedList = true
-      }
-      html.push(`<li>${parseInline(olMatch[1])}</li>`)
+      if (!inOrderedList) { html.push('<ol>'); inOrderedList = true }
+      html.push(`<li>${parseInlineRaw(escapeHtml(olMatch[1]))}</li>`)
       continue
     } else if (inOrderedList) {
       html.push('</ol>')
       inOrderedList = false
     }
     
-    // 分隔线 --- 或 ***
+    // 分隔线
     if (/^[-*]{3,}$/.test(line.trim())) {
       html.push('<hr>')
       continue
     }
     
     // 普通段落
-    html.push(`<p>${parseInline(line)}</p>`)
+    html.push(`<p>${parseInlineRaw(escapeHtml(line))}</p>`)
   }
   
   // 关闭未闭合的标签
@@ -177,33 +196,12 @@ export function renderMarkdown(markdown: string): string {
     html.push(`<pre><code>${escapeHtml(codeContent.join('\n'))}</code></pre>`)
   }
   
-  // 恢复 think 标签（需要处理转义后的占位符）
+  // 第三步：替换占位符为思考块 HTML
   let result = html.join('')
-  
-  // 恢复完整的 think 标签
-  thinkPlaceholders.forEach((thinkContent, index) => {
-    const placeholder = `__THINK_PLACEHOLDER_${index}__`
-    // 占位符可能被 escapeHtml 转义了，所以要匹配转义后的版本
-    const escapedPlaceholder = escapeHtml(placeholder)
-    const thinkHtml = `<details class="thinking-block">
-      <summary>💭 思考过程</summary>
-      <div class="thinking-content">${escapeHtml(thinkContent)}</div>
-    </details>`
-    result = result.replace(escapedPlaceholder, thinkHtml)
-    result = result.replace(placeholder, thinkHtml) // 也尝试替换未转义的版本
-  })
-  
-  // 恢复未闭合的 think 标签（流式场景，显示为"思考中..."）
-  pendingThinkPlaceholders.forEach((thinkContent, index) => {
-    const placeholder = `__PENDING_THINK_PLACEHOLDER_${index}__`
-    const escapedPlaceholder = escapeHtml(placeholder)
-    // 流式场景：显示为展开状态的思考中
-    const thinkHtml = `<details class="thinking-block" open>
-      <summary>💭 思考中...</summary>
-      <div class="thinking-content">${escapeHtml(thinkContent)}</div>
-    </details>`
-    result = result.replace(escapedPlaceholder, thinkHtml)
-    result = result.replace(placeholder, thinkHtml)
+  thinkBlocks.forEach(({ html: blockHtml, placeholder }) => {
+    result = result.replace(placeholder, blockHtml)
+    // 也替换被包裹在 <p> 标签中的情况
+    result = result.replace(`<p>${placeholder}</p>`, blockHtml)
   })
   
   return result
