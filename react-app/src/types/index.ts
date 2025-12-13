@@ -21,6 +21,7 @@ export interface AlertCondition {
   type: 'price' | 'pct'
   operator: 'above' | 'below'
   value: number
+  note?: string // 备注（AI 策略理由等）
 }
 
 // 预警配置

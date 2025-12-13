@@ -181,6 +181,12 @@
   overflow-y: auto;
 }
 
+.alert-condition-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .alert-condition {
   display: flex;
   align-items: center;
@@ -189,6 +195,25 @@
   background: var(--bg-hover);
   border-radius: 10px;
   border: 1px solid var(--border-light);
+}
+
+.alert-note-input {
+  width: 100%;
+  padding: 6px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+
+.alert-note-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.alert-note-input::placeholder {
+  color: var(--text-tertiary);
 }
 
 .alert-condition select {

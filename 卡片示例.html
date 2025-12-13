@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 模拟 A股 红涨绿跌 (你可以根据需要反转颜色) */
+        .text-up { color: #ef4444; }
+        .bg-up-light { background-color: #fef2f2; }
+        .border-up { border-color: #fca5a5; }
+        
+        .text-down { color: #22c55e; }
+        .bg-down-light { background-color: #f0fdf4; }
+        .border-down { border-color: #86efac; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-10 flex justify-center items-center min-h-screen">
+
+    <!-- 组件开始：日内策略配置卡片 -->
+    <div class="glass-panel w-full max-w-md rounded-2xl shadow-xl border border-gray-200 overflow-hidden font-sans">
+        
+        <!-- 头部：标的信息 -->
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-4 text-white flex justify-between items-center">
+            <div>
+                <div class="flex items-center gap-2">
+                    <h2 class="text-lg font-bold">圆通速递</h2>
+                    <span class="text-xs bg-white/20 px-2 py-0.5 rounded text-white/90">600233</span>
+                </div>
+                <p class="text-xs text-blue-100 mt-1 opacity-80">AI 智能生成的日内 T+0 策略建议</p>
+            </div>
+            <div class="h-10 w-10 bg-white/10 rounded-full flex items-center justify-center">
+                <i class="fa-solid fa-robot text-lg"></i>
+            </div>
+        </div>
+
+        <!-- 策略表单区域 -->
+        <div class="p-5 space-y-4">
+
+            <!-- 1. 高抛点 (压力位) -->
+            <div class="group relative bg-white border border-gray-200 rounded-xl p-3 hover:shadow-md transition-all duration-300 hover:border-red-300">
+                <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-red-500 rounded-l-xl"></div>
+                <div class="flex justify-between items-start mb-2 pl-3">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-bold text-gray-700">高抛点 (卖出)</span>
+                        <span class="text-xs text-gray-400">理由: 前期筹码密集区，RSI超买</span>
+                    </div>
+                    <span class="text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded">压力位</span>
+                </div>
+                <div class="pl-3 flex items-center gap-3">
+                    <div class="flex-1 bg-gray-50 rounded-lg px-3 py-2 border border-gray-200 focus-within:ring-2 focus-within:ring-red-100 focus-within:border-red-400 transition-all flex justify-between items-center">
+                        <span class="text-gray-500 text-sm">触发价 ¥</span>
+                        <input type="number" value="17.80" class="bg-transparent w-20 text-right font-mono font-bold text-gray-800 outline-none" step="0.01">
+                    </div>
+                    <select class="bg-gray-50 border border-gray-200 text-gray-600 text-xs rounded-lg px-2 py-2.5 outline-none">
+                        <option>上冲受阻</option>
+                        <option>突破卖出</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 2. 低吸点 (支撑位) -->
+            <div class="group relative bg-white border border-gray-200 rounded-xl p-3 hover:shadow-md transition-all duration-300 hover:border-green-300">
+                <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-green-500 rounded-l-xl"></div>
+                <div class="flex justify-between items-start mb-2 pl-3">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-bold text-gray-700">低吸点 (买入)</span>
+                        <span class="text-xs text-gray-400">理由: 5日均线强支撑，量能萎缩</span>
+                    </div>
+                    <span class="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">支撑位</span>
+                </div>
+                <div class="pl-3 flex items-center gap-3">
+                    <div class="flex-1 bg-gray-50 rounded-lg px-3 py-2 border border-gray-200 focus-within:ring-2 focus-within:ring-green-100 focus-within:border-green-400 transition-all flex justify-between items-center">
+                        <span class="text-gray-500 text-sm">触发价 ¥</span>
+                        <input type="number" value="17.15" class="bg-transparent w-20 text-right font-mono font-bold text-gray-800 outline-none" step="0.01">
+                    </div>
+                    <select class="bg-gray-50 border border-gray-200 text-gray-600 text-xs rounded-lg px-2 py-2.5 outline-none">
+                        <option>触及反弹</option>
+                        <option>跌破收回</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 3. 止损点 (风控) -->
+            <div class="group relative bg-white border border-gray-200 rounded-xl p-3 hover:shadow-md transition-all duration-300 hover:border-gray-400">
+                <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-gray-500 rounded-l-xl"></div>
+                <div class="flex justify-between items-start mb-2 pl-3">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-bold text-gray-700">止损点 (风控)</span>
+                        <span class="text-xs text-gray-400">理由: 跌破20日生命线，趋势转弱</span>
+                    </div>
+                    <span class="text-xs font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded">止损线</span>
+                </div>
+                <div class="pl-3 flex items-center gap-3">
+                    <div class="flex-1 bg-gray-50 rounded-lg px-3 py-2 border border-gray-200 focus-within:ring-2 focus-within:ring-gray-200 focus-within:border-gray-400 transition-all flex justify-between items-center">
+                        <span class="text-gray-500 text-sm">触发价 ¥</span>
+                        <input type="number" value="16.90" class="bg-transparent w-20 text-right font-mono font-bold text-gray-800 outline-none" step="0.01">
+                    </div>
+                    <div class="text-xs text-gray-400 px-2">
+                        有效跌破卖出
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 底部操作栏 -->
+        <div class="bg-gray-50 p-4 border-t border-gray-200 flex flex-col gap-2">
+            <button class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-xl shadow-lg shadow-indigo-200 transition-all active:scale-95 flex justify-center items-center gap-2">
+                <i class="fa-regular fa-bell"></i>
+                确认并添加至盯盘监控 (Alerts)
+            </button>
+            <p class="text-center text-[10px] text-gray-400">
+                *策略仅供参考，请结合实盘动态调整。
+            </p>
+        </div>
+    </div>
+    <!-- 组件结束 -->
+
+</body>
+</html>

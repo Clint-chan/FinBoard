@@ -51,7 +51,8 @@ function AlertModal({ open, code, stockData, conditions: initialConditions, onCl
     }).map(c => ({
       type: c.type,
       operator: c.operator,
-      value: typeof c.value === 'string' ? parseFloat(c.value) : c.value
+      value: typeof c.value === 'string' ? parseFloat(c.value) : c.value,
+      note: c.note || undefined
     }))
     onSave(code, validConditions)
   }
@@ -76,35 +77,44 @@ function AlertModal({ open, code, stockData, conditions: initialConditions, onCl
             <div className="alert-empty">暂无预警条件，点击下方按钮添加</div>
           ) : (
             conditions.map((cond, idx) => (
-              <div key={idx} className="alert-condition">
-                <select
-                  value={cond.type}
-                  onChange={(e) => updateCondition(idx, 'type', e.target.value as 'price' | 'pct')}
-                >
-                  <option value="price">价格</option>
-                  <option value="pct">涨跌幅</option>
-                </select>
-                <select
-                  value={cond.operator}
-                  onChange={(e) => updateCondition(idx, 'operator', e.target.value as 'above' | 'below')}
-                >
-                  <option value="above">{cond.type === 'pct' ? '≥' : '突破'}</option>
-                  <option value="below">{cond.type === 'pct' ? '≤' : '跌破'}</option>
-                </select>
+              <div key={idx} className="alert-condition-wrapper">
+                <div className="alert-condition">
+                  <select
+                    value={cond.type}
+                    onChange={(e) => updateCondition(idx, 'type', e.target.value as 'price' | 'pct')}
+                  >
+                    <option value="price">价格</option>
+                    <option value="pct">涨跌幅</option>
+                  </select>
+                  <select
+                    value={cond.operator}
+                    onChange={(e) => updateCondition(idx, 'operator', e.target.value as 'above' | 'below')}
+                  >
+                    <option value="above">{cond.type === 'pct' ? '≥' : '突破'}</option>
+                    <option value="below">{cond.type === 'pct' ? '≤' : '跌破'}</option>
+                  </select>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={cond.value}
+                    placeholder={cond.type === 'price' ? '价格' : '百分比'}
+                    onChange={(e) => updateCondition(idx, 'value', e.target.value)}
+                  />
+                  <span className="alert-unit">{cond.type === 'pct' ? '%' : ''}</span>
+                  <button className="alert-del-btn" onClick={() => deleteCondition(idx)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
                 <input
                   type="text"
-                  inputMode="decimal"
-                  value={cond.value}
-                  placeholder={cond.type === 'price' ? '价格' : '百分比'}
-                  onChange={(e) => updateCondition(idx, 'value', e.target.value)}
+                  className="alert-note-input"
+                  value={cond.note || ''}
+                  placeholder="备注（可选）"
+                  onChange={(e) => updateCondition(idx, 'note', e.target.value)}
                 />
-                <span className="alert-unit">{cond.type === 'pct' ? '%' : ''}</span>
-                <button className="alert-del-btn" onClick={() => deleteCondition(idx)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
               </div>
             ))
           )}
