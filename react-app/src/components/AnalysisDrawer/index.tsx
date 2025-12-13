@@ -83,20 +83,18 @@ export function AnalysisDrawer({
     const text = inputValue.trim()
     if (!text || !currentCode) return
 
-    // 添加用户消息
-    const userMsg = { role: 'user' as const, content: text }
-    setChatHistory(prev => ({
-      ...prev,
-      [currentCode]: [...(prev[currentCode] || []), userMsg]
-    }))
-
+    // 清空输入框
     setInputValue('')
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
     }
 
-    // 添加空的 AI 消息用于流式更新
-    const aiMsgIndex = (chatHistory[currentCode] || []).length + 1
+    // 计算 AI 消息的索引（当前消息数 + 1，因为要先加用户消息）
+    const currentMessages = chatHistory[currentCode] || []
+    const aiMsgIndex = currentMessages.length + 1
+
+    // 一次性添加用户消息和空的 AI 消息
+    const userMsg = { role: 'user' as const, content: text }
     setChatHistory(prev => ({
       ...prev,
       [currentCode]: [...(prev[currentCode] || []), userMsg, { role: 'ai', content: '' }]

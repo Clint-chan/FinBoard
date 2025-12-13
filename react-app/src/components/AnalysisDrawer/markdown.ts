@@ -92,12 +92,14 @@ export function renderMarkdown(markdown: string, userQuestion?: string): string 
   if (userQuestion) {
     const q = userQuestion.trim()
     // 检查内容是否以用户问题开头（后面紧跟 <think>）
+    // 支持有换行或无换行的情况
     const pattern = new RegExp(`^\\s*${escapeRegex(q)}\\s*(?=<think>)`, 'i')
     content = content.replace(pattern, '')
   }
   
   // 也移除开头的短句（如果紧跟 <think>，通常是重复的问题）
-  content = content.replace(/^([^<\n]{1,30})\n\s*<think>/s, '<think>')
+  // 匹配：开头的短文本（不含<和换行）+ 可选换行/空格 + <think>
+  content = content.replace(/^([^<\n]{1,30})[\n\s]*(?=<think>)/s, '')
 
   const blocks: { html: string; placeholder: string }[] = []
 
