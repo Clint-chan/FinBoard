@@ -475,6 +475,53 @@
   font-style: italic;
 }
 
+/* 思考过程样式 */
+.analysis-drawer .bubble .thinking-block {
+  background: var(--bg-hover);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+
+.analysis-drawer .bubble .thinking-block summary {
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.2s;
+}
+
+.analysis-drawer .bubble .thinking-block summary:hover {
+  background: var(--bg-body);
+}
+
+.analysis-drawer .bubble .thinking-block[open] summary {
+  border-bottom: 1px solid var(--border-light);
+}
+
+.analysis-drawer .bubble .thinking-content {
+  padding: 12px 14px;
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  font-family: 'SF Mono', Monaco, monospace;
+}
+
+[data-theme="dark"] .analysis-drawer .bubble .thinking-block {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .analysis-drawer .bubble .thinking-block summary:hover {
+  background: #0f172a;
+}
+
 /* 输入区域 - ChatGPT风格 */
 .analysis-drawer .chat-input-zone {
   padding: 12px;

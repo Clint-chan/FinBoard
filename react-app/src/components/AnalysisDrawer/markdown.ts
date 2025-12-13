@@ -43,7 +43,17 @@ function parseInline(text: string): string {
 export function renderMarkdown(markdown: string): string {
   if (!markdown) return ''
   
-  const lines = markdown.split('\n')
+  // 处理 <think> 标签
+  let processedMarkdown = markdown
+  const thinkRegex = /<think>([\s\S]*?)<\/think>/g
+  processedMarkdown = processedMarkdown.replace(thinkRegex, (_, thinkContent) => {
+    return `<details class="thinking-block">
+      <summary>💭 思考过程</summary>
+      <div class="thinking-content">${escapeHtml(thinkContent.trim())}</div>
+    </details>`
+  })
+  
+  const lines = processedMarkdown.split('\n')
   const html: string[] = []
   let inList = false
   let inOrderedList = false
