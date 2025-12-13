@@ -22,6 +22,87 @@ interface ParsedContent {
   isThinkingComplete: boolean
 }
 
+// 尝试修复不完整的 JSON（流式传输时可能被截断）
+function tryFixIncompleteJson(jsonStr: string): string | null {
+  if (!jsonStr || jsonStr.length < 10) return null
+  
+  // 移除可能的结束标签残留
+  let str = jsonStr.replace(/<\/trading_signals>?.*$/s, '').trim()
+  
+  // 如果已经是完整的 JSON，直接返回
+  try {
+    JSON.parse(str)
+    return str
+  } catch {
+    // 继续尝试修复
+  }
+  
+  // 尝试补全 JSON
+  // 1. 检查是否在字符串中间被截断
+  const lastQuote = str.lastIndexOf('"')
+  const lastColon = str.lastIndexOf(':')
+  const lastComma = str.lastIndexOf(',')
+  
+  // 如果最后是在字符串值中间截断，尝试补全
+  if (lastQuote > lastColon && lastQuote > lastComma) {
+    // 可能在字符串值中间，尝试截断到上一个完整的对象
+    const lastCompleteObj = str.lastIndexOf('},')
+    if (lastCompleteObj > 0) {
+      str = str.slice(0, lastCompleteObj + 1)
+    }
+  }
+  
+  // 计算需要补全的括号
+  let braceCount = 0
+  let bracketCount = 0
+  let inString = false
+  let escape = false
+  
+  for (const char of str) {
+    if (escape) {
+      escape = false
+      continue
+    }
+    if (char === '\\') {
+      escape = true
+      continue
+    }
+    if (char === '"') {
+      inString = !inString
+      continue
+    }
+    if (inString) continue
+    
+    if (char === '{') braceCount++
+    else if (char === '}') braceCount--
+    else if (char === '[') bracketCount++
+    else if (char === ']') bracketCount--
+  }
+  
+  // 如果在字符串中间，先闭合字符串
+  if (inString) {
+    str += '"'
+  }
+  
+  // 补全括号
+  while (bracketCount > 0) {
+    str += ']'
+    bracketCount--
+  }
+  while (braceCount > 0) {
+    str += '}'
+    braceCount--
+  }
+  
+  // 验证修复后的 JSON
+  try {
+    JSON.parse(str)
+    return str
+  } catch {
+    return null
+  }
+}
+
 // 解析消息内容，分离思考过程、正式回复和交易信号
 function parseContent(content: string): ParsedContent {
   let thinking = ''
@@ -90,8 +171,21 @@ function parseContent(content: string): ParsedContent {
 
     reply = textBeforeSignals
   } else if (signalsStart !== -1) {
-    // 信号标签未闭合（流式中），移除未完成的部分但不显示
-    reply = reply.slice(0, signalsStart).trim()
+    // 信号标签未闭合，尝试解析不完整的 JSON
+    const jsonStr = reply.slice(signalsStart + 17).trim()
+    const textBeforeSignals = reply.slice(0, signalsStart).trim()
+    
+    // 尝试修复不完整的 JSON
+    const fixedJson = tryFixIncompleteJson(jsonStr)
+    if (fixedJson) {
+      try {
+        tradingSignals = JSON.parse(fixedJson)
+      } catch (e) {
+        // 解析失败，保持 null
+      }
+    }
+    
+    reply = textBeforeSignals
   } else {
     // 检查是否有部分的开始标签（流式中可能被拆分）
     const partialStartTags = [

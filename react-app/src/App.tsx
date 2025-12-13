@@ -528,19 +528,6 @@ function App() {
                   </select>
                 </div>
               </div>
-              
-              {/* 管理员入口 - 只有管理员可见 */}
-              {isAdmin && (
-                <div className="settings-row">
-                  <div>
-                    <label>管理员控制台</label>
-                    <div className="hint">管理用户和 AI 配额</div>
-                  </div>
-                  <button onClick={() => setActivePage('admin')}>
-                    进入管理
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         )}
