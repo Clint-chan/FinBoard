@@ -115,7 +115,27 @@ function App() {
 
   // 从 AI 卡片直接保存多个预警（追加到现有条件）
   const saveAlertsFromAI = useCallback((code: string, alerts: Array<{ price: number; operator: 'above' | 'below'; note: string }>) => {
-    const existingConditions = config.alerts[code]?.conditions || []
+    // 标准化 code 格式：确保与 config.codes 中的格式一致
+    // AI 可能返回 "sh600233" 或 "600233"，需要匹配到正确的 code
+    let normalizedCode = code
+    
+    // 如果 code 不在 config.codes 中，尝试添加前缀
+    if (!config.codes.includes(code)) {
+      const codeNum = code.replace(/^(sh|sz)/i, '')
+      const withSh = `sh${codeNum}`
+      const withSz = `sz${codeNum}`
+      
+      if (config.codes.includes(withSh)) {
+        normalizedCode = withSh
+      } else if (config.codes.includes(withSz)) {
+        normalizedCode = withSz
+      } else {
+        // 根据代码规则推断前缀
+        normalizedCode = codeNum.startsWith('6') ? `sh${codeNum}` : `sz${codeNum}`
+      }
+    }
+    
+    const existingConditions = config.alerts[normalizedCode]?.conditions || []
     const newConditions: AlertCondition[] = alerts.map(a => ({
       type: 'price' as const,
       operator: a.operator,
@@ -133,9 +153,9 @@ function App() {
       }
     })
     updateConfig({
-      alerts: { ...config.alerts, [code]: { conditions: allConditions } }
+      alerts: { ...config.alerts, [normalizedCode]: { conditions: allConditions } }
     })
-  }, [config.alerts, updateConfig])
+  }, [config.alerts, config.codes, updateConfig])
 
   // 保存成本
   const saveCost = useCallback((code: string, cost: number | null) => {
