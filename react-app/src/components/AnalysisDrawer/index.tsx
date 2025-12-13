@@ -322,7 +322,18 @@ export function AnalysisDrawer({
               </div>
             </div>
 
-            <div className="chat-messages" ref={messagesRef}>
+            <div 
+              className="chat-messages" 
+              ref={messagesRef}
+              onClick={(e) => {
+                // 事件委托：处理思考块的折叠/展开
+                const header = (e.target as HTMLElement).closest('.thinking-header')
+                if (header) {
+                  const block = header.closest('.thinking-block')
+                  block?.classList.toggle('collapsed')
+                }
+              }}
+            >
             {messages.map((msg, i) => (
               <div key={i} className={`chat-message ${msg.role}`}>
                 <div 

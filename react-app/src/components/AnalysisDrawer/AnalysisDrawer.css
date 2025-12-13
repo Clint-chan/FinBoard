@@ -870,110 +870,122 @@
 }
 
 /* ============================================
-   AI 思考过程块样式
+   AI 思考过程块样式 - 简洁风格
    ============================================ */
 
 .analysis-drawer .bubble .thinking-block {
-  background: linear-gradient(135deg, #f8f9ff 0%, #f3f4f6 100%);
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  margin: 12px 0;
-  overflow: hidden;
-  transition: all 0.2s ease;
+  margin: 8px 0 16px;
 }
 
-[data-theme="dark"] .analysis-drawer .bubble .thinking-block {
-  background: linear-gradient(135deg, #1e1e2e 0%, #252536 100%);
-  border-color: #3f3f5a;
-}
-
-/* 思考块头部 */
+/* 思考块头部 - 可点击展开/折叠 */
 .analysis-drawer .bubble .thinking-header {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #f3f4f6;
+  border-radius: 6px;
   cursor: pointer;
   user-select: none;
   transition: background 0.15s;
 }
 
 .analysis-drawer .bubble .thinking-header:hover {
-  background: rgba(0, 0, 0, 0.03);
+  background: #e5e7eb;
+}
+
+[data-theme="dark"] .analysis-drawer .bubble .thinking-header {
+  background: #374151;
 }
 
 [data-theme="dark"] .analysis-drawer .bubble .thinking-header:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: #4b5563;
 }
 
+/* 思考图标 */
 .analysis-drawer .bubble .thinking-icon {
-  font-size: 1rem;
-  line-height: 1;
+  width: 16px;
+  height: 16px;
+  color: #6b7280;
+  flex-shrink: 0;
 }
 
-.analysis-drawer .bubble .thinking-title {
-  flex: 1;
+[data-theme="dark"] .analysis-drawer .bubble .thinking-icon {
+  color: #9ca3af;
+}
+
+/* 思考中动画 */
+.analysis-drawer .bubble .thinking-block:not(.collapsed) .thinking-icon {
+  animation: thinking-spin 2s linear infinite;
+}
+
+@keyframes thinking-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 状态文字 */
+.analysis-drawer .bubble .thinking-status {
   font-size: 0.82rem;
   font-weight: 500;
   color: #6b7280;
 }
 
-[data-theme="dark"] .analysis-drawer .bubble .thinking-title {
+[data-theme="dark"] .analysis-drawer .bubble .thinking-status {
   color: #9ca3af;
 }
 
-.analysis-drawer .bubble .thinking-toggle {
-  font-size: 0.7rem;
+/* 展开/折叠箭头 */
+.analysis-drawer .bubble .thinking-arrow {
+  width: 14px;
+  height: 14px;
   color: #9ca3af;
   transition: transform 0.2s;
+  flex-shrink: 0;
 }
 
-/* 折叠状态 */
-.analysis-drawer .bubble .thinking-block.collapsed .thinking-toggle {
+.analysis-drawer .bubble .thinking-block.collapsed .thinking-arrow {
   transform: rotate(-90deg);
 }
 
-.analysis-drawer .bubble .thinking-block.collapsed .thinking-content {
+/* 思考内容区域 */
+.analysis-drawer .bubble .thinking-body {
+  margin-top: 12px;
+  padding-left: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.analysis-drawer .bubble .thinking-body p {
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: #4b5563;
+  margin: 0 0 10px;
+}
+
+.analysis-drawer .bubble .thinking-body p:last-child {
+  margin-bottom: 0;
+}
+
+[data-theme="dark"] .analysis-drawer .bubble .thinking-body p {
+  color: #d1d5db;
+}
+
+/* 折叠时隐藏内容 */
+.analysis-drawer .bubble .thinking-block.collapsed .thinking-body {
   display: none;
 }
 
-/* 思考内容区域 */
-.analysis-drawer .bubble .thinking-content {
-  padding: 0 14px 12px;
-  font-size: 0.8rem;
-  line-height: 1.7;
-  color: #6b7280;
-  max-height: 200px;
-  overflow-y: auto;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-  margin-top: 0;
-  padding-top: 10px;
-}
-
-[data-theme="dark"] .analysis-drawer .bubble .thinking-content {
-  color: #9ca3af;
-  border-top-color: rgba(255, 255, 255, 0.05);
-}
-
-.analysis-drawer .bubble .thinking-content::-webkit-scrollbar {
+/* 滚动条 */
+.analysis-drawer .bubble .thinking-body::-webkit-scrollbar {
   width: 4px;
 }
 
-.analysis-drawer .bubble .thinking-content::-webkit-scrollbar-thumb {
+.analysis-drawer .bubble .thinking-body::-webkit-scrollbar-thumb {
   background: #d1d5db;
   border-radius: 2px;
 }
 
-[data-theme="dark"] .analysis-drawer .bubble .thinking-content::-webkit-scrollbar-thumb {
+[data-theme="dark"] .analysis-drawer .bubble .thinking-body::-webkit-scrollbar-thumb {
   background: #4b5563;
-}
-
-/* 思考中动画 */
-.analysis-drawer .bubble .thinking-block[open] .thinking-icon {
-  animation: thinking-pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes thinking-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
 }
