@@ -66,18 +66,44 @@ function parseContent(content: string): ParsedContent {
   if (signalsStart !== -1 && signalsEnd !== -1) {
     const jsonStr = reply.slice(signalsStart + 17, signalsEnd).trim()
     const textBeforeSignals = reply.slice(0, signalsStart).trim()
-    
+
     try {
       tradingSignals = JSON.parse(jsonStr)
     } catch (e) {
-      console.error('Failed to parse trading signals:', e)
+      console.error('Failed to parse trading signals:', e, jsonStr)
     }
-    
+
     reply = textBeforeSignals
   } else if (signalsStart !== -1) {
-    // 信号标签未闭合，移除未完成的部分
+    // 信号标签未闭合（流式中），移除未完成的部分但不显示
     reply = reply.slice(0, signalsStart).trim()
+  } else {
+    // 检查是否有部分的开始标签（流式中可能被拆分）
+    const partialStartTags = [
+      '<trading_signals',
+      '<trading_signal',
+      '<trading_signa',
+      '<trading_sign',
+      '<trading_sig',
+      '<trading_si',
+      '<trading_s',
+      '<trading_',
+      '<trading',
+      '<tradin',
+      '<tradi',
+      '<trad',
+      '<tra',
+    ]
+    for (const partial of partialStartTags) {
+      if (reply.endsWith(partial)) {
+        reply = reply.slice(0, -partial.length).trim()
+        break
+      }
+    }
   }
+
+  // 3. 移除 "交易信号数据" 标题（如果存在）
+  reply = reply.replace(/###\s*交易信号数据\s*$/m, '').trim()
 
   return { thinking, reply, tradingSignals, isThinkingComplete }
 }
