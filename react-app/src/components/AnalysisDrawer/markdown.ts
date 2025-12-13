@@ -39,17 +39,29 @@ function parseInline(text: string): string {
 
 /**
  * 渲染 Markdown 为 HTML
+ * 支持流式渲染场景下的不完整 think 标签
  */
 export function renderMarkdown(markdown: string): string {
   if (!markdown) return ''
   
-  // 先提取并保护 <think> 标签内容
+  // 处理 think 标签（支持流式场景）
   const thinkPlaceholders: string[] = []
+  const pendingThinkPlaceholders: string[] = []
+  
+  // 1. 先处理完整的 <think>...</think> 标签
   let processedMarkdown = markdown.replace(/<think>([\s\S]*?)<\/think>/g, (_, thinkContent) => {
     const placeholder = `__THINK_PLACEHOLDER_${thinkPlaceholders.length}__`
     thinkPlaceholders.push(thinkContent.trim())
     return placeholder
   })
+  
+  // 2. 处理未闭合的 <think>...（流式场景，标签还没结束）
+  const pendingThinkMatch = processedMarkdown.match(/<think>([\s\S]*)$/)
+  if (pendingThinkMatch) {
+    const placeholder = `__PENDING_THINK_PLACEHOLDER_${pendingThinkPlaceholders.length}__`
+    pendingThinkPlaceholders.push(pendingThinkMatch[1].trim())
+    processedMarkdown = processedMarkdown.replace(/<think>([\s\S]*)$/, placeholder)
+  }
   
   const lines = processedMarkdown.split('\n')
   const html: string[] = []
@@ -167,6 +179,8 @@ export function renderMarkdown(markdown: string): string {
   
   // 恢复 think 标签（需要处理转义后的占位符）
   let result = html.join('')
+  
+  // 恢复完整的 think 标签
   thinkPlaceholders.forEach((thinkContent, index) => {
     const placeholder = `__THINK_PLACEHOLDER_${index}__`
     // 占位符可能被 escapeHtml 转义了，所以要匹配转义后的版本
@@ -177,6 +191,19 @@ export function renderMarkdown(markdown: string): string {
     </details>`
     result = result.replace(escapedPlaceholder, thinkHtml)
     result = result.replace(placeholder, thinkHtml) // 也尝试替换未转义的版本
+  })
+  
+  // 恢复未闭合的 think 标签（流式场景，显示为"思考中..."）
+  pendingThinkPlaceholders.forEach((thinkContent, index) => {
+    const placeholder = `__PENDING_THINK_PLACEHOLDER_${index}__`
+    const escapedPlaceholder = escapeHtml(placeholder)
+    // 流式场景：显示为展开状态的思考中
+    const thinkHtml = `<details class="thinking-block" open>
+      <summary>💭 思考中...</summary>
+      <div class="thinking-content">${escapeHtml(thinkContent)}</div>
+    </details>`
+    result = result.replace(escapedPlaceholder, thinkHtml)
+    result = result.replace(placeholder, thinkHtml)
   })
   
   return result
