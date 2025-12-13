@@ -17,6 +17,7 @@ interface AnalysisDrawerProps {
   stockData: Record<string, StockData>
   isDark?: boolean
   onOpenAlert?: (code: string, price?: number) => void
+  onSaveAlerts?: (code: string, alerts: Array<{ price: number; operator: 'above' | 'below'; note: string }>) => void
 }
 
 export function AnalysisDrawer({
@@ -26,7 +27,8 @@ export function AnalysisDrawer({
   stockList,
   stockData,
   isDark = false,
-  onOpenAlert
+  onOpenAlert,
+  onSaveAlerts
 }: AnalysisDrawerProps) {
   // 当前选中的股票
   const [currentCode, setCurrentCode] = useState(initialCode)
@@ -343,11 +345,7 @@ export function AnalysisDrawer({
                   content={msg.content}
                   isStreaming={msg.isStreaming}
                   streamStartTime={msg.streamStartTime}
-                  onAddAlert={onOpenAlert ? (code, price, _direction, _note) => {
-                    // 调用父组件的 onOpenAlert，传递价格
-                    // TODO: 后续扩展 Alert 组件支持 direction 和 note
-                    onOpenAlert(code, price)
-                  } : undefined}
+                  onSaveAlerts={onSaveAlerts}
                 />
               ))}
             </div>

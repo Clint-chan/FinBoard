@@ -12,7 +12,7 @@ interface ChatMessageProps {
   content: string
   isStreaming?: boolean
   streamStartTime?: number
-  onAddAlert?: (code: string, price: number, direction: 'above' | 'below', note: string) => void
+  onSaveAlerts?: (code: string, alerts: Array<{ price: number; operator: 'above' | 'below'; note: string }>) => void
 }
 
 interface ParsedContent {
@@ -113,7 +113,7 @@ export function ChatMessage({
   content,
   isStreaming = false,
   streamStartTime,
-  onAddAlert,
+  onSaveAlerts,
 }: ChatMessageProps) {
   const [startTime] = useState(() => streamStartTime || Date.now())
 
@@ -155,7 +155,7 @@ export function ChatMessage({
 
         {/* 交易信号卡片 */}
         {tradingSignals && (
-          <TradingSignals data={tradingSignals} onAddAlert={onAddAlert} />
+          <TradingSignals data={tradingSignals} onSaveAlerts={onSaveAlerts} />
         )}
 
         {/* 空内容时显示加载状态 */}

@@ -113,6 +113,30 @@ function App() {
     setAlertModal({ open: false, code: null })
   }, [config.alerts, updateConfig])
 
+  // 从 AI 卡片直接保存多个预警（追加到现有条件）
+  const saveAlertsFromAI = useCallback((code: string, alerts: Array<{ price: number; operator: 'above' | 'below'; note: string }>) => {
+    const existingConditions = config.alerts[code]?.conditions || []
+    const newConditions: AlertCondition[] = alerts.map(a => ({
+      type: 'price' as const,
+      operator: a.operator,
+      value: a.price,
+      note: a.note
+    }))
+    // 合并现有条件和新条件（去重）
+    const allConditions = [...existingConditions]
+    newConditions.forEach(nc => {
+      const exists = allConditions.some(ec => 
+        ec.type === nc.type && ec.operator === nc.operator && ec.value === nc.value
+      )
+      if (!exists) {
+        allConditions.push(nc)
+      }
+    })
+    updateConfig({
+      alerts: { ...config.alerts, [code]: { conditions: allConditions } }
+    })
+  }, [config.alerts, updateConfig])
+
   // 保存成本
   const saveCost = useCallback((code: string, cost: number | null) => {
     const newCosts = { ...config.costs }
@@ -457,6 +481,7 @@ function App() {
         onOpenAlert={(code, price) => {
           setAlertModal({ open: true, code, initialPrice: price })
         }}
+        onSaveAlerts={saveAlertsFromAI}
       />
 
       {/* 老板键遮罩 */}

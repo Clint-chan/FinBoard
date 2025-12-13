@@ -1,6 +1,6 @@
 /**
  * TradingSignals 组件 - 交易信号卡片
- * 参考设计：日内策略配置卡片
+ * 点击按钮直接添加所有信号到 Alerts
  */
 import { useState } from 'react'
 import './TradingSignals.css'
@@ -21,7 +21,7 @@ export interface TradingSignalsData {
 
 interface TradingSignalsProps {
   data: TradingSignalsData
-  onAddAlert?: (code: string, price: number, direction: 'above' | 'below', note: string) => void
+  onSaveAlerts?: (code: string, alerts: Array<{ price: number; operator: 'above' | 'below'; note: string }>) => void
 }
 
 const SIGNAL_CONFIG = {
@@ -30,7 +30,7 @@ const SIGNAL_CONFIG = {
   stop: { label: '止损点 (风控)', tag: '止损线', color: 'gray' },
 }
 
-export function TradingSignals({ data, onAddAlert }: TradingSignalsProps) {
+export function TradingSignals({ data, onSaveAlerts }: TradingSignalsProps) {
   const [prices, setPrices] = useState<Record<number, number>>(() => {
     const initial: Record<number, number> = {}
     data.signals.forEach((s, i) => { initial[i] = s.price })
@@ -47,21 +47,24 @@ export function TradingSignals({ data, onAddAlert }: TradingSignalsProps) {
   }
 
   const handleSubmit = () => {
-    if (!onAddAlert || isSubmitted) return
+    if (!onSaveAlerts || isSubmitted) return
     
     setIsSubmitting(true)
     
-    // 添加所有信号到 Alerts
-    data.signals.forEach((signal, i) => {
-      const price = prices[i] || signal.price
-      const note = `${SIGNAL_CONFIG[signal.type].label}: ${signal.reason}`
-      onAddAlert(data.code, price, signal.action, note)
-    })
+    // 构建所有信号的 alerts 数组
+    const alerts = data.signals.map((signal, i) => ({
+      price: prices[i] || signal.price,
+      operator: signal.action,
+      note: `${SIGNAL_CONFIG[signal.type].label}: ${signal.reason}`
+    }))
+    
+    // 直接保存所有信号
+    onSaveAlerts(data.code, alerts)
     
     setTimeout(() => {
       setIsSubmitting(false)
       setIsSubmitted(true)
-    }, 500)
+    }, 300)
   }
 
   // 按 sell -> buy -> stop 顺序排序
@@ -115,6 +118,7 @@ export function TradingSignals({ data, onAddAlert }: TradingSignalsProps) {
                       onChange={(e) => handlePriceChange(originalIndex, e.target.value)}
                       step="0.01"
                       className="price-input"
+                      disabled={isSubmitted}
                     />
                   </div>
                   <span className="action-hint">
@@ -132,7 +136,7 @@ export function TradingSignals({ data, onAddAlert }: TradingSignalsProps) {
         <button 
           className={`submit-btn ${isSubmitted ? 'submitted' : ''}`}
           onClick={handleSubmit}
-          disabled={isSubmitting || isSubmitted}
+          disabled={isSubmitting || isSubmitted || !onSaveAlerts}
         >
           {isSubmitted ? (
             <>
