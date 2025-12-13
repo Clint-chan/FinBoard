@@ -11,7 +11,8 @@ import StockTable from '@/components/StockTable'
 import StatusBar from '@/components/StatusBar'
 import ChartTooltip from '@/components/ChartTooltip'
 import ContextMenu from '@/components/ContextMenu'
-import { AddStockModal, AlertModal, CostModal, AuthModal, AdminModal } from '@/components/modals'
+import { AddStockModal, AlertModal, CostModal, AuthModal } from '@/components/modals'
+import { AdminPage } from '@/components/AdminPage'
 import { AnalysisDrawer } from '@/components/AnalysisDrawer'
 import { BossScreen } from '@/components/BossScreen'
 import { DEFAULT_CONFIG } from '@/services/config'
@@ -32,7 +33,6 @@ function App() {
   const [analysisDrawer, setAnalysisDrawer] = useState<{ open: boolean; code: string }>({ open: false, code: '' })
   const [bossMode, setBossMode] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
-  const [adminModalOpen, setAdminModalOpen] = useState(false)
   const [expandedAlerts, setExpandedAlerts] = useState<Record<string, boolean>>({})
   
   // 管理员账号
@@ -69,6 +69,9 @@ function App() {
       setConfig(prev => ({ ...prev, ...cloudConfig }))
     }
   })
+
+  // 是否是管理员
+  const isAdmin = cloudUsername ? ADMIN_USERS.includes(cloudUsername) : false
 
   // 预警检查
   useAlertCheck({
@@ -314,6 +317,7 @@ function App() {
         isLoggedIn={isLoggedIn}
         cloudUsername={cloudUsername}
         syncing={syncing}
+        isAdmin={isAdmin}
         onPageChange={setActivePage}
         onLoginClick={() => setAuthModalOpen(true)}
         onLogoutClick={handleLogout}
@@ -388,17 +392,19 @@ function App() {
                             className="alert-card-btn"
                             onClick={() => setAlertModal({ open: true, code })}
                           >
-                            编辑
+                            添加
                           </button>
                           <button 
                             className="alert-card-btn delete"
                             onClick={() => {
-                              const newAlerts = { ...config.alerts }
-                              delete newAlerts[code]
-                              updateConfig({ alerts: newAlerts })
+                              if (confirm('确定删除该股票的所有预警？')) {
+                                const newAlerts = { ...config.alerts }
+                                delete newAlerts[code]
+                                updateConfig({ alerts: newAlerts })
+                              }
                             }}
                           >
-                            删除
+                            全部删除
                           </button>
                         </div>
                       </div>
@@ -406,17 +412,37 @@ function App() {
                         <div className="alert-card-conditions">
                           {alert.conditions.map((cond, idx) => (
                             <div key={idx} className="alert-card-cond">
-                              <div className="alert-card-cond-icon"></div>
                               <div className="alert-card-cond-content">
                                 <div className="alert-card-cond-text">
                                   {cond.type === 'price' ? '价格' : '涨跌幅'}
                                   {cond.operator === 'above' ? (cond.type === 'pct' ? ' ≥ ' : ' 突破 ') : (cond.type === 'pct' ? ' ≤ ' : ' 跌破 ')}
-                                  {cond.value}{cond.type === 'pct' ? '%' : ''}
+                                  <strong>{cond.value}</strong>{cond.type === 'pct' ? '%' : ' 元'}
                                 </div>
                                 {cond.note && (
                                   <div className="alert-card-cond-note">{cond.note}</div>
                                 )}
                               </div>
+                              <button 
+                                className="alert-card-cond-del"
+                                onClick={() => {
+                                  const newConditions = alert.conditions.filter((_, i) => i !== idx)
+                                  if (newConditions.length === 0) {
+                                    const newAlerts = { ...config.alerts }
+                                    delete newAlerts[code]
+                                    updateConfig({ alerts: newAlerts })
+                                  } else {
+                                    updateConfig({
+                                      alerts: { ...config.alerts, [code]: { conditions: newConditions } }
+                                    })
+                                  }
+                                }}
+                                title="删除此条件"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -492,19 +518,23 @@ function App() {
               </div>
               
               {/* 管理员入口 - 只有管理员可见 */}
-              {cloudUsername && ADMIN_USERS.includes(cloudUsername) && (
+              {isAdmin && (
                 <div className="settings-row">
                   <div>
-                    <label>管理员面板</label>
+                    <label>管理员控制台</label>
                     <div className="hint">管理用户和 AI 配额</div>
                   </div>
-                  <button onClick={() => setAdminModalOpen(true)}>
+                  <button onClick={() => setActivePage('admin')}>
                     进入管理
                   </button>
                 </div>
               )}
             </div>
           </div>
+        )}
+        
+        {activePage === 'admin' && isAdmin && (
+          <AdminPage token={localStorage.getItem('cloud_token')} />
         )}
       </main>
 
@@ -583,13 +613,6 @@ function App() {
         open={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
-      />
-
-      {/* 管理员面板 */}
-      <AdminModal
-        open={adminModalOpen}
-        onClose={() => setAdminModalOpen(false)}
-        token={localStorage.getItem('cloud_token')}
       />
     </div>
   )

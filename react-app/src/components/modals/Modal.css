@@ -760,20 +760,13 @@
 
 .alert-card-cond {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: space-between;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   background: var(--bg-hover);
   border-radius: 8px;
-}
-
-.alert-card-cond-icon {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #f59e0b;
-  margin-top: 5px;
-  flex-shrink: 0;
+  border: 1px solid var(--border-light);
 }
 
 .alert-card-cond-content {
@@ -785,10 +778,42 @@
   color: var(--text-primary);
 }
 
+.alert-card-cond-text strong {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
 .alert-card-cond-note {
   font-size: 0.8rem;
   color: var(--text-tertiary);
   margin-top: 4px;
+}
+
+.alert-card-cond-del {
+  padding: 4px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  opacity: 0.6;
+}
+
+.alert-card-cond:hover .alert-card-cond-del {
+  opacity: 1;
+}
+
+.alert-card-cond-del:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+[data-theme="dark"] .alert-card-cond-del:hover {
+  background: rgba(239, 68, 68, 0.15);
 }
 
 /* AI 配额显示 */

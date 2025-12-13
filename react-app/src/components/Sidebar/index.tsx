@@ -69,6 +69,7 @@ interface SidebarProps {
   isLoggedIn?: boolean
   cloudUsername?: string | null
   syncing?: boolean
+  isAdmin?: boolean
   onPageChange: (page: PageType) => void
   onLoginClick: () => void
   onLogoutClick: () => void
@@ -82,6 +83,7 @@ function Sidebar({
   isLoggedIn = false,
   cloudUsername,
   syncing = false,
+  isAdmin = false,
   onPageChange,
   onLoginClick,
   onLogoutClick,
@@ -93,11 +95,12 @@ function Sidebar({
   const [editUsername, setEditUsername] = useState('')
   const [selectedAvatar, setSelectedAvatar] = useState('')
 
-  const navItems: { id: PageType | 'insight'; label: string; icon: JSX.Element }[] = [
+  const navItems: { id: PageType | 'insight'; label: string; icon: JSX.Element; adminOnly?: boolean }[] = [
     { id: 'watchlist', label: 'Watchlist', icon: Icons.watchlist },
     { id: 'insight', label: 'Insight', icon: Icons.analysis },
     { id: 'alerts', label: 'Alerts', icon: Icons.alerts },
     { id: 'settings', label: 'Settings', icon: Icons.settings },
+    { id: 'admin', label: 'Admin', icon: Icons.settings, adminOnly: true },
   ]
 
   const handleNavClick = (id: PageType | 'insight') => {
@@ -180,7 +183,9 @@ function Sidebar({
         </div>
 
         <nav className="sidebar-nav">
-          {navItems.map(item => (
+          {navItems
+            .filter(item => !item.adminOnly || isAdmin)
+            .map(item => (
             <div
               key={item.id}
               className={`sidebar-item ${activePage === item.id ? 'active' : ''}`}
