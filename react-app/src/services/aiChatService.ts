@@ -45,54 +45,23 @@ export interface ChartDataForAI {
 
 /**
  * 发送聊天消息（流式）
- * 直接调用大模型 API，不通过 Worker 中转
  */
 export async function sendChatMessage(
   messages: ChatMessage[],
   stockData?: StockDataForAI,
-  _chartData?: ChartDataForAI, // 参数保留用于兼容性，但未使用
+  _chartData?: ChartDataForAI,
   mode: AIMode = 'intraday',
   onChunk?: (content: string) => void
 ): Promise<string> {
-  // 构建系统提示词
-  const systemPrompt = mode === 'intraday' 
-    ? '你是专业的A股短线交易分析师，专注日内做T策略。基于多周期K线、量价配合、技术指标，给出具体买卖点位、止损止盈和仓位建议。'
-    : ''
-
-  // 如果有股票数据，先获取详细数据
-  let dataContext = ''
-  if (stockData?.code) {
-    try {
-      // 清理股票代码（移除 sh/sz 前缀）
-      const cleanCode = stockData.code.replace(/^(sh|sz)/i, '')
-      const dataResponse = await fetch(`${AI_API_BASE}/api/stock/data/${cleanCode}`)
-      if (dataResponse.ok) {
-        const data = await dataResponse.json()
-        dataContext = data.context || ''
-      }
-    } catch (error) {
-      console.warn('获取股票数据失败:', error)
-    }
-  }
-
-  // 构建完整消息
-  const fullMessages = [
-    { role: 'system', content: systemPrompt },
-    ...messages.map((msg, idx) => 
-      msg.role === 'user' && dataContext && idx === 0
-        ? { role: 'user', content: `${dataContext}\n\n${msg.content}` }
-        : msg
-    )
-  ]
-
-  // 通过 Worker 调用大模型 API（避免 Mixed Content 问题）
+  // 通过 Worker 调用 AI（Worker 负责系统提示词和数据采集）
   const response = await fetch(`${AI_API_BASE}/api/ai/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      messages: fullMessages,
+      messages,
+      stockData,
       mode
     })
   })

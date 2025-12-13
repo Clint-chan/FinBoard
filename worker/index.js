@@ -432,7 +432,9 @@ async function handleAIChat(request, env) {
     if (stockData?.code) {
       try {
         const cleanCode = stockData.code.replace(/^(sh|sz)/i, '')
+        console.log('采集股票数据:', cleanCode)
         dataContext = await collectStockData(cleanCode)
+        console.log('数据采集成功，长度:', dataContext.length)
       } catch (error) {
         console.error('数据采集失败:', error)
         dataContext = `数据采集失败: ${error.message}`
@@ -441,13 +443,27 @@ async function handleAIChat(request, env) {
 
     // 构建完整消息
     const fullMessages = [
-      { role: 'system', content: systemPrompt },
-      ...messages.map((msg, idx) => 
-        msg.role === 'user' && dataContext && idx === 0
-          ? { role: 'user', content: `${dataContext}\n\n${msg.content}` }
-          : msg
-      )
+      { role: 'system', content: systemPrompt }
     ]
+    
+    // 添加用户消息，第一条消息附加股票数据
+    messages.forEach((msg, idx) => {
+      if (msg.role === 'user' && idx === 0 && dataContext) {
+        // 第一条用户消息，附加股票数据
+        fullMessages.push({
+          role: 'user',
+          content: `${dataContext}\n\n用户问题：${msg.content}`
+        })
+      } else if (msg.role === 'assistant') {
+        // assistant 消息保持不变
+        fullMessages.push({ role: 'assistant', content: msg.content })
+      } else if (msg.role === 'user') {
+        // 其他用户消息保持不变
+        fullMessages.push({ role: 'user', content: msg.content })
+      }
+    })
+    
+    console.log('构建的消息数量:', fullMessages.length)
 
     // 调用大模型 API
     const llmRes = await fetch(config.apiUrl, {
@@ -468,7 +484,7 @@ async function handleAIChat(request, env) {
       throw new Error(`LLM API error: ${llmRes.status} - ${errorText}`)
     }
 
-    // 转发流式响应
+    // 转发流式响应，过滤 <think> 标签
     const { readable, writable } = new TransformStream()
     const writer = writable.getWriter()
     const reader = llmRes.body.getReader()
@@ -476,6 +492,9 @@ async function handleAIChat(request, env) {
     
     ;(async () => {
       try {
+        let buffer = ''
+        let inThinkTag = false
+        
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
@@ -489,12 +508,35 @@ async function handleAIChat(request, env) {
                 const json = JSON.parse(data)
                 const content = json.choices?.[0]?.delta?.content
                 if (content) {
-                  writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ content })}\n\n`))
+                  buffer += content
+                  
+                  // 检查是否进入或退出 think 标签
+                  if (buffer.includes('<think>')) {
+                    inThinkTag = true
+                    buffer = buffer.split('<think>')[0] // 保留 <think> 之前的内容
+                  }
+                  
+                  if (buffer.includes('</think>')) {
+                    inThinkTag = false
+                    buffer = buffer.split('</think>').slice(1).join('</think>') // 保留 </think> 之后的内容
+                  }
+                  
+                  // 如果不在 think 标签内，且有内容，则发送
+                  if (!inThinkTag && buffer) {
+                    writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ content: buffer })}\n\n`))
+                    buffer = ''
+                  }
                 }
               } catch (e) {}
             }
           })
         }
+        
+        // 发送剩余内容
+        if (buffer && !inThinkTag) {
+          writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ content: buffer })}\n\n`))
+        }
+        
         writer.write(new TextEncoder().encode('data: [DONE]\n\n'))
       } catch (error) {
         writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ error: error.message })}\n\n`))
