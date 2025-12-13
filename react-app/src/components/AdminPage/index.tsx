@@ -12,13 +12,24 @@ interface UserInfo {
   aiUsedToday: number
 }
 
-interface AdminPageProps {
-  token: string | null
-}
-
 const SYNC_API = 'https://market-api.newestgpt.com'
 
-export function AdminPage({ token }: AdminPageProps) {
+// 获取存储的 token
+function getStoredToken(): string | null {
+  try {
+    const auth = localStorage.getItem('market_board_auth')
+    if (auth) {
+      const parsed = JSON.parse(auth)
+      return parsed.token || null
+    }
+  } catch {
+    // ignore
+  }
+  return null
+}
+
+export function AdminPage() {
+  const token = getStoredToken()
   const [users, setUsers] = useState<UserInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

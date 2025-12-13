@@ -11,14 +11,19 @@ interface AlertModalProps {
   onClose: () => void
   onSave: (code: string, conditions: AlertCondition[]) => void
   initialPrice?: number // 预填充的价格
+  editIndex?: number // 编辑特定条件的索引
 }
 
-function AlertModal({ open, code, stockData, conditions: initialConditions, onClose, onSave, initialPrice }: AlertModalProps) {
+function AlertModal({ open, code, stockData, conditions: initialConditions, onClose, onSave, initialPrice, editIndex }: AlertModalProps) {
   const [conditions, setConditions] = useState<AlertCondition[]>([])
+  const isEditMode = editIndex !== undefined && editIndex >= 0
 
   useEffect(() => {
     if (open) {
-      if (initialPrice && !initialConditions?.length) {
+      if (isEditMode && initialConditions?.[editIndex]) {
+        // 编辑模式：只显示要编辑的那一条
+        setConditions([{ ...initialConditions[editIndex] }])
+      } else if (initialPrice && !initialConditions?.length) {
         // 如果提供了初始价格且没有现有条件，自动添加一个价格预警
         const currentPrice = stockData?.price || initialPrice
         const operator = initialPrice > currentPrice ? 'above' : 'below'
@@ -27,7 +32,7 @@ function AlertModal({ open, code, stockData, conditions: initialConditions, onCl
         setConditions(initialConditions?.length ? [...initialConditions] : [])
       }
     }
-  }, [open, initialConditions, initialPrice, stockData])
+  }, [open, initialConditions, initialPrice, stockData, editIndex, isEditMode])
 
   const addCondition = () => {
     setConditions([...conditions, { type: 'price', operator: 'above', value: 0 }])
@@ -54,7 +59,20 @@ function AlertModal({ open, code, stockData, conditions: initialConditions, onCl
       value: typeof c.value === 'string' ? parseFloat(c.value) : c.value,
       note: c.note || undefined
     }))
-    onSave(code, validConditions)
+    
+    if (isEditMode) {
+      // 编辑模式：替换原来的条件
+      const newConditions = [...initialConditions]
+      if (validConditions.length > 0) {
+        newConditions[editIndex] = validConditions[0]
+      } else {
+        // 如果编辑后条件无效，删除该条件
+        newConditions.splice(editIndex, 1)
+      }
+      onSave(code, newConditions)
+    } else {
+      onSave(code, validConditions)
+    }
   }
 
   if (!open) return null
@@ -65,7 +83,7 @@ function AlertModal({ open, code, stockData, conditions: initialConditions, onCl
   return (
     <div className="modal-backdrop open" onClick={onClose}>
       <div className="modal-content alert-modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-title">{stockData?.name || code} 预警设置</div>
+        <div className="modal-title">{stockData?.name || code} {isEditMode ? '编辑预警' : '预警设置'}</div>
         
         <div className="alert-stock-info">
           <span className="alert-stock-price">当前价: {fmtNum(stockData?.price)}</span>

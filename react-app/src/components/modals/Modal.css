@@ -789,7 +789,18 @@
   margin-top: 4px;
 }
 
-.alert-card-cond-del {
+.alert-card-cond-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+
+.alert-card-cond:hover .alert-card-cond-actions {
+  opacity: 1;
+}
+
+.alert-card-cond-btn {
   padding: 4px;
   border: none;
   background: none;
@@ -800,19 +811,23 @@
   align-items: center;
   justify-content: center;
   transition: all 0.15s;
-  opacity: 0.6;
 }
 
-.alert-card-cond:hover .alert-card-cond-del {
-  opacity: 1;
+.alert-card-cond-btn.edit:hover {
+  background: #eff6ff;
+  color: #3b82f6;
 }
 
-.alert-card-cond-del:hover {
+.alert-card-cond-btn.del:hover {
   background: #fee2e2;
   color: #ef4444;
 }
 
-[data-theme="dark"] .alert-card-cond-del:hover {
+[data-theme="dark"] .alert-card-cond-btn.edit:hover {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+[data-theme="dark"] .alert-card-cond-btn.del:hover {
   background: rgba(239, 68, 68, 0.15);
 }
 

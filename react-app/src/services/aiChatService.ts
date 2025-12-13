@@ -46,13 +46,30 @@ export interface ChartDataForAI {
 /**
  * 获取用户 AI 配额
  */
+// 获取存储的 token
+function getStoredToken(): string | null {
+  try {
+    const auth = localStorage.getItem('market_board_auth')
+    if (auth) {
+      const parsed = JSON.parse(auth)
+      return parsed.token || null
+    }
+  } catch {
+    // ignore
+  }
+  return null
+}
+
+/**
+ * 获取用户 AI 配额
+ */
 export async function getUserQuota(): Promise<{
   quota: number
   used: number
   remaining: number
   isAdmin: boolean
 }> {
-  const token = localStorage.getItem('cloud_token')
+  const token = getStoredToken()
   if (!token) {
     return { quota: 3, used: 0, remaining: 3, isAdmin: false }
   }
@@ -81,7 +98,7 @@ export async function sendChatMessage(
   onChunk?: (content: string) => void
 ): Promise<string> {
   // 获取 token 用于配额验证
-  const token = localStorage.getItem('cloud_token')
+  const token = getStoredToken()
   
   // 通过 Worker 调用 AI（Worker 负责系统提示词和数据采集）
   const response = await fetch(`${AI_API_BASE}/api/ai/chat`, {

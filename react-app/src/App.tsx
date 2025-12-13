@@ -26,7 +26,7 @@ function App() {
   // UI 状态
   const [activePage, setActivePage] = useState<PageType>('watchlist')
   const [addStockOpen, setAddStockOpen] = useState(false)
-  const [alertModal, setAlertModal] = useState<{ open: boolean; code: string | null; initialPrice?: number }>({ open: false, code: null })
+  const [alertModal, setAlertModal] = useState<{ open: boolean; code: string | null; initialPrice?: number; editIndex?: number }>({ open: false, code: null })
   const [costModal, setCostModal] = useState<{ open: boolean; code: string | null }>({ open: false, code: null })
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ open: false, x: 0, y: 0, code: null })
   const [chartTooltip, setChartTooltip] = useState<ChartTooltipState>({ visible: false, code: null, x: 0, y: 0 })
@@ -422,27 +422,39 @@ function App() {
                                   <div className="alert-card-cond-note">{cond.note}</div>
                                 )}
                               </div>
-                              <button 
-                                className="alert-card-cond-del"
-                                onClick={() => {
-                                  const newConditions = alert.conditions.filter((_, i) => i !== idx)
-                                  if (newConditions.length === 0) {
-                                    const newAlerts = { ...config.alerts }
-                                    delete newAlerts[code]
-                                    updateConfig({ alerts: newAlerts })
-                                  } else {
-                                    updateConfig({
-                                      alerts: { ...config.alerts, [code]: { conditions: newConditions } }
-                                    })
-                                  }
-                                }}
-                                title="删除此条件"
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                                </svg>
-                              </button>
+                              <div className="alert-card-cond-actions">
+                                <button 
+                                  className="alert-card-cond-btn edit"
+                                  onClick={() => setAlertModal({ open: true, code, editIndex: idx })}
+                                  title="编辑此条件"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                  </svg>
+                                </button>
+                                <button 
+                                  className="alert-card-cond-btn del"
+                                  onClick={() => {
+                                    const newConditions = alert.conditions.filter((_, i) => i !== idx)
+                                    if (newConditions.length === 0) {
+                                      const newAlerts = { ...config.alerts }
+                                      delete newAlerts[code]
+                                      updateConfig({ alerts: newAlerts })
+                                    } else {
+                                      updateConfig({
+                                        alerts: { ...config.alerts, [code]: { conditions: newConditions } }
+                                      })
+                                    }
+                                  }}
+                                  title="删除此条件"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                  </svg>
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -533,9 +545,7 @@ function App() {
           </div>
         )}
         
-        {activePage === 'admin' && isAdmin && (
-          <AdminPage token={localStorage.getItem('cloud_token')} />
-        )}
+        {activePage === 'admin' && isAdmin && <AdminPage />}
       </main>
 
       {/* 弹窗 */}
@@ -554,6 +564,7 @@ function App() {
         onClose={() => setAlertModal({ open: false, code: null })}
         onSave={saveAlert}
         initialPrice={alertModal.initialPrice}
+        editIndex={alertModal.editIndex}
       />
       
       <CostModal
