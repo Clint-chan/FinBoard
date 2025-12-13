@@ -1,0 +1,149 @@
+/**
+ * TradingSignals 组件样式
+ */
+
+.trading-signals {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+[data-theme="dark"] .trading-signals {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border-color: #334155;
+}
+
+.signals-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.signals-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.signals-stock {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.signals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.signal-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--signal-bg);
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.signal-item:hover {
+  border-color: var(--signal-color);
+  transform: translateX(2px);
+}
+
+[data-theme="dark"] .signal-item {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .signal-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.signal-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.signal-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.signal-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--signal-color);
+  margin-bottom: 2px;
+}
+
+.signal-price {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.signal-action {
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  margin-left: 6px;
+}
+
+.signal-reason {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.signal-add-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-surface);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.signal-add-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: var(--text-secondary);
+}
+
+.signal-add-btn:hover:not(:disabled) {
+  background: var(--signal-color);
+  border-color: var(--signal-color);
+}
+
+.signal-add-btn:hover:not(:disabled) svg {
+  stroke: white;
+}
+
+.signal-add-btn.added {
+  background: var(--signal-color);
+  border-color: var(--signal-color);
+}
+
+.signal-add-btn.added svg {
+  stroke: white;
+}
+
+.signal-add-btn:disabled {
+  cursor: default;
+}

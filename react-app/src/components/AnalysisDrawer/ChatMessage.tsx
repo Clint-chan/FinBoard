@@ -1,9 +1,10 @@
 /**
  * ChatMessage 组件 - 渲染单条聊天消息
- * 支持 AI 思考过程的流式展示
+ * 支持 AI 思考过程和交易信号卡片的流式展示
  */
 import { useState, useMemo } from 'react'
 import { Reasoning } from '@/components/Reasoning'
+import { TradingSignals, type TradingSignalsData } from '@/components/TradingSignals'
 import { renderMarkdown } from './markdown'
 
 interface ChatMessageProps {
@@ -11,44 +12,91 @@ interface ChatMessageProps {
   content: string
   isStreaming?: boolean
   streamStartTime?: number
+  onAddAlert?: (code: string, price: number, direction: 'above' | 'below', note: string) => void
 }
 
-// 解析消息内容，分离思考过程和正式回复
-function parseContent(content: string): { thinking: string; reply: string; isThinkingComplete: boolean } {
-  // 完整的 <think>...</think>
-  const completeMatch = content.match(/<think>([\s\S]*?)<\/think>([\s\S]*)/)
-  if (completeMatch) {
-    return {
-      thinking: completeMatch[1].trim(),
-      reply: completeMatch[2].trim(),
-      isThinkingComplete: true
-    }
-  }
-  
-  // 未闭合的 <think>...（流式中）
-  const pendingMatch = content.match(/<think>([\s\S]*)$/)
-  if (pendingMatch) {
-    return {
-      thinking: pendingMatch[1].trim(),
-      reply: '',
-      isThinkingComplete: false
-    }
-  }
-  
-  // 没有 think 标签
-  return {
-    thinking: '',
-    reply: content,
-    isThinkingComplete: true
-  }
+interface ParsedContent {
+  thinking: string
+  reply: string
+  tradingSignals: TradingSignalsData | null
+  isThinkingComplete: boolean
 }
 
-export function ChatMessage({ role, content, isStreaming = false, streamStartTime }: ChatMessageProps) {
+// 解析消息内容，分离思考过程、正式回复和交易信号
+function parseContent(content: string): ParsedContent {
+  let thinking = ''
+  let reply = ''
+  let tradingSignals: TradingSignalsData | null = null
+  let isThinkingComplete = true
+
+  // 1. 解析 <think> 标签
+  const thinkStart = content.indexOf('<think>')
+  const thinkEnd = content.indexOf('</think>')
+
+  if (thinkStart !== -1) {
+    if (thinkEnd !== -1) {
+      thinking = content.slice(thinkStart + 7, thinkEnd).trim()
+      reply = content.slice(thinkEnd + 8).trim()
+      isThinkingComplete = true
+    } else {
+      // 检查部分结束标签
+      const partialEndTags = ['</think', '</thin', '</thi', '</th', '</t', '</']
+      let foundPartial = false
+      for (const partial of partialEndTags) {
+        if (content.endsWith(partial)) {
+          thinking = content.slice(thinkStart + 7, -partial.length).trim()
+          isThinkingComplete = false
+          foundPartial = true
+          break
+        }
+      }
+      if (!foundPartial) {
+        thinking = content.slice(thinkStart + 7).trim()
+        isThinkingComplete = false
+      }
+    }
+  } else {
+    reply = content
+  }
+
+  // 2. 解析 <trading_signals> 标签
+  const signalsStart = reply.indexOf('<trading_signals>')
+  const signalsEnd = reply.indexOf('</trading_signals>')
+
+  if (signalsStart !== -1 && signalsEnd !== -1) {
+    const jsonStr = reply.slice(signalsStart + 17, signalsEnd).trim()
+    const textBeforeSignals = reply.slice(0, signalsStart).trim()
+    
+    try {
+      tradingSignals = JSON.parse(jsonStr)
+    } catch (e) {
+      console.error('Failed to parse trading signals:', e)
+    }
+    
+    reply = textBeforeSignals
+  } else if (signalsStart !== -1) {
+    // 信号标签未闭合，移除未完成的部分
+    reply = reply.slice(0, signalsStart).trim()
+  }
+
+  return { thinking, reply, tradingSignals, isThinkingComplete }
+}
+
+export function ChatMessage({
+  role,
+  content,
+  isStreaming = false,
+  streamStartTime,
+  onAddAlert,
+}: ChatMessageProps) {
   const [startTime] = useState(() => streamStartTime || Date.now())
-  
+
   // 解析内容
-  const { thinking, reply, isThinkingComplete } = useMemo(() => parseContent(content), [content])
-  
+  const { thinking, reply, tradingSignals, isThinkingComplete } = useMemo(
+    () => parseContent(content),
+    [content]
+  )
+
   // 用户消息
   if (role === 'user') {
     return (
@@ -57,28 +105,33 @@ export function ChatMessage({ role, content, isStreaming = false, streamStartTim
       </div>
     )
   }
-  
+
   // AI 消息
   return (
     <div className="chat-message ai">
       <div className="bubble">
         {/* 思考过程 */}
         {thinking && (
-          <Reasoning 
+          <Reasoning
             content={thinking}
             isStreaming={!isThinkingComplete}
             startTime={startTime}
           />
         )}
-        
+
         {/* 正式回复 */}
         {reply && (
-          <div 
+          <div
             className="reply-content"
             dangerouslySetInnerHTML={{ __html: renderMarkdown(reply) }}
           />
         )}
-        
+
+        {/* 交易信号卡片 */}
+        {tradingSignals && (
+          <TradingSignals data={tradingSignals} onAddAlert={onAddAlert} />
+        )}
+
         {/* 空内容时显示加载状态 */}
         {!thinking && !reply && isStreaming && (
           <div className="loading-dots">

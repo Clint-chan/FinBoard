@@ -7,26 +7,30 @@
   margin: 8px 0 16px;
 }
 
-/* 触发按钮 */
+/* 触发按钮 - 无背景 */
 .reasoning-trigger {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 0;
+  padding: 4px 0;
   background: none;
   border: none;
   cursor: pointer;
   font-family: inherit;
-  color: #6b7280;
+  color: #9ca3af;
   transition: color 0.15s;
 }
 
 .reasoning-trigger:hover {
-  color: #374151;
+  color: #6b7280;
+}
+
+[data-theme="dark"] .reasoning-trigger {
+  color: #6b7280;
 }
 
 [data-theme="dark"] .reasoning-trigger:hover {
-  color: #d1d5db;
+  color: #9ca3af;
 }
 
 /* 图标 */

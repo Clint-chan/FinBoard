@@ -343,6 +343,11 @@ export function AnalysisDrawer({
                   content={msg.content}
                   isStreaming={msg.isStreaming}
                   streamStartTime={msg.streamStartTime}
+                  onAddAlert={onOpenAlert ? (code, price, _direction, _note) => {
+                    // 调用父组件的 onOpenAlert，传递价格
+                    // TODO: 后续扩展 Alert 组件支持 direction 和 note
+                    onOpenAlert(code, price)
+                  } : undefined}
                 />
               ))}
             </div>

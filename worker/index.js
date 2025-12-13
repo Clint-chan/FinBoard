@@ -268,6 +268,66 @@ const AI_DEFAULT_CONFIG = {
   model: 'gemini-3-pro-preview-thinking'
 }
 
+/**
+ * 构建系统提示词（根据模式路由）
+ */
+function buildSystemPrompt(mode, stockData) {
+  const stockInfo = stockData ? `当前分析标的：${stockData.name || ''}(${stockData.code})` : ''
+  
+  if (mode === 'intraday') {
+    return `你是专业的A股短线交易分析师，专注日内做T策略。
+
+## 你的核心能力
+- 多周期K线分析（日线定方向，60分钟看波段，15分钟找进出点）
+- 量价配合判断（放量上涨、缩量回调、放量下跌的含义）
+- 技术指标应用（KDJ/RSI超买超卖，MACD背离，均线支撑压力）
+- 给出具体的买卖点位、止损止盈和仓位建议
+
+## 回复要求
+1. 先进行技术分析，给出核心研判
+2. 给出具体的操作策略和点位
+3. 在回复的最后，必须输出结构化的交易信号数据
+
+## 结构化输出格式
+在你的分析回复结束后，必须添加以下格式的交易信号（用于前端渲染交易卡片）：
+
+<trading_signals>
+{
+  "code": "股票代码",
+  "name": "股票名称", 
+  "signals": [
+    {"type": "buy", "price": 低吸价格, "label": "低吸点", "action": "below", "reason": "简短理由"},
+    {"type": "sell", "price": 高抛价格, "label": "高抛点", "action": "above", "reason": "简短理由"},
+    {"type": "stop", "price": 止损价格, "label": "止损点", "action": "below", "reason": "简短理由"}
+  ]
+}
+</trading_signals>
+
+注意：
+- type: "buy"=低吸, "sell"=高抛, "stop"=止损
+- action: "above"=突破时触发, "below"=跌破时触发
+- price: 必须是数字，精确到小数点后两位
+- reason: 简短说明，不超过20字
+- 必须包含至少一个 buy 和一个 stop 信号
+
+${stockInfo}`
+  }
+  
+  if (mode === 'trend') {
+    return `你是专业的A股中期趋势分析师，专注波段操作策略。
+基于周线、日线趋势，结合成交量和技术指标，给出中期趋势判断和波段操作建议。
+${stockInfo}`
+  }
+  
+  if (mode === 'fundamental') {
+    return `你是专业的A股基本面分析师。
+基于财务数据、行业地位、估值水平，给出基本面分析和投资价值判断。
+${stockInfo}`
+  }
+  
+  return ''
+}
+
 async function fetchRealtimeData(symbol) {
   // 使用单股票查询接口
   const marketCode = symbol.startsWith('6') ? 1 : 0
@@ -424,10 +484,8 @@ async function handleAIChat(request, env) {
       if (saved) config = { ...AI_DEFAULT_CONFIG, ...saved }
     }
 
-    // 构建系统提示词
-    const systemPrompt = mode === 'intraday' 
-      ? '你是专业的A股短线交易分析师，专注日内做T策略。基于多周期K线、量价配合、技术指标，给出具体买卖点位、止损止盈和仓位建议。'
-      : ''
+    // 构建系统提示词（根据模式路由）
+    const systemPrompt = buildSystemPrompt(mode, stockData)
 
     // 采集股票数据
     let dataContext = ''
