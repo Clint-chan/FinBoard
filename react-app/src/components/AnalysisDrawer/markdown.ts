@@ -165,15 +165,18 @@ export function renderMarkdown(markdown: string): string {
     html.push(`<pre><code>${escapeHtml(codeContent.join('\n'))}</code></pre>`)
   }
   
-  // 恢复 think 标签
+  // 恢复 think 标签（需要处理转义后的占位符）
   let result = html.join('')
   thinkPlaceholders.forEach((thinkContent, index) => {
     const placeholder = `__THINK_PLACEHOLDER_${index}__`
+    // 占位符可能被 escapeHtml 转义了，所以要匹配转义后的版本
+    const escapedPlaceholder = escapeHtml(placeholder)
     const thinkHtml = `<details class="thinking-block">
       <summary>💭 思考过程</summary>
       <div class="thinking-content">${escapeHtml(thinkContent)}</div>
     </details>`
-    result = result.replace(placeholder, thinkHtml)
+    result = result.replace(escapedPlaceholder, thinkHtml)
+    result = result.replace(placeholder, thinkHtml) // 也尝试替换未转义的版本
   })
   
   return result

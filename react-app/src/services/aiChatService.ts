@@ -92,28 +92,9 @@ export async function sendChatMessage(
 
         try {
           const json = JSON.parse(data)
-          if (json.content !== undefined) {
-            const content = json.content
-            const type = json.type || 'text'
-            
-            // 根据类型处理内容
-            if (type === 'think_start') {
-              // 思考开始标记
-              fullContent += '<think>'
-              onChunk?.('<think>')
-            } else if (type === 'think_end') {
-              // 思考结束标记
-              fullContent += '</think>'
-              onChunk?.('</think>')
-            } else if (type === 'thinking') {
-              // 思考内容
-              fullContent += content
-              onChunk?.(content)
-            } else {
-              // 普通文本
-              fullContent += content
-              onChunk?.(content)
-            }
+          if (json.content) {
+            fullContent += json.content
+            onChunk?.(json.content)
           }
           if (json.error) {
             throw new Error(json.error)
