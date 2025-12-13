@@ -43,14 +43,12 @@ function parseInline(text: string): string {
 export function renderMarkdown(markdown: string): string {
   if (!markdown) return ''
   
-  // 处理 <think> 标签
-  let processedMarkdown = markdown
-  const thinkRegex = /<think>([\s\S]*?)<\/think>/g
-  processedMarkdown = processedMarkdown.replace(thinkRegex, (_, thinkContent) => {
-    return `<details class="thinking-block">
-      <summary>💭 思考过程</summary>
-      <div class="thinking-content">${escapeHtml(thinkContent.trim())}</div>
-    </details>`
+  // 先提取并保护 <think> 标签内容
+  const thinkPlaceholders: string[] = []
+  let processedMarkdown = markdown.replace(/<think>([\s\S]*?)<\/think>/g, (_, thinkContent) => {
+    const placeholder = `__THINK_PLACEHOLDER_${thinkPlaceholders.length}__`
+    thinkPlaceholders.push(thinkContent.trim())
+    return placeholder
   })
   
   const lines = processedMarkdown.split('\n')
@@ -167,7 +165,18 @@ export function renderMarkdown(markdown: string): string {
     html.push(`<pre><code>${escapeHtml(codeContent.join('\n'))}</code></pre>`)
   }
   
-  return html.join('')
+  // 恢复 think 标签
+  let result = html.join('')
+  thinkPlaceholders.forEach((thinkContent, index) => {
+    const placeholder = `__THINK_PLACEHOLDER_${index}__`
+    const thinkHtml = `<details class="thinking-block">
+      <summary>💭 思考过程</summary>
+      <div class="thinking-content">${escapeHtml(thinkContent)}</div>
+    </details>`
+    result = result.replace(placeholder, thinkHtml)
+  })
+  
+  return result
 }
 
 export default renderMarkdown
