@@ -22,11 +22,23 @@ export interface AlertCondition {
   operator: 'above' | 'below'
   value: number
   note?: string // 备注（AI 策略理由等）
+  triggered?: boolean // 是否已触发
+  triggeredAt?: number // 触发时间戳
 }
 
 // 预警配置
 export interface AlertConfig {
   conditions: AlertCondition[]
+}
+
+// 预警历史记录
+export interface AlertHistoryItem {
+  code: string
+  stockName: string
+  condition: AlertCondition
+  triggeredAt: number
+  confirmedAt: number
+  price: number // 触发时的价格
 }
 
 // 用户配置
@@ -39,6 +51,7 @@ export interface UserConfig {
   theme: 'light' | 'dark' | 'auto'
   quoteSource?: QuoteSource // 数据源
   userProfile?: UserProfile
+  alertHistory?: AlertHistoryItem[] // 预警历史记录
 }
 
 // 用户资料

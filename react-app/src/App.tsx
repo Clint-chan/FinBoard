@@ -73,22 +73,42 @@ function App() {
   // 是否是管理员
   const isAdmin = cloudUsername ? ADMIN_USERS.includes(cloudUsername) : false
 
+  // 更新配置
+  const updateConfig = useCallback((updates: Partial<UserConfig>) => {
+    setConfig(prev => ({ ...prev, ...updates }))
+  }, [setConfig])
+
+  // 预警触发回调 - 标记条件已触发
+  const handleAlertTriggered = useCallback((code: string, condIndex: number, _price: number) => {
+    const alert = config.alerts[code]
+    if (!alert?.conditions?.[condIndex]) return
+    
+    // 标记条件已触发
+    const newConditions = [...alert.conditions]
+    if (!newConditions[condIndex].triggered) {
+      newConditions[condIndex] = {
+        ...newConditions[condIndex],
+        triggered: true,
+        triggeredAt: Date.now()
+      }
+      updateConfig({
+        alerts: { ...config.alerts, [code]: { conditions: newConditions } }
+      })
+    }
+  }, [config.alerts, updateConfig])
+
   // 预警检查
   useAlertCheck({
     stockData,
     alerts: config.alerts,
-    pctThreshold: config.pctThreshold
+    pctThreshold: config.pctThreshold,
+    onAlertTriggered: handleAlertTriggered
   })
 
   // 请求通知权限
   useEffect(() => {
     requestNotificationPermission()
   }, [])
-
-  // 更新配置
-  const updateConfig = useCallback((updates: Partial<UserConfig>) => {
-    setConfig(prev => ({ ...prev, ...updates }))
-  }, [setConfig])
 
   // 添加股票
   const addStock = useCallback((code: string) => {
@@ -120,6 +140,54 @@ function App() {
     })
     setAlertModal({ open: false, code: null })
   }, [config.alerts, updateConfig])
+
+  // 确认预警（入库历史并删除）
+  const confirmAlert = useCallback((code: string, condIndex: number) => {
+    const alert = config.alerts[code]
+    if (!alert?.conditions?.[condIndex]) return
+    
+    const condition = alert.conditions[condIndex]
+    const stock = stockData[code]
+    
+    // 添加到历史记录
+    const historyItem = {
+      code,
+      stockName: stock?.name || code,
+      condition: { ...condition },
+      triggeredAt: condition.triggeredAt || Date.now(),
+      confirmedAt: Date.now(),
+      price: stock?.price || 0
+    }
+    
+    const newHistory = [...(config.alertHistory || []), historyItem]
+    
+    // 从当前预警中删除
+    const newConditions = alert.conditions.filter((_, i) => i !== condIndex)
+    const newAlerts = { ...config.alerts }
+    if (newConditions.length === 0) {
+      delete newAlerts[code]
+    } else {
+      newAlerts[code] = { conditions: newConditions }
+    }
+    
+    updateConfig({
+      alerts: newAlerts,
+      alertHistory: newHistory
+    })
+  }, [config.alerts, config.alertHistory, stockData, updateConfig])
+
+  // 删除历史记录
+  const deleteHistoryItem = useCallback((index: number) => {
+    const newHistory = (config.alertHistory || []).filter((_, i) => i !== index)
+    updateConfig({ alertHistory: newHistory })
+  }, [config.alertHistory, updateConfig])
+
+  // 清空所有历史记录
+  const clearAllHistory = useCallback(() => {
+    if (confirm('确定清空所有预警历史记录？')) {
+      updateConfig({ alertHistory: [] })
+    }
+  }, [updateConfig])
 
   // 从 AI 卡片直接保存多个预警（追加到现有条件）
   const saveAlertsFromAI = useCallback((code: string, alerts: Array<{ price: number; operator: 'above' | 'below'; note: string }>) => {
@@ -411,9 +479,10 @@ function App() {
                       <div className="alert-card-body">
                         <div className="alert-card-conditions">
                           {alert.conditions.map((cond, idx) => (
-                            <div key={idx} className="alert-card-cond">
+                            <div key={idx} className={`alert-card-cond ${cond.triggered ? 'triggered' : ''}`}>
                               <div className="alert-card-cond-content">
                                 <div className="alert-card-cond-text">
+                                  {cond.triggered && <span className="triggered-badge">已触发</span>}
                                   {cond.type === 'price' ? '价格' : '涨跌幅'}
                                   {cond.operator === 'above' ? (cond.type === 'pct' ? ' ≥ ' : ' 突破 ') : (cond.type === 'pct' ? ' ≤ ' : ' 跌破 ')}
                                   <strong>{cond.value}</strong>{cond.type === 'pct' ? '%' : ' 元'}
@@ -421,8 +490,24 @@ function App() {
                                 {cond.note && (
                                   <div className="alert-card-cond-note">{cond.note}</div>
                                 )}
+                                {cond.triggeredAt && (
+                                  <div className="alert-card-cond-time">
+                                    触发于 {new Date(cond.triggeredAt).toLocaleString()}
+                                  </div>
+                                )}
                               </div>
                               <div className="alert-card-cond-actions">
+                                {cond.triggered && (
+                                  <button 
+                                    className="alert-card-cond-btn confirm"
+                                    onClick={() => confirmAlert(code, idx)}
+                                    title="确认并归档"
+                                  >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                  </button>
+                                )}
                                 <button 
                                   className="alert-card-cond-btn edit"
                                   onClick={() => setAlertModal({ open: true, code, editIndex: idx })}
@@ -464,6 +549,49 @@ function App() {
                 })
               )}
             </div>
+            
+            {/* 预警历史记录 */}
+            {(config.alertHistory?.length || 0) > 0 && (
+              <div className="alert-history-section">
+                <div className="alert-history-header">
+                  <h3>预警历史</h3>
+                  <button className="clear-history-btn" onClick={clearAllHistory}>
+                    清空历史
+                  </button>
+                </div>
+                <div className="alert-history-list">
+                  {config.alertHistory?.map((item, idx) => (
+                    <div key={idx} className="alert-history-item">
+                      <div className="history-item-info">
+                        <span className="history-stock-name">{item.stockName}</span>
+                        <span className="history-condition">
+                          {item.condition.type === 'price' ? '价格' : '涨跌幅'}
+                          {item.condition.operator === 'above' ? ' 突破 ' : ' 跌破 '}
+                          {item.condition.value}{item.condition.type === 'pct' ? '%' : ''}
+                        </span>
+                        {item.condition.note && (
+                          <span className="history-note">{item.condition.note}</span>
+                        )}
+                      </div>
+                      <div className="history-item-meta">
+                        <span className="history-price">触发价: {item.price.toFixed(2)}</span>
+                        <span className="history-time">{new Date(item.confirmedAt).toLocaleDateString()}</span>
+                        <button 
+                          className="history-del-btn"
+                          onClick={() => deleteHistoryItem(idx)}
+                          title="删除此记录"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
         

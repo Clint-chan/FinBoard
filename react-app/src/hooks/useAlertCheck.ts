@@ -32,7 +32,7 @@ function loadTriggered(): Record<string, boolean> {
   return {}
 }
 
-export function useAlertCheck({ stockData, alerts, pctThreshold }: UseAlertCheckOptions) {
+export function useAlertCheck({ stockData, alerts, pctThreshold, onAlertTriggered }: UseAlertCheckOptions & { onAlertTriggered?: (code: string, condIndex: number, price: number) => void }) {
   // 已触发的预警记录，避免重复通知
   const triggeredAlerts = useRef<Record<string, boolean>>(loadTriggered())
 
@@ -67,8 +67,10 @@ export function useAlertCheck({ stockData, alerts, pctThreshold }: UseAlertCheck
           condTriggered = cond.operator === 'above' ? price >= cond.value : price <= cond.value
           msg = `当前价 ${price}，${cond.operator === 'above' ? '已突破' : '已跌破'} ${cond.value}`
         } else if (cond.type === 'pct') {
-          condTriggered = cond.operator === 'above' ? pct >= cond.value : pct <= cond.value
-          msg = `当前涨跌幅 ${pct.toFixed(2)}%，${cond.operator === 'above' ? '已超过' : '已低于'} ${cond.value}%`
+          // 涨跌幅使用绝对值比较
+          const pctAbs = Math.abs(pct)
+          condTriggered = cond.operator === 'above' ? pctAbs >= cond.value : pctAbs <= cond.value
+          msg = `当前涨跌幅 ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%，绝对值${cond.operator === 'above' ? '已超过' : '已低于'} ${cond.value}%`
         }
         
         if (condTriggered) {
@@ -77,6 +79,8 @@ export function useAlertCheck({ stockData, alerts, pctThreshold }: UseAlertCheck
             triggeredAlerts.current[alertKey] = true
             persistTriggered()
             sendNotification(`${d?.name || code} 预警`, msg)
+            // 通知外部条件已触发
+            onAlertTriggered?.(code, idx, price)
           }
         }
       })
