@@ -446,24 +446,35 @@ async function handleAIChat(request, env) {
       { role: 'system', content: systemPrompt }
     ]
     
-    // 添加用户消息，第一条消息附加股票数据
+    // 找到第一条用户消息的索引
+    let firstUserMsgIndex = -1
+    let hasAddedData = false
+    
     messages.forEach((msg, idx) => {
-      if (msg.role === 'user' && idx === 0 && dataContext) {
-        // 第一条用户消息，附加股票数据
-        fullMessages.push({
-          role: 'user',
-          content: `${dataContext}\n\n用户问题：${msg.content}`
-        })
-      } else if (msg.role === 'assistant') {
+      if (msg.role === 'user' && firstUserMsgIndex === -1) {
+        firstUserMsgIndex = idx
+      }
+      
+      if (msg.role === 'assistant') {
         // assistant 消息保持不变
         fullMessages.push({ role: 'assistant', content: msg.content })
       } else if (msg.role === 'user') {
-        // 其他用户消息保持不变
-        fullMessages.push({ role: 'user', content: msg.content })
+        // 如果是第一条用户消息且有股票数据，附加数据
+        if (idx === firstUserMsgIndex && dataContext && !hasAddedData) {
+          fullMessages.push({
+            role: 'user',
+            content: `${dataContext}\n\n用户问题：${msg.content}`
+          })
+          hasAddedData = true
+        } else {
+          // 其他用户消息保持不变
+          fullMessages.push({ role: 'user', content: msg.content })
+        }
       }
     })
     
     console.log('构建的消息数量:', fullMessages.length)
+    console.log('是否附加了股票数据:', hasAddedData)
 
     // 调用大模型 API
     const llmRes = await fetch(config.apiUrl, {
@@ -484,7 +495,7 @@ async function handleAIChat(request, env) {
       throw new Error(`LLM API error: ${llmRes.status} - ${errorText}`)
     }
 
-    // 转发流式响应，过滤 <think> 标签
+    // 转发流式响应，标记 think 标签类型
     const { readable, writable } = new TransformStream()
     const writer = writable.getWriter()
     const reader = llmRes.body.getReader()
@@ -510,20 +521,37 @@ async function handleAIChat(request, env) {
                 if (content) {
                   buffer += content
                   
-                  // 检查是否进入或退出 think 标签
-                  if (buffer.includes('<think>')) {
-                    inThinkTag = true
-                    buffer = buffer.split('<think>')[0] // 保留 <think> 之前的内容
+                  // 处理 <think> 标签
+                  while (buffer.includes('<think>') || buffer.includes('</think>')) {
+                    if (buffer.includes('<think>') && !inThinkTag) {
+                      const parts = buffer.split('<think>')
+                      if (parts[0]) {
+                        // 发送 <think> 之前的普通内容
+                        writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ content: parts[0], type: 'text' })}\n\n`))
+                      }
+                      // 发送 <think> 标记
+                      writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ content: '', type: 'think_start' })}\n\n`))
+                      buffer = parts.slice(1).join('<think>')
+                      inThinkTag = true
+                    } else if (buffer.includes('</think>') && inThinkTag) {
+                      const parts = buffer.split('</think>')
+                      if (parts[0]) {
+                        // 发送思考内容
+                        writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ content: parts[0], type: 'thinking' })}\n\n`))
+                      }
+                      // 发送 </think> 标记
+                      writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ content: '', type: 'think_end' })}\n\n`))
+                      buffer = parts.slice(1).join('</think>')
+                      inThinkTag = false
+                    } else {
+                      break
+                    }
                   }
                   
-                  if (buffer.includes('</think>')) {
-                    inThinkTag = false
-                    buffer = buffer.split('</think>').slice(1).join('</think>') // 保留 </think> 之后的内容
-                  }
-                  
-                  // 如果不在 think 标签内，且有内容，则发送
-                  if (!inThinkTag && buffer) {
-                    writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ content: buffer })}\n\n`))
+                  // 发送剩余内容
+                  if (buffer && !buffer.includes('<think>') && !buffer.includes('</think>')) {
+                    const type = inThinkTag ? 'thinking' : 'text'
+                    writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ content: buffer, type })}\n\n`))
                     buffer = ''
                   }
                 }
@@ -533,8 +561,9 @@ async function handleAIChat(request, env) {
         }
         
         // 发送剩余内容
-        if (buffer && !inThinkTag) {
-          writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ content: buffer })}\n\n`))
+        if (buffer) {
+          const type = inThinkTag ? 'thinking' : 'text'
+          writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ content: buffer, type })}\n\n`))
         }
         
         writer.write(new TextEncoder().encode('data: [DONE]\n\n'))
