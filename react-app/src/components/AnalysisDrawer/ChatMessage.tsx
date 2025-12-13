@@ -34,6 +34,9 @@ function parseContent(content: string): ParsedContent {
   const thinkEnd = content.indexOf('</think>')
 
   if (thinkStart !== -1) {
+    // 移除 <think> 前面的内容（通常是大模型重复的问候语）
+    // const beforeThink = content.slice(0, thinkStart).trim()
+    
     if (thinkEnd !== -1) {
       thinking = content.slice(thinkStart + 7, thinkEnd).trim()
       reply = content.slice(thinkEnd + 8).trim()
@@ -56,7 +59,19 @@ function parseContent(content: string): ParsedContent {
       }
     }
   } else {
-    reply = content
+    // 检查是否有部分的 <think 标签（流式中）
+    const partialThinkTags = ['<think', '<thin', '<thi', '<th', '<t']
+    let hasPartialThink = false
+    for (const partial of partialThinkTags) {
+      if (content.endsWith(partial)) {
+        reply = content.slice(0, -partial.length).trim()
+        hasPartialThink = true
+        break
+      }
+    }
+    if (!hasPartialThink) {
+      reply = content
+    }
   }
 
   // 2. 解析 <trading_signals> 标签
