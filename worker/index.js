@@ -260,13 +260,10 @@ function jsonResponse(data, status = 200) {
 // ============ AI Chat 功能 ============
 
 const AI_DEFAULT_CONFIG = {
-  apiUrl: 'http://frp3.ccszxc.site:14266/v1/chat/completions',
+  apiUrl: 'https://api.newestgpt.com/v1/chat/completions',
   apiKey: 'zxc123',
   model: 'gemini-3-pro-preview-thinking'
 }
-
-// 注意: Cloudflare Workers 可能不支持访问某些 HTTP 端点
-// 如果遇到 405 错误，可能需要使用 HTTPS 或配置 Worker 的网络设置
 
 async function fetchRealtimeData(symbol) {
   // 使用单股票查询接口
@@ -415,26 +412,31 @@ async function handleAIChat(request, env) {
   try {
     const { messages, stockData, mode = 'intraday' } = await request.json()
     
+    // 获取配置
     let config = AI_DEFAULT_CONFIG
     if (env.CONFIG_KV) {
       const saved = await env.CONFIG_KV.get('ai_config', 'json')
       if (saved) config = { ...AI_DEFAULT_CONFIG, ...saved }
     }
 
+    // 构建系统提示词
     const systemPrompt = mode === 'intraday' 
       ? '你是专业的A股短线交易分析师，专注日内做T策略。基于多周期K线、量价配合、技术指标，给出具体买卖点位、止损止盈和仓位建议。'
       : ''
 
+    // 采集股票数据
     let dataContext = ''
     if (stockData?.code) {
       try {
-        dataContext = await collectStockData(stockData.code)
+        const cleanCode = stockData.code.replace(/^(sh|sz)/i, '')
+        dataContext = await collectStockData(cleanCode)
       } catch (error) {
         console.error('数据采集失败:', error)
         dataContext = `数据采集失败: ${error.message}`
       }
     }
 
+    // 构建完整消息
     const fullMessages = [
       { role: 'system', content: systemPrompt },
       ...messages.map((msg, idx) => 
@@ -444,34 +446,31 @@ async function handleAIChat(request, env) {
       )
     ]
 
-    console.log('调用大模型 API:', config.apiUrl)
-    console.log('模型:', config.model)
-    console.log('消息数量:', fullMessages.length)
-    
+    // 调用大模型 API
     const llmRes = await fetch(config.apiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
-        'Accept': 'text/event-stream',
-        'User-Agent': 'Cloudflare-Worker/1.0'
       },
-      body: JSON.stringify({ model: config.model, messages: fullMessages, stream: true })
+      body: JSON.stringify({
+        model: config.model,
+        messages: fullMessages,
+        stream: true
+      })
     })
 
-    console.log('大模型 API 响应状态:', llmRes.status)
-    
     if (!llmRes.ok) {
       const errorText = await llmRes.text()
-      console.error('大模型 API 错误响应:', errorText)
       throw new Error(`LLM API error: ${llmRes.status} - ${errorText}`)
     }
 
+    // 转发流式响应
     const { readable, writable } = new TransformStream()
     const writer = writable.getWriter()
     const reader = llmRes.body.getReader()
     const decoder = new TextDecoder()
-
+    
     ;(async () => {
       try {
         while (true) {
@@ -534,15 +533,21 @@ async function handleAIChat(request, env) {
 
 async function handleAIConfig(request, env) {
   if (request.method === 'GET') {
+    // 只返回模型信息，不泄露 API 地址和密钥
     let config = AI_DEFAULT_CONFIG
     if (env.CONFIG_KV) {
       const saved = await env.CONFIG_KV.get('ai_config', 'json')
       if (saved) config = { ...AI_DEFAULT_CONFIG, ...saved }
     }
-    return jsonResponse({ apiUrl: config.apiUrl, model: config.model, hasApiKey: !!config.apiKey })
+    return jsonResponse({ 
+      model: config.model,
+      hasApiKey: !!config.apiKey,
+      status: 'configured'
+    })
   }
 
   if (request.method === 'POST') {
+    // 管理员更新配置（需要验证权限）
     const { apiUrl, apiKey, model } = await request.json()
     if (!env.CONFIG_KV) return jsonResponse({ error: 'KV not configured' }, 500)
     
