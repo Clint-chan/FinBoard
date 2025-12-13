@@ -870,53 +870,38 @@
 }
 
 /* ============================================
-   AI 思考过程块样式 - 简洁风格
+   AI 思考过程块样式 - 极简风格
    ============================================ */
 
 .analysis-drawer .bubble .thinking-block {
-  margin: 8px 0 16px;
+  margin: 4px 0 12px;
 }
 
-/* 思考块头部 - 可点击展开/折叠 */
+/* 思考块头部 - 纯文字链接风格 */
 .analysis-drawer .bubble .thinking-header {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  background: #f3f4f6;
-  border-radius: 6px;
+  gap: 5px;
   cursor: pointer;
   user-select: none;
-  transition: background 0.15s;
+  padding: 2px 0;
 }
 
-.analysis-drawer .bubble .thinking-header:hover {
-  background: #e5e7eb;
+.analysis-drawer .bubble .thinking-header:hover .thinking-status {
+  text-decoration: underline;
 }
 
-[data-theme="dark"] .analysis-drawer .bubble .thinking-header {
-  background: #374151;
-}
-
-[data-theme="dark"] .analysis-drawer .bubble .thinking-header:hover {
-  background: #4b5563;
-}
-
-/* 思考图标 */
+/* 思考图标 - 小巧的圆圈 */
 .analysis-drawer .bubble .thinking-icon {
-  width: 16px;
-  height: 16px;
-  color: #6b7280;
-  flex-shrink: 0;
-}
-
-[data-theme="dark"] .analysis-drawer .bubble .thinking-icon {
+  width: 14px;
+  height: 14px;
   color: #9ca3af;
+  flex-shrink: 0;
 }
 
 /* 思考中动画 */
 .analysis-drawer .bubble .thinking-block:not(.collapsed) .thinking-icon {
-  animation: thinking-spin 2s linear infinite;
+  animation: thinking-spin 1.5s linear infinite;
 }
 
 @keyframes thinking-spin {
@@ -926,19 +911,14 @@
 
 /* 状态文字 */
 .analysis-drawer .bubble .thinking-status {
-  font-size: 0.82rem;
-  font-weight: 500;
-  color: #6b7280;
-}
-
-[data-theme="dark"] .analysis-drawer .bubble .thinking-status {
+  font-size: 0.8rem;
   color: #9ca3af;
 }
 
 /* 展开/折叠箭头 */
 .analysis-drawer .bubble .thinking-arrow {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   color: #9ca3af;
   transition: transform 0.2s;
   flex-shrink: 0;
@@ -950,17 +930,17 @@
 
 /* 思考内容区域 */
 .analysis-drawer .bubble .thinking-body {
-  margin-top: 12px;
-  padding-left: 4px;
-  max-height: 300px;
+  margin-top: 8px;
+  padding-left: 2px;
+  max-height: 250px;
   overflow-y: auto;
 }
 
 .analysis-drawer .bubble .thinking-body p {
-  font-size: 0.88rem;
-  line-height: 1.7;
-  color: #4b5563;
-  margin: 0 0 10px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: #6b7280;
+  margin: 0 0 6px;
 }
 
 .analysis-drawer .bubble .thinking-body p:last-child {
@@ -968,7 +948,7 @@
 }
 
 [data-theme="dark"] .analysis-drawer .bubble .thinking-body p {
-  color: #d1d5db;
+  color: #9ca3af;
 }
 
 /* 折叠时隐藏内容 */
@@ -978,11 +958,11 @@
 
 /* 滚动条 */
 .analysis-drawer .bubble .thinking-body::-webkit-scrollbar {
-  width: 4px;
+  width: 3px;
 }
 
 .analysis-drawer .bubble .thinking-body::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: #e5e7eb;
   border-radius: 2px;
 }
 

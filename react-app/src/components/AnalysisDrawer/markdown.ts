@@ -82,6 +82,17 @@ export function renderMarkdown(markdown: string): string {
   let content = markdown
   const blocks: { html: string; placeholder: string }[] = []
 
+  // 0. 预处理：移除 AI 可能重复的用户问题（通常在 think 标签后紧跟）
+  // 匹配模式：</think> 后面紧跟的短句（通常是重复的用户问题）
+  content = content.replace(/<\/think>\s*([^<\n]{1,20})\n/g, (match, possibleQuestion) => {
+    // 如果这个短句看起来像是重复的问题（没有标点或只有简单标点），移除它
+    const trimmed = possibleQuestion.trim()
+    if (trimmed && !trimmed.includes('。') && !trimmed.includes('！') && !trimmed.includes('：')) {
+      return '</think>\n'
+    }
+    return match
+  })
+
   // 1. 处理完整的 <think>...</think>
   content = content.replace(/<think>([\s\S]*?)<\/think>/g, (_, thinkContent) => {
     const placeholder = `\x00T${blocks.length}\x00`
