@@ -412,11 +412,13 @@ RSI(12): ${ind.rsi.rsi12.toFixed(2)}${ind.rsi.rsi12 > 80 ? ' 超买' : ind.rsi.r
 }
 
 async function handleAIChat(request, env) {
+  // 在 try 外部定义 config，确保 catch 块可以访问
+  let config = AI_DEFAULT_CONFIG
+  
   try {
     const { messages, stockData, mode = 'intraday' } = await request.json()
     
     // 获取配置
-    let config = AI_DEFAULT_CONFIG
     if (env.CONFIG_KV) {
       const saved = await env.CONFIG_KV.get('ai_config', 'json')
       if (saved) config = { ...AI_DEFAULT_CONFIG, ...saved }
