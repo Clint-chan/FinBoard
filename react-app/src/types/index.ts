@@ -52,6 +52,7 @@ export interface UserConfig {
   quoteSource?: QuoteSource // 数据源
   userProfile?: UserProfile
   alertHistory?: AlertHistoryItem[] // 预警历史记录
+  refreshOnlyInMarketHours?: boolean // 仅在交易时间刷新
 }
 
 // 用户资料

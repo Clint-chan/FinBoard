@@ -59,7 +59,8 @@ function App() {
   const { stockData, status, lastUpdate, refresh } = useQuotes(
     config.codes, 
     config.interval,
-    config.quoteSource || 'eastmoney'
+    config.quoteSource || 'eastmoney',
+    config.refreshOnlyInMarketHours ?? true
   )
 
   // 云同步
@@ -630,6 +631,22 @@ function App() {
                     onChange={(e) => updateConfig({ pctThreshold: parseFloat(e.target.value) || 5 })}
                   />
                   <span>%</span>
+                </div>
+              </div>
+              <div className="settings-row">
+                <div>
+                  <label>仅交易时间刷新</label>
+                  <div className="hint">开启后，非交易时间（周末、盘前盘后）不会请求行情数据</div>
+                </div>
+                <div className="settings-input">
+                  <label className="switch">
+                    <input
+                      type="checkbox"
+                      checked={config.refreshOnlyInMarketHours ?? true}
+                      onChange={(e) => updateConfig({ refreshOnlyInMarketHours: e.target.checked })}
+                    />
+                    <span className="slider"></span>
+                  </label>
                 </div>
               </div>
               <div className="settings-row">

@@ -10,7 +10,8 @@ export const DEFAULT_CONFIG: UserConfig = {
   pctThreshold: 5,
   alerts: {},
   costs: {},
-  theme: 'auto'
+  theme: 'auto',
+  refreshOnlyInMarketHours: true // 默认仅在交易时间刷新
 }
 
 // 预设头像列表

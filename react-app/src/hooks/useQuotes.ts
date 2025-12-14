@@ -56,7 +56,8 @@ interface UseQuotesReturn {
 export function useQuotes(
   codes: string[], 
   interval = 5, 
-  source: QuoteSource = 'eastmoney'
+  source: QuoteSource = 'eastmoney',
+  refreshOnlyInMarketHours = true
 ): UseQuotesReturn {
   // 初始化时尝试从缓存加载数据，实现"秒开"
   const [stockData, setStockData] = useState<Record<string, StockData>>(() => {
@@ -109,6 +110,11 @@ export function useQuotes(
     }
     
     timerRef.current = window.setInterval(() => {
+      // 如果启用了"仅交易时间刷新"，则检查是否在交易时间
+      if (refreshOnlyInMarketHours && !isMarketOpen()) {
+        setStatus('closed')
+        return
+      }
       refresh(true)
     }, interval * 1000)
 
@@ -117,7 +123,7 @@ export function useQuotes(
         clearInterval(timerRef.current)
       }
     }
-  }, [interval, refresh])
+  }, [interval, refresh, refreshOnlyInMarketHours])
 
   return { stockData, status, lastUpdate, refresh: () => refresh(true) }
 }
