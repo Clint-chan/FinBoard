@@ -801,39 +801,40 @@ async function collectStockData(symbol) {
   const recent3_15min = klines15.slice(-3)
   
   let text = `## 1. 当前状态
-股票：${rt.name} (${symbol})
-现价：${price} 元，涨跌幅：${rt.change_pct >= 0 ? '+' : ''}${rt.change_pct.toFixed(2)}%
-今日高低：${rt.high} / ${rt.low} 元
-当前位置：${price === rt.high ? '日内高点' : price === rt.low ? '日内低点' : '中间'}
-振幅：${rt.amplitude.toFixed(2)}%，换手率：${rt.turnover_rate.toFixed(2)}%，量比：${rt.volume_ratio.toFixed(2)}
+股票名称: ${rt.name}
+股票代码: ${symbol}
+当前价格: ${price}
+涨跌幅: ${rt.change_pct.toFixed(2)}%
+涨跌额: ${rt.change_amount.toFixed(2)}
+今日最高: ${rt.high}
+今日最低: ${rt.low}
+今日开盘: ${rt.open}
+昨日收盘: ${rt.pre_close}
+振幅: ${rt.amplitude.toFixed(2)}%
+换手率: ${rt.turnover_rate.toFixed(2)}%
+量比: ${rt.volume_ratio.toFixed(2)}
 
-## 2. 日K线（最近3根）
+## 2. 日K线数据（最近30根）
+日期,开盘,收盘,最高,最低,成交量
 `
-  recent3Daily.forEach((k, i) => {
-    const trend = k.close > k.open ? '涨' : '跌'
-    const pct = ((k.close - k.open) / k.open * 100).toFixed(2)
-    let vol = ''
-    if (i > 0) {
-      const vc = ((k.volume - recent3Daily[i-1].volume) / recent3Daily[i-1].volume * 100).toFixed(0)
-      vol = `, ${vc > 0 ? '放量' : '缩量'}${Math.abs(vc)}%`
-    }
-    text += `${k.date}: ${trend}${pct}%${vol}\n`
+  dailyKlines.forEach(k => {
+    text += `${k.date},${k.open},${k.close},${k.high},${k.low},${k.volume}\n`
   })
   
   text += `
-## 3. 60分钟K线（最近3根）
+## 3. 60分钟K线数据（最近10根）
+时间,开盘,收盘,最高,最低,成交量
 `
-  recent3_60min.forEach((k, i) => {
-    const pct = ((k.close - k.open) / k.open * 100).toFixed(2)
-    text += `${k.date}: 开${k.open} 收${k.close} 高${k.high} 低${k.low} 涨跌${pct}%\n`
+  klines60.forEach(k => {
+    text += `${k.date},${k.open},${k.close},${k.high},${k.low},${k.volume}\n`
   })
   
   text += `
-## 4. 15分钟K线（最近3根）
+## 4. 15分钟K线数据（最近20根）
+时间,开盘,收盘,最高,最低,成交量
 `
-  recent3_15min.forEach((k, i) => {
-    const pct = ((k.close - k.open) / k.open * 100).toFixed(2)
-    text += `${k.date}: 开${k.open} 收${k.close} 高${k.high} 低${k.low} 涨跌${pct}%\n`
+  klines15.forEach(k => {
+    text += `${k.date},${k.open},${k.close},${k.high},${k.low},${k.volume}\n`
   })
   
   // 分时数据分析
@@ -900,58 +901,32 @@ ATR百分比: ${atrPct.toFixed(2)}%
   
   text += `
 ## ${sectionNum}. 技术指标 - 日K线
-### 均线
 MA5: ${indDaily.ma.ma5.toFixed(2)}
 MA10: ${indDaily.ma.ma10.toFixed(2)}
 MA20: ${indDaily.ma.ma20.toFixed(2)}
-当前价: ${price.toFixed(2)}
-
-### MACD
-DIF: ${indDaily.macd.dif.toFixed(4)}
-DEA: ${indDaily.macd.dea.toFixed(4)}
+MACD_DIF: ${indDaily.macd.dif.toFixed(4)}
+MACD_DEA: ${indDaily.macd.dea.toFixed(4)}
 MACD: ${indDaily.macd.macd.toFixed(4)}
-
-### RSI
-RSI(6): ${indDaily.rsi.rsi6.toFixed(2)}
-RSI(12): ${indDaily.rsi.rsi12.toFixed(2)}
+RSI6: ${indDaily.rsi.rsi6.toFixed(2)}
+RSI12: ${indDaily.rsi.rsi12.toFixed(2)}
 
 ## ${sectionNum + 1}. 技术指标 - 60分钟K线
-### 均线
 MA5: ${ind60.ma.ma5.toFixed(2)}
 MA10: ${ind60.ma.ma10.toFixed(2)}
-当前价: ${price.toFixed(2)}
-
-### MACD
-DIF: ${ind60.macd.dif.toFixed(4)}
-DEA: ${ind60.macd.dea.toFixed(4)}
+MACD_DIF: ${ind60.macd.dif.toFixed(4)}
+MACD_DEA: ${ind60.macd.dea.toFixed(4)}
 MACD: ${ind60.macd.macd.toFixed(4)}
-
-### RSI
-RSI(6): ${ind60.rsi.rsi6.toFixed(2)}
-RSI(12): ${ind60.rsi.rsi12.toFixed(2)}
+RSI6: ${ind60.rsi.rsi6.toFixed(2)}
+RSI12: ${ind60.rsi.rsi12.toFixed(2)}
 
 ## ${sectionNum + 2}. 技术指标 - 15分钟K线
-### 均线
 MA5: ${ind15.ma.ma5.toFixed(2)}
 MA10: ${ind15.ma.ma10.toFixed(2)}
-当前价: ${price.toFixed(2)}
-
-### MACD
-DIF: ${ind15.macd.dif.toFixed(4)}
-DEA: ${ind15.macd.dea.toFixed(4)}
+MACD_DIF: ${ind15.macd.dif.toFixed(4)}
+MACD_DEA: ${ind15.macd.dea.toFixed(4)}
 MACD: ${ind15.macd.macd.toFixed(4)}
-
-### RSI
-RSI(6): ${ind15.rsi.rsi6.toFixed(2)}
-RSI(12): ${ind15.rsi.rsi12.toFixed(2)}
-
-## ${sectionNum + 3}. 关键点位
-日K前高: ${Math.max(...recent3Daily.map(k => k.high)).toFixed(2)}
-日K前低: ${Math.min(...recent3Daily.map(k => k.low)).toFixed(2)}
-60分钟前高: ${Math.max(...recent3_60min.map(k => k.high)).toFixed(2)}
-60分钟前低: ${Math.min(...recent3_60min.map(k => k.low)).toFixed(2)}
-15分钟前高: ${Math.max(...recent3_15min.map(k => k.high)).toFixed(2)}
-15分钟前低: ${Math.min(...recent3_15min.map(k => k.low)).toFixed(2)}
+RSI6: ${ind15.rsi.rsi6.toFixed(2)}
+RSI12: ${ind15.rsi.rsi12.toFixed(2)}
 `
   return text
 }
