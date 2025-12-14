@@ -594,7 +594,7 @@ function jsonResponse(data, status = 200) {
 // ============ AI Chat 功能 ============
 
 const AI_DEFAULT_CONFIG = {
-  apiUrl: 'http://frp3.ccszxc.site:14266/v1/chat/completions',
+  apiUrl: 'https://api.newestgpt.com/v1/chat/completions',
   apiKey: 'zxc123',
   model: 'gemini-3-pro-preview-thinking'
 }
@@ -1235,14 +1235,6 @@ async function handleAIChat(request, env) {
   } catch (error) {
     console.error('AI Chat Error:', error)
     
-    // 如果是 405 错误，可能是 Worker 无法访问 HTTP 端点
-    if (error.message.includes('405')) {
-      return jsonResponse({ 
-        error: '大模型 API 访问失败 (405)。可能原因：1) Worker 无法访问 HTTP 端点，需要使用 HTTPS；2) API 端点配置错误。',
-        suggestion: '请检查 AI 配置中的 API URL 是否支持 HTTPS，或联系管理员配置 Worker 网络权限。'
-      }, 500)
-    }
-    
     // 检查是否是后端服务超时或连接错误
     if (error.message.includes('代理服务器错误') || error.message.includes('后端服务响应超时')) {
       return jsonResponse({ 
@@ -1253,7 +1245,7 @@ async function handleAIChat(request, env) {
     
     // 通用错误处理 - 不暴露敏感信息
     const sanitizedError = error.message
-      .replace(/"backend":"[^"]+"/g, '"backend":"[HIDDEN]"')  // 先替换 JSON 中的 backend 字段
+      .replace(/"backend":"[^"]+"/g, '"backend":"[HIDDEN]"')
       .replace(/http:\/\/[^\s"'}]+/gi, '[API_ENDPOINT]')
       .replace(/https:\/\/[^\s"'}]+/gi, '[API_ENDPOINT]')
       .replace(/gemini-[^\s"'}]+/gi, '[MODEL]')

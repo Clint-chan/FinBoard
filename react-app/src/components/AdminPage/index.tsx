@@ -212,11 +212,8 @@ export function AdminPage() {
                 type="text"
                 value={aiConfig.apiUrl}
                 onChange={e => setAiConfig(prev => ({ ...prev, apiUrl: e.target.value }))}
-                placeholder="http://frp3.ccszxc.site:14266/v1/chat/completions"
+                placeholder="https://api.newestgpt.com/v1/chat/completions"
               />
-              <small style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
-                支持 HTTP 和 HTTPS，Worker 会自动处理协议转换
-              </small>
             </div>
             <div className="form-group">
               <label>API Key</label>
