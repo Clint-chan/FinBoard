@@ -790,10 +790,15 @@ async function collectStockData(symbol) {
     fetchFundFlowData(symbol).catch(() => null)  // 资金流向
   ])
   
-  const ind = calculateIndicators(dailyKlines)
+  // 计算各周期技术指标
+  const indDaily = calculateIndicators(dailyKlines)
+  const ind60 = calculateIndicators(klines60)
+  const ind15 = calculateIndicators(klines15)
+  
   const price = rt.price
   const recent3Daily = dailyKlines.slice(-3)
   const recent3_60min = klines60.slice(-3)
+  const recent3_15min = klines15.slice(-3)
   
   let text = `## 1. 当前状态
 股票：${rt.name} (${symbol})
@@ -819,12 +824,20 @@ async function collectStockData(symbol) {
 ## 3. 60分钟K线（最近3根）
 `
   recent3_60min.forEach((k, i) => {
-    const trend = k.close > k.open ? '涨' : '跌'
     const pct = ((k.close - k.open) / k.open * 100).toFixed(2)
-    text += `${k.date}: ${trend}${pct}%\n`
+    text += `${k.date}: 开${k.open} 收${k.close} 高${k.high} 低${k.low} 涨跌${pct}%\n`
+  })
+  
+  text += `
+## 4. 15分钟K线（最近3根）
+`
+  recent3_15min.forEach((k, i) => {
+    const pct = ((k.close - k.open) / k.open * 100).toFixed(2)
+    text += `${k.date}: 开${k.open} 收${k.close} 高${k.high} 低${k.low} 涨跌${pct}%\n`
   })
   
   // 分时数据分析
+  let sectionNum = 5
   if (intraday && intraday.trends.length > 0) {
     const trends = intraday.trends
     const latest = trends[trends.length - 1]
@@ -837,25 +850,28 @@ async function collectStockData(symbol) {
     const afternoonLow = afternoon.length > 0 ? Math.min(...afternoon.map(t => t.price)) : 0
     
     text += `
-## 4. 分时走势
-昨收：${intraday.preClose.toFixed(2)}，当前均价：${latest.avgPrice.toFixed(2)}
-上午：高${morningHigh.toFixed(2)} 低${morningLow.toFixed(2)}
-下午：高${afternoonHigh.toFixed(2)} 低${afternoonLow.toFixed(2)}
-价格${price > latest.avgPrice ? '高于' : '低于'}均价 ${Math.abs(price - latest.avgPrice).toFixed(2)} 元
+## ${sectionNum}. 分时走势
+昨收: ${intraday.preClose.toFixed(2)}
+当前均价: ${latest.avgPrice.toFixed(2)}
+上午高点: ${morningHigh.toFixed(2)}
+上午低点: ${morningLow.toFixed(2)}
+下午高点: ${afternoonHigh.toFixed(2)}
+下午低点: ${afternoonLow.toFixed(2)}
+当前价格: ${price.toFixed(2)}
 `
+    sectionNum++
   }
   
   // 资金流向分析
-  let sectionNum = intraday ? 5 : 4
   if (fundFlow) {
-    const isMainInflow = fundFlow.mainNetInflow > 0
     text += `
 ## ${sectionNum}. 资金流向（今日）
-主力净流入：${(fundFlow.mainNetInflow / 10000).toFixed(2)}万 (${fundFlow.mainNetInflowPct.toFixed(2)}%) ${isMainInflow ? '✓' : '✗'}
-超大单：${(fundFlow.superLargeInflow / 10000).toFixed(2)}万
-大单：${(fundFlow.largeInflow / 10000).toFixed(2)}万
-中单：${(fundFlow.mediumInflow / 10000).toFixed(2)}万
-小单：${(fundFlow.smallInflow / 10000).toFixed(2)}万
+主力净流入: ${(fundFlow.mainNetInflow / 10000).toFixed(2)}万
+主力净流入占比: ${fundFlow.mainNetInflowPct.toFixed(2)}%
+超大单净流入: ${(fundFlow.superLargeInflow / 10000).toFixed(2)}万
+大单净流入: ${(fundFlow.largeInflow / 10000).toFixed(2)}万
+中单净流入: ${(fundFlow.mediumInflow / 10000).toFixed(2)}万
+小单净流入: ${(fundFlow.smallInflow / 10000).toFixed(2)}万
 `
     sectionNum++
   }
@@ -863,43 +879,79 @@ async function collectStockData(symbol) {
   // 成交量分析
   const recent5Daily = dailyKlines.slice(-5)
   const avgVol = recent5Daily.reduce((sum, k) => sum + k.volume, 0) / 5
-  const todayVolRatio = (recent3Daily[2].volume / avgVol * 100).toFixed(0)
+  const todayVolRatio = recent3Daily[2].volume / avgVol
   text += `
 ## ${sectionNum}. 成交量分析
-今日成交量：${(recent3Daily[2].volume / 10000).toFixed(0)}万手
-5日均量：${(avgVol / 10000).toFixed(0)}万手
-量比：${todayVolRatio}% ${todayVolRatio > 150 ? '(放量)' : todayVolRatio < 70 ? '(缩量)' : '(正常)'}
+今日成交量: ${(recent3Daily[2].volume / 10000).toFixed(0)}万手
+5日均量: ${(avgVol / 10000).toFixed(0)}万手
+量比: ${todayVolRatio.toFixed(2)}
 `
   sectionNum++
   
   // 波动率分析（ATR）
   const atr = recent3Daily.map(k => k.high - k.low).reduce((a, b) => a + b) / 3
-  const atrPct = (atr / price * 100).toFixed(2)
+  const atrPct = atr / price * 100
   text += `
-## ${sectionNum}. 波动率
-近3日ATR：${atr.toFixed(2)} (${atrPct}%)
-波动特征：${atrPct > 3 ? '高波动' : atrPct > 1.5 ? '中等波动' : '低波动'}
+## ${sectionNum}. 波动率(ATR)
+近3日ATR: ${atr.toFixed(2)}
+ATR百分比: ${atrPct.toFixed(2)}%
 `
   sectionNum++
   
   text += `
-## ${sectionNum}. 均线（日K）
-MA5: ${ind.ma.ma5.toFixed(2)} ${price > ind.ma.ma5 ? '站上' : '跌破'}
-MA10: ${ind.ma.ma10.toFixed(2)} ${price > ind.ma.ma10 ? '站上' : '跌破'}
-MA20: ${ind.ma.ma20.toFixed(2)} ${price > ind.ma.ma20 ? '站上' : '跌破'}
-压力：${Math.max(ind.ma.ma5, ind.ma.ma10, ind.ma.ma20).toFixed(2)}，支撑：${Math.min(ind.ma.ma5, ind.ma.ma10, ind.ma.ma20).toFixed(2)}
+## ${sectionNum}. 技术指标 - 日K线
+### 均线
+MA5: ${indDaily.ma.ma5.toFixed(2)}
+MA10: ${indDaily.ma.ma10.toFixed(2)}
+MA20: ${indDaily.ma.ma20.toFixed(2)}
+当前价: ${price.toFixed(2)}
 
-## ${sectionNum + 1}. MACD（日K）
-${ind.macd.macd > 0 ? '红柱' : '绿柱'}${ind.macd.macd > ind.macd.prevMacd ? '变长' : '变短'}
-DIF: ${ind.macd.dif.toFixed(4)}, DEA: ${ind.macd.dea.toFixed(4)}
+### MACD
+DIF: ${indDaily.macd.dif.toFixed(4)}
+DEA: ${indDaily.macd.dea.toFixed(4)}
+MACD: ${indDaily.macd.macd.toFixed(4)}
 
-## ${sectionNum + 2}. RSI（日K）
-RSI(6): ${ind.rsi.rsi6.toFixed(2)}${ind.rsi.rsi6 > 80 ? ' 超买' : ind.rsi.rsi6 < 20 ? ' 超卖' : ''}
-RSI(12): ${ind.rsi.rsi12.toFixed(2)}${ind.rsi.rsi12 > 80 ? ' 超买' : ind.rsi.rsi12 < 20 ? ' 超卖' : ''}
+### RSI
+RSI(6): ${indDaily.rsi.rsi6.toFixed(2)}
+RSI(12): ${indDaily.rsi.rsi12.toFixed(2)}
+
+## ${sectionNum + 1}. 技术指标 - 60分钟K线
+### 均线
+MA5: ${ind60.ma.ma5.toFixed(2)}
+MA10: ${ind60.ma.ma10.toFixed(2)}
+当前价: ${price.toFixed(2)}
+
+### MACD
+DIF: ${ind60.macd.dif.toFixed(4)}
+DEA: ${ind60.macd.dea.toFixed(4)}
+MACD: ${ind60.macd.macd.toFixed(4)}
+
+### RSI
+RSI(6): ${ind60.rsi.rsi6.toFixed(2)}
+RSI(12): ${ind60.rsi.rsi12.toFixed(2)}
+
+## ${sectionNum + 2}. 技术指标 - 15分钟K线
+### 均线
+MA5: ${ind15.ma.ma5.toFixed(2)}
+MA10: ${ind15.ma.ma10.toFixed(2)}
+当前价: ${price.toFixed(2)}
+
+### MACD
+DIF: ${ind15.macd.dif.toFixed(4)}
+DEA: ${ind15.macd.dea.toFixed(4)}
+MACD: ${ind15.macd.macd.toFixed(4)}
+
+### RSI
+RSI(6): ${ind15.rsi.rsi6.toFixed(2)}
+RSI(12): ${ind15.rsi.rsi12.toFixed(2)}
 
 ## ${sectionNum + 3}. 关键点位
-日K前高：${Math.max(...recent3Daily.map(k => k.high)).toFixed(2)}，前低：${Math.min(...recent3Daily.map(k => k.low)).toFixed(2)}
-60分钟前高：${Math.max(...recent3_60min.map(k => k.high)).toFixed(2)}，前低：${Math.min(...recent3_60min.map(k => k.low)).toFixed(2)}
+日K前高: ${Math.max(...recent3Daily.map(k => k.high)).toFixed(2)}
+日K前低: ${Math.min(...recent3Daily.map(k => k.low)).toFixed(2)}
+60分钟前高: ${Math.max(...recent3_60min.map(k => k.high)).toFixed(2)}
+60分钟前低: ${Math.min(...recent3_60min.map(k => k.low)).toFixed(2)}
+15分钟前高: ${Math.max(...recent3_15min.map(k => k.high)).toFixed(2)}
+15分钟前低: ${Math.min(...recent3_15min.map(k => k.low)).toFixed(2)}
 `
   return text
 }
