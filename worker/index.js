@@ -749,14 +749,82 @@ function calculateIndicators(klines) {
   }
 }
 
+// 获取盘口数据（买卖五档）
+async function fetchBidAskData(symbol) {
+  const marketCode = symbol.startsWith('6') ? 1 : 0
+  const url = 'https://push2.eastmoney.com/api/qt/stock/get'
+  const params = new URLSearchParams({
+    fltt: '2',
+    invt: '2',
+    fields: 'f11,f12,f13,f14,f15,f16,f17,f18,f19,f20,f31,f32,f33,f34,f35,f36,f37,f38,f39,f40,f49,f161',
+    secid: `${marketCode}.${symbol}`
+  })
+
+  const response = await fetch(`${url}?${params}`)
+  const data = await response.json()
+  if (!data.data) throw new Error('获取盘口数据失败')
+
+  const d = data.data
+  return {
+    buy: [
+      { price: d.f19, vol: d.f20 * 100 },
+      { price: d.f17, vol: d.f18 * 100 },
+      { price: d.f15, vol: d.f16 * 100 },
+      { price: d.f13, vol: d.f14 * 100 },
+      { price: d.f11, vol: d.f12 * 100 }
+    ],
+    sell: [
+      { price: d.f39, vol: d.f40 * 100 },
+      { price: d.f37, vol: d.f38 * 100 },
+      { price: d.f35, vol: d.f36 * 100 },
+      { price: d.f33, vol: d.f34 * 100 },
+      { price: d.f31, vol: d.f32 * 100 }
+    ],
+    outer: d.f49,  // 外盘
+    inner: d.f161  // 内盘
+  }
+}
+
+// 获取资金流向数据
+async function fetchFundFlowData(symbol) {
+  const marketCode = symbol.startsWith('6') ? 1 : 0
+  const url = 'https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get'
+  const params = new URLSearchParams({
+    lmt: '5',  // 最近5天
+    klt: '101',
+    secid: `${marketCode}.${symbol}`,
+    fields1: 'f1,f2,f3,f7',
+    fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63,f64,f65',
+    ut: 'b2884a393a59ad64002292a3e90d46a5',
+    _: Date.now()
+  })
+
+  const response = await fetch(`${url}?${params}`)
+  const data = await response.json()
+  if (!data.data?.klines) return null
+
+  const latest = data.data.klines[data.data.klines.length - 1].split(',')
+  return {
+    date: latest[0],
+    mainNetInflow: parseFloat(latest[1]),      // 主力净流入
+    mainNetInflowPct: parseFloat(latest[6]),   // 主力净流入占比
+    superLargeInflow: parseFloat(latest[5]),   // 超大单净流入
+    largeInflow: parseFloat(latest[4]),        // 大单净流入
+    mediumInflow: parseFloat(latest[3]),       // 中单净流入
+    smallInflow: parseFloat(latest[2])         // 小单净流入
+  }
+}
+
 async function collectStockData(symbol) {
   // 并行获取所有数据
-  const [rt, dailyKlines, klines60, klines15, intraday] = await Promise.all([
+  const [rt, dailyKlines, klines60, klines15, intraday, bidAsk, fundFlow] = await Promise.all([
     fetchRealtimeData(symbol),
     fetchKlineData(symbol, '101', 30),  // 日K线 30根
     fetchKlineData(symbol, '60', 10),   // 60分钟K线 10根
     fetchKlineData(symbol, '15', 20),   // 15分钟K线 20根
-    fetchIntradayData(symbol).catch(() => null) // 分时数据（可能失败）
+    fetchIntradayData(symbol).catch(() => null), // 分时数据（可能失败）
+    fetchBidAskData(symbol).catch(() => null),   // 盘口数据
+    fetchFundFlowData(symbol).catch(() => null)  // 资金流向
   ])
   
   const ind = calculateIndicators(dailyKlines)
@@ -814,22 +882,75 @@ async function collectStockData(symbol) {
 `
   }
   
+  // 盘口数据分析
+  let sectionNum = intraday ? 5 : 4
+  if (bidAsk) {
+    const buyTotal = bidAsk.buy.reduce((sum, item) => sum + item.vol, 0)
+    const sellTotal = bidAsk.sell.reduce((sum, item) => sum + item.vol, 0)
+    const buyPressure = buyTotal / (buyTotal + sellTotal) * 100
+    
+    text += `
+## ${sectionNum}. 盘口数据
+买一：${bidAsk.buy[0].price.toFixed(2)} (${(bidAsk.buy[0].vol / 100).toFixed(0)}手)
+卖一：${bidAsk.sell[0].price.toFixed(2)} (${(bidAsk.sell[0].vol / 100).toFixed(0)}手)
+买盘压力：${buyPressure.toFixed(1)}% ${buyPressure > 55 ? '(买盘强)' : buyPressure < 45 ? '(卖盘强)' : '(均衡)'}
+外盘/内盘：${bidAsk.outer}/${bidAsk.inner} ${bidAsk.outer > bidAsk.inner ? '(主动买入多)' : '(主动卖出多)'}
+`
+    sectionNum++
+  }
+  
+  // 资金流向分析
+  if (fundFlow) {
+    const isMainInflow = fundFlow.mainNetInflow > 0
+    text += `
+## ${sectionNum}. 资金流向（今日）
+主力净流入：${(fundFlow.mainNetInflow / 10000).toFixed(2)}万 (${fundFlow.mainNetInflowPct.toFixed(2)}%) ${isMainInflow ? '✓' : '✗'}
+超大单：${(fundFlow.superLargeInflow / 10000).toFixed(2)}万
+大单：${(fundFlow.largeInflow / 10000).toFixed(2)}万
+中单：${(fundFlow.mediumInflow / 10000).toFixed(2)}万
+小单：${(fundFlow.smallInflow / 10000).toFixed(2)}万
+`
+    sectionNum++
+  }
+  
+  // 成交量分析
+  const recent5Daily = dailyKlines.slice(-5)
+  const avgVol = recent5Daily.reduce((sum, k) => sum + k.volume, 0) / 5
+  const todayVolRatio = (recent3Daily[2].volume / avgVol * 100).toFixed(0)
   text += `
-## ${intraday ? '5' : '4'}. 均线（日K）
+## ${sectionNum}. 成交量分析
+今日成交量：${(recent3Daily[2].volume / 10000).toFixed(0)}万手
+5日均量：${(avgVol / 10000).toFixed(0)}万手
+量比：${todayVolRatio}% ${todayVolRatio > 150 ? '(放量)' : todayVolRatio < 70 ? '(缩量)' : '(正常)'}
+`
+  sectionNum++
+  
+  // 波动率分析（ATR）
+  const atr = recent3Daily.map(k => k.high - k.low).reduce((a, b) => a + b) / 3
+  const atrPct = (atr / price * 100).toFixed(2)
+  text += `
+## ${sectionNum}. 波动率
+近3日ATR：${atr.toFixed(2)} (${atrPct}%)
+波动特征：${atrPct > 3 ? '高波动' : atrPct > 1.5 ? '中等波动' : '低波动'}
+`
+  sectionNum++
+  
+  text += `
+## ${sectionNum}. 均线（日K）
 MA5: ${ind.ma.ma5.toFixed(2)} ${price > ind.ma.ma5 ? '站上' : '跌破'}
 MA10: ${ind.ma.ma10.toFixed(2)} ${price > ind.ma.ma10 ? '站上' : '跌破'}
 MA20: ${ind.ma.ma20.toFixed(2)} ${price > ind.ma.ma20 ? '站上' : '跌破'}
 压力：${Math.max(ind.ma.ma5, ind.ma.ma10, ind.ma.ma20).toFixed(2)}，支撑：${Math.min(ind.ma.ma5, ind.ma.ma10, ind.ma.ma20).toFixed(2)}
 
-## ${intraday ? '6' : '5'}. MACD（日K）
+## ${sectionNum + 1}. MACD（日K）
 ${ind.macd.macd > 0 ? '红柱' : '绿柱'}${ind.macd.macd > ind.macd.prevMacd ? '变长' : '变短'}
 DIF: ${ind.macd.dif.toFixed(4)}, DEA: ${ind.macd.dea.toFixed(4)}
 
-## ${intraday ? '7' : '6'}. RSI（日K）
+## ${sectionNum + 2}. RSI（日K）
 RSI(6): ${ind.rsi.rsi6.toFixed(2)}${ind.rsi.rsi6 > 80 ? ' 超买' : ind.rsi.rsi6 < 20 ? ' 超卖' : ''}
 RSI(12): ${ind.rsi.rsi12.toFixed(2)}${ind.rsi.rsi12 > 80 ? ' 超买' : ind.rsi.rsi12 < 20 ? ' 超卖' : ''}
 
-## ${intraday ? '8' : '7'}. 关键点位
+## ${sectionNum + 3}. 关键点位
 日K前高：${Math.max(...recent3Daily.map(k => k.high)).toFixed(2)}，前低：${Math.min(...recent3Daily.map(k => k.low)).toFixed(2)}
 60分钟前高：${Math.max(...recent3_60min.map(k => k.high)).toFixed(2)}，前低：${Math.min(...recent3_60min.map(k => k.low)).toFixed(2)}
 `
