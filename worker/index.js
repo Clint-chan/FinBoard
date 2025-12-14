@@ -655,14 +655,15 @@ async function fetchRealtimeData(symbol) {
   }
 }
 
-async function fetchKlineData(symbol, limit = 30) {
+async function fetchKlineData(symbol, period = '101', limit = 30) {
   const marketCode = symbol.startsWith('6') ? 1 : 0
   const url = 'https://push2his.eastmoney.com/api/qt/stock/kline/get'
   const params = new URLSearchParams({
     fields1: 'f1,f2,f3,f4,f5,f6',
     fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
     ut: '7eea3edcaed734bea9cbfc24409ed989',
-    klt: '101', fqt: '1',
+    klt: period, // 支持多周期：'15'=15分钟, '60'=60分钟, '101'=日K
+    fqt: '1',
     secid: `${marketCode}.${symbol}`,
     beg: '0', end: '20500101', lmt: limit.toString()
   })
@@ -676,6 +677,37 @@ async function fetchKlineData(symbol, limit = 30) {
     return { date, open: parseFloat(open), close: parseFloat(close), 
              high: parseFloat(high), low: parseFloat(low), volume: parseFloat(volume) }
   })
+}
+
+// 获取分时数据
+async function fetchIntradayData(symbol) {
+  const marketCode = symbol.startsWith('6') ? 1 : 0
+  const url = 'https://push2.eastmoney.com/api/qt/stock/trends2/get'
+  const params = new URLSearchParams({
+    fields1: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13',
+    fields2: 'f51,f52,f53,f54,f55,f56,f57,f58',
+    ut: '7eea3edcaed734bea9cbfc24409ed989',
+    ndays: '1',
+    iscr: '0',
+    secid: `${marketCode}.${symbol}`
+  })
+
+  const response = await fetch(`${url}?${params}`)
+  const data = await response.json()
+  if (!data.data?.trends) throw new Error('获取分时数据失败')
+
+  const preClose = data.data.preClose
+  const trends = data.data.trends.map(item => {
+    const [time, open, close, high, low, volume, amount, avgPrice] = item.split(',')
+    return {
+      time,
+      price: parseFloat(close),
+      volume: parseInt(volume),
+      avgPrice: parseFloat(avgPrice)
+    }
+  })
+
+  return { preClose, trends }
 }
 
 function calculateIndicators(klines) {
@@ -718,11 +750,19 @@ function calculateIndicators(klines) {
 }
 
 async function collectStockData(symbol) {
-  const rt = await fetchRealtimeData(symbol)
-  const klines = await fetchKlineData(symbol, 30)
-  const ind = calculateIndicators(klines)
+  // 并行获取所有数据
+  const [rt, dailyKlines, klines60, klines15, intraday] = await Promise.all([
+    fetchRealtimeData(symbol),
+    fetchKlineData(symbol, '101', 30),  // 日K线 30根
+    fetchKlineData(symbol, '60', 10),   // 60分钟K线 10根
+    fetchKlineData(symbol, '15', 20),   // 15分钟K线 20根
+    fetchIntradayData(symbol).catch(() => null) // 分时数据（可能失败）
+  ])
+  
+  const ind = calculateIndicators(dailyKlines)
   const price = rt.price
-  const recent3 = klines.slice(-3)
+  const recent3Daily = dailyKlines.slice(-3)
+  const recent3_60min = klines60.slice(-3)
   
   let text = `## 1. 当前状态
 股票：${rt.name} (${symbol})
@@ -731,36 +771,67 @@ async function collectStockData(symbol) {
 当前位置：${price === rt.high ? '日内高点' : price === rt.low ? '日内低点' : '中间'}
 振幅：${rt.amplitude.toFixed(2)}%，换手率：${rt.turnover_rate.toFixed(2)}%，量比：${rt.volume_ratio.toFixed(2)}
 
-## 2. 最近3根K线
+## 2. 日K线（最近3根）
 `
-  recent3.forEach((k, i) => {
+  recent3Daily.forEach((k, i) => {
     const trend = k.close > k.open ? '涨' : '跌'
     const pct = ((k.close - k.open) / k.open * 100).toFixed(2)
     let vol = ''
     if (i > 0) {
-      const vc = ((k.volume - recent3[i-1].volume) / recent3[i-1].volume * 100).toFixed(0)
+      const vc = ((k.volume - recent3Daily[i-1].volume) / recent3Daily[i-1].volume * 100).toFixed(0)
       vol = `, ${vc > 0 ? '放量' : '缩量'}${Math.abs(vc)}%`
     }
     text += `${k.date}: ${trend}${pct}%${vol}\n`
   })
   
   text += `
-## 3. 均线
+## 3. 60分钟K线（最近3根）
+`
+  recent3_60min.forEach((k, i) => {
+    const trend = k.close > k.open ? '涨' : '跌'
+    const pct = ((k.close - k.open) / k.open * 100).toFixed(2)
+    text += `${k.date}: ${trend}${pct}%\n`
+  })
+  
+  // 分时数据分析
+  if (intraday && intraday.trends.length > 0) {
+    const trends = intraday.trends
+    const latest = trends[trends.length - 1]
+    const morning = trends.filter(t => t.time <= '11:30')
+    const afternoon = trends.filter(t => t.time > '13:00')
+    
+    const morningHigh = morning.length > 0 ? Math.max(...morning.map(t => t.price)) : 0
+    const morningLow = morning.length > 0 ? Math.min(...morning.map(t => t.price)) : 0
+    const afternoonHigh = afternoon.length > 0 ? Math.max(...afternoon.map(t => t.price)) : 0
+    const afternoonLow = afternoon.length > 0 ? Math.min(...afternoon.map(t => t.price)) : 0
+    
+    text += `
+## 4. 分时走势
+昨收：${intraday.preClose.toFixed(2)}，当前均价：${latest.avgPrice.toFixed(2)}
+上午：高${morningHigh.toFixed(2)} 低${morningLow.toFixed(2)}
+下午：高${afternoonHigh.toFixed(2)} 低${afternoonLow.toFixed(2)}
+价格${price > latest.avgPrice ? '高于' : '低于'}均价 ${Math.abs(price - latest.avgPrice).toFixed(2)} 元
+`
+  }
+  
+  text += `
+## ${intraday ? '5' : '4'}. 均线（日K）
 MA5: ${ind.ma.ma5.toFixed(2)} ${price > ind.ma.ma5 ? '站上' : '跌破'}
 MA10: ${ind.ma.ma10.toFixed(2)} ${price > ind.ma.ma10 ? '站上' : '跌破'}
 MA20: ${ind.ma.ma20.toFixed(2)} ${price > ind.ma.ma20 ? '站上' : '跌破'}
 压力：${Math.max(ind.ma.ma5, ind.ma.ma10, ind.ma.ma20).toFixed(2)}，支撑：${Math.min(ind.ma.ma5, ind.ma.ma10, ind.ma.ma20).toFixed(2)}
 
-## 4. MACD
+## ${intraday ? '6' : '5'}. MACD（日K）
 ${ind.macd.macd > 0 ? '红柱' : '绿柱'}${ind.macd.macd > ind.macd.prevMacd ? '变长' : '变短'}
 DIF: ${ind.macd.dif.toFixed(4)}, DEA: ${ind.macd.dea.toFixed(4)}
 
-## 5. RSI
+## ${intraday ? '7' : '6'}. RSI（日K）
 RSI(6): ${ind.rsi.rsi6.toFixed(2)}${ind.rsi.rsi6 > 80 ? ' 超买' : ind.rsi.rsi6 < 20 ? ' 超卖' : ''}
 RSI(12): ${ind.rsi.rsi12.toFixed(2)}${ind.rsi.rsi12 > 80 ? ' 超买' : ind.rsi.rsi12 < 20 ? ' 超卖' : ''}
 
-## 6. 关键点位
-前高：${Math.max(...recent3.map(k => k.high)).toFixed(2)}，前低：${Math.min(...recent3.map(k => k.low)).toFixed(2)}
+## ${intraday ? '8' : '7'}. 关键点位
+日K前高：${Math.max(...recent3Daily.map(k => k.high)).toFixed(2)}，前低：${Math.min(...recent3Daily.map(k => k.low)).toFixed(2)}
+60分钟前高：${Math.max(...recent3_60min.map(k => k.high)).toFixed(2)}，前低：${Math.min(...recent3_60min.map(k => k.low)).toFixed(2)}
 `
   return text
 }
