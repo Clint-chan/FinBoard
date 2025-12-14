@@ -958,12 +958,19 @@ async function handleAIChat(request, env) {
     
     ;(async () => {
       try {
+        let buffer = '' // 添加缓冲区处理不完整的行
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
 
           const chunk = decoder.decode(value, { stream: true })
-          chunk.split('\n').filter(l => l.trim()).forEach(line => {
+          buffer += chunk
+          
+          // 按行分割，保留最后一个不完整的行
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || '' // 保留最后一个可能不完整的行
+          
+          lines.filter(l => l.trim()).forEach(line => {
             if (line.startsWith('data: ')) {
               const data = line.slice(6)
               if (data === '[DONE]') return
@@ -974,12 +981,35 @@ async function handleAIChat(request, env) {
                   // 直接转发内容，不做任何处理
                   writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ content })}\n\n`))
                 }
-              } catch (e) {}
+              } catch (e) {
+                console.error('Parse chunk error:', e, 'line:', line)
+              }
             }
           })
         }
+        
+        // 处理缓冲区中剩余的内容
+        if (buffer.trim()) {
+          const line = buffer.trim()
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6)
+            if (data !== '[DONE]') {
+              try {
+                const json = JSON.parse(data)
+                const content = json.choices?.[0]?.delta?.content
+                if (content) {
+                  writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ content })}\n\n`))
+                }
+              } catch (e) {
+                console.error('Parse buffer error:', e)
+              }
+            }
+          }
+        }
+        
         writer.write(new TextEncoder().encode('data: [DONE]\n\n'))
       } catch (error) {
+        console.error('Stream processing error:', error)
         writer.write(new TextEncoder().encode(`data: ${JSON.stringify({ error: error.message })}\n\n`))
       } finally {
         writer.close()
