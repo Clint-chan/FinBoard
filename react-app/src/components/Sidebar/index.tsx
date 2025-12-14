@@ -182,18 +182,22 @@ function Sidebar({
     e.target.value = ''
   }
 
+  const isExpanded = externalExpanded !== undefined ? externalExpanded : expanded
+
   return (
     <>
+      {/* 移动端遮罩 */}
+      {isExpanded && externalExpanded && (
+        <div 
+          className="sidebar-backdrop"
+          onClick={() => onExpandedChange?.(false)}
+        />
+      )}
+      
       <aside
-        className={`sidebar ${(externalExpanded !== undefined ? externalExpanded : expanded) ? 'expanded' : ''}`}
+        className={`sidebar ${isExpanded ? 'expanded' : ''}`}
         onMouseEnter={() => !externalExpanded && setExpanded(true)}
         onMouseLeave={() => !externalExpanded && setExpanded(false)}
-        onClick={(e) => {
-          // 移动端点击遮罩关闭
-          if (externalExpanded && e.target === e.currentTarget) {
-            onExpandedChange?.(false)
-          }
-        }}
       >
         <div className="sidebar-logo">
           <span className="sidebar-logo-text">Fintell</span>

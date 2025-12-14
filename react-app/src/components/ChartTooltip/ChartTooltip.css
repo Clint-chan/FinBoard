@@ -31,3 +31,63 @@
 [data-theme="dark"] .chart-tooltip {
   background: var(--bg-surface);
 }
+
+/* 移动端关闭按钮 */
+.chart-tooltip-close {
+  display: none;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+  .chart-tooltip {
+    /* 移动端全屏显示 */
+    position: fixed;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    transform: translateY(100%);
+    transform-origin: bottom center;
+    z-index: 1500;
+  }
+  
+  .chart-tooltip.show {
+    transform: translateY(0);
+  }
+  
+  /* 移动端关闭按钮 */
+  .chart-tooltip-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: none;
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    cursor: pointer;
+    z-index: 20;
+    transition: background 0.15s, transform 0.1s;
+    padding: 0;
+  }
+  
+  .chart-tooltip-close:hover {
+    background: var(--border-light);
+  }
+  
+  .chart-tooltip-close:active {
+    transform: scale(0.95);
+  }
+  
+  .chart-tooltip-close svg {
+    width: 20px;
+    height: 20px;
+  }
+}

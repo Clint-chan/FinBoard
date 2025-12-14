@@ -484,28 +484,40 @@
   background: #0052cc;
 }
 
+/* 移动端遮罩 */
+.sidebar-backdrop {
+  display: none;
+}
+
 /* 移动端优化 */
 @media (max-width: 768px) {
   .sidebar {
     transform: translateX(-100%);
     width: 240px;
     box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    z-index: 1001;
   }
   
   .sidebar.expanded {
     transform: translateX(0);
   }
   
-  /* 移动端展开时显示遮罩 */
-  .sidebar.expanded::before {
-    content: '';
+  /* 移动端遮罩 */
+  .sidebar-backdrop {
+    display: block;
     position: fixed;
     top: 0;
-    left: 240px;
+    left: 0;
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.3);
-    z-index: -1;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
   
   /* 移动端始终显示文字 */

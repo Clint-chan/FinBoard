@@ -147,6 +147,16 @@ function ChartTooltip({
     saveGlobalConfig()
   }, [])
 
+  // 检测是否是移动端
+  const isMobile = window.innerWidth <= 768
+  
+  // 移动端关闭处理
+  const handleMobileClose = useCallback(() => {
+    if (isMobile) {
+      onMouseLeave()
+    }
+  }, [isMobile, onMouseLeave])
+
   // 不显示时返回 null
   if (!visible || !code) return null
 
@@ -154,14 +164,27 @@ function ChartTooltip({
     <div
       ref={tooltipRef}
       className={`chart-tooltip show ${isHovered ? 'interactive' : ''}`}
-      style={{ left: position.left, top: position.top }}
+      style={isMobile ? {} : { left: position.left, top: position.top }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
+      {/* 移动端关闭按钮 */}
+      {isMobile && (
+        <button
+          className="chart-tooltip-close"
+          onClick={handleMobileClose}
+          aria-label="关闭"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
+      
       <SuperChart
         key={code}
         code={code}
-        width={440}
+        width={isMobile ? window.innerWidth : 440}
         isDark={isDark}
         defaultTab={defaultTab}
         defaultSubIndicators={defaultSubIndicators}
@@ -170,6 +193,7 @@ function ChartTooltip({
         initialPrice={stockPrice}
         initialPreClose={stockPreClose}
         onConfigChange={handleConfigChange}
+        fillContainer={isMobile}
       />
     </div>
   )
