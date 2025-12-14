@@ -303,3 +303,64 @@
     font-size: 0.75rem;
   }
 }
+
+
+/* AI 配置表单 */
+.ai-config-form {
+  padding: 20px;
+}
+
+.ai-config-form .form-group {
+  margin-bottom: 16px;
+}
+
+.ai-config-form .form-group:last-of-type {
+  margin-bottom: 20px;
+}
+
+.ai-config-form label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.ai-config-form input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: var(--bg-body);
+  color: var(--text-primary);
+  transition: border-color 0.15s;
+}
+
+.ai-config-form input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.save-config-btn {
+  width: 100%;
+  padding: 10px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.save-config-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.save-config-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

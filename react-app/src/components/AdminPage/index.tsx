@@ -28,6 +28,12 @@ function getStoredToken(): string | null {
   return null
 }
 
+interface AIConfig {
+  apiUrl: string
+  apiKey: string
+  model: string
+}
+
 export function AdminPage() {
   const token = getStoredToken()
   const [users, setUsers] = useState<UserInfo[]>([])
@@ -36,6 +42,15 @@ export function AdminPage() {
   const [editingUser, setEditingUser] = useState<string | null>(null)
   const [editQuota, setEditQuota] = useState<number>(3)
   const [searchTerm, setSearchTerm] = useState('')
+  
+  // AI 配置
+  const [aiConfig, setAiConfig] = useState<AIConfig>({
+    apiUrl: '',
+    apiKey: '',
+    model: ''
+  })
+  const [aiConfigLoading, setAiConfigLoading] = useState(false)
+  const [aiConfigSaving, setAiConfigSaving] = useState(false)
 
   // 加载用户列表
   const loadUsers = useCallback(async () => {
@@ -62,9 +77,35 @@ export function AdminPage() {
     }
   }, [token])
 
+  // 加载 AI 配置
+  const loadAIConfig = useCallback(async () => {
+    if (!token) return
+    setAiConfigLoading(true)
+    
+    try {
+      const res = await fetch(`${SYNC_API}/api/ai/config`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      if (res.ok) {
+        const data = await res.json()
+        setAiConfig({
+          apiUrl: data.apiUrl || '',
+          apiKey: data.apiKey || '',
+          model: data.model || ''
+        })
+      }
+    } catch (err) {
+      console.error('Failed to load AI config:', err)
+    } finally {
+      setAiConfigLoading(false)
+    }
+  }, [token])
+
   useEffect(() => {
     loadUsers()
-  }, [loadUsers])
+    loadAIConfig()
+  }, [loadUsers, loadAIConfig])
 
   // 更新用户配额
   const updateUserQuota = async (username: string, quota: number) => {
@@ -89,6 +130,35 @@ export function AdminPage() {
       setEditingUser(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : '更新配额失败')
+    }
+  }
+
+  // 保存 AI 配置
+  const saveAIConfig = async () => {
+    if (!token) return
+    setAiConfigSaving(true)
+    setError('')
+    
+    try {
+      const res = await fetch(`${SYNC_API}/api/ai/config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(aiConfig)
+      })
+      
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || '保存失败')
+      }
+      
+      alert('AI 配置已保存')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '保存 AI 配置失败')
+    } finally {
+      setAiConfigSaving(false)
     }
   }
 
@@ -123,6 +193,54 @@ export function AdminPage() {
           <div className="stat-value">{totalUsedToday}</div>
           <div className="stat-label">今日 AI 调用</div>
         </div>
+      </div>
+
+      {/* AI 配置 */}
+      <div className="admin-section">
+        <div className="section-header">
+          <h2>AI 配置</h2>
+        </div>
+        
+        {aiConfigLoading ? (
+          <div className="admin-loading">加载中...</div>
+        ) : (
+          <div className="ai-config-form">
+            <div className="form-group">
+              <label>API 地址</label>
+              <input
+                type="text"
+                value={aiConfig.apiUrl}
+                onChange={e => setAiConfig(prev => ({ ...prev, apiUrl: e.target.value }))}
+                placeholder="https://gpt.newestgpt.com/v1/chat/completions"
+              />
+            </div>
+            <div className="form-group">
+              <label>API Key</label>
+              <input
+                type="password"
+                value={aiConfig.apiKey}
+                onChange={e => setAiConfig(prev => ({ ...prev, apiKey: e.target.value }))}
+                placeholder="输入 API Key"
+              />
+            </div>
+            <div className="form-group">
+              <label>模型名称</label>
+              <input
+                type="text"
+                value={aiConfig.model}
+                onChange={e => setAiConfig(prev => ({ ...prev, model: e.target.value }))}
+                placeholder="gemini-3-pro-preview-thinking"
+              />
+            </div>
+            <button 
+              className="save-config-btn"
+              onClick={saveAIConfig}
+              disabled={aiConfigSaving}
+            >
+              {aiConfigSaving ? '保存中...' : '保存配置'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 用户管理 */}

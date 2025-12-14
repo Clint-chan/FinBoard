@@ -557,7 +557,7 @@ function jsonResponse(data, status = 200) {
 // ============ AI Chat 功能 ============
 
 const AI_DEFAULT_CONFIG = {
-  apiUrl: 'https://api.newestgpt.com/v1/chat/completions',
+  apiUrl: 'https://gpt.newestgpt.com/v1/chat/completions',
   apiKey: 'zxc123',
   model: 'gemini-3-pro-preview-thinking'
 }
@@ -1019,21 +1019,43 @@ async function handleAIChat(request, env) {
 
 async function handleAIConfig(request, env) {
   if (request.method === 'GET') {
-    // 只返回模型信息，不泄露 API 地址和密钥
+    // 验证管理员权限
+    const username = await verifyToken(request, env);
+    const isAdmin = username && ADMIN_USERS.includes(username);
+    
     let config = AI_DEFAULT_CONFIG
     if (env.CONFIG_KV) {
       const saved = await env.CONFIG_KV.get('ai_config', 'json')
       if (saved) config = { ...AI_DEFAULT_CONFIG, ...saved }
     }
-    return jsonResponse({ 
-      model: config.model,
-      hasApiKey: !!config.apiKey,
-      status: 'configured'
-    })
+    
+    // 管理员返回完整配置，普通用户只返回模型信息
+    if (isAdmin) {
+      return jsonResponse({ 
+        apiUrl: config.apiUrl,
+        apiKey: config.apiKey,
+        model: config.model
+      })
+    } else {
+      return jsonResponse({ 
+        model: config.model,
+        hasApiKey: !!config.apiKey,
+        status: 'configured'
+      })
+    }
   }
 
   if (request.method === 'POST') {
     // 管理员更新配置（需要验证权限）
+    const username = await verifyToken(request, env);
+    if (!username) {
+      return jsonResponse({ error: '未登录' }, 401);
+    }
+    
+    if (!ADMIN_USERS.includes(username)) {
+      return jsonResponse({ error: '无权限' }, 403);
+    }
+    
     const { apiUrl, apiKey, model } = await request.json()
     if (!env.CONFIG_KV) return jsonResponse({ error: 'KV not configured' }, 500)
     
