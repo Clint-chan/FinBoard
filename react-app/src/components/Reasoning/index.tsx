@@ -3,6 +3,7 @@
  * 参考 Vercel AI SDK 的设计风格
  */
 import { useState, useEffect, useRef } from 'react'
+import { renderMarkdown } from '../AnalysisDrawer/markdown'
 import './Reasoning.css'
 
 interface ReasoningProps {
@@ -80,14 +81,11 @@ export function Reasoning({ content, isStreaming, startTime }: ReasoningProps) {
         className="reasoning-content-wrapper"
         style={{ height: isOpen ? contentHeight : 0 }}
       >
-        <div className="reasoning-content" ref={contentRef}>
-          {content
-            .split('\n')
-            .filter((line) => line.trim())
-            .map((line, i) => (
-              <p key={i}>{line}</p>
-            ))}
-        </div>
+        <div 
+          className="reasoning-content" 
+          ref={contentRef}
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
+        />
       </div>
     </div>
   )

@@ -74,15 +74,20 @@
   transition: height 0.25s ease;
 }
 
-/* 内容区域 */
+/* 内容区域 - 使用 Markdown 样式 */
 .reasoning-content {
   padding: 12px 0 4px 22px;
-}
-
-.reasoning-content p {
   font-size: 0.9rem;
   line-height: 1.7;
   color: #4b5563;
+}
+
+[data-theme="dark"] .reasoning-content {
+  color: #9ca3af;
+}
+
+/* Markdown 元素样式 */
+.reasoning-content p {
   margin: 0 0 8px;
 }
 
@@ -90,6 +95,54 @@
   margin-bottom: 0;
 }
 
-[data-theme="dark"] .reasoning-content p {
-  color: #9ca3af;
+.reasoning-content h1,
+.reasoning-content h2,
+.reasoning-content h3,
+.reasoning-content h4 {
+  margin: 12px 0 8px;
+  font-weight: 600;
+  color: #374151;
+}
+
+[data-theme="dark"] .reasoning-content h1,
+[data-theme="dark"] .reasoning-content h2,
+[data-theme="dark"] .reasoning-content h3,
+[data-theme="dark"] .reasoning-content h4 {
+  color: #d1d5db;
+}
+
+.reasoning-content h1 { font-size: 1.1rem; }
+.reasoning-content h2 { font-size: 1.05rem; }
+.reasoning-content h3 { font-size: 1rem; }
+.reasoning-content h4 { font-size: 0.95rem; }
+
+.reasoning-content ul,
+.reasoning-content ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.reasoning-content li {
+  margin: 4px 0;
+}
+
+.reasoning-content code {
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.85em;
+  font-family: 'Courier New', monospace;
+}
+
+[data-theme="dark"] .reasoning-content code {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.reasoning-content strong {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+[data-theme="dark"] .reasoning-content strong {
+  color: #e5e7eb;
 }
