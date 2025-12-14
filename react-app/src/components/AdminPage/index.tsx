@@ -10,6 +10,7 @@ interface UserInfo {
   createdAt: number
   aiQuota: number
   aiUsedToday: number
+  registerIp?: string
 }
 
 const SYNC_API = 'https://market-api.newestgpt.com'
@@ -268,6 +269,7 @@ export function AdminPage() {
             <thead>
               <tr>
                 <th>用户名</th>
+                <th>注册 IP</th>
                 <th>注册时间</th>
                 <th>AI 配额</th>
                 <th>今日已用</th>
@@ -276,15 +278,20 @@ export function AdminPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="table-loading">加载中...</td></tr>
+                <tr><td colSpan={6} className="table-loading">加载中...</td></tr>
               ) : filteredUsers.length === 0 ? (
-                <tr><td colSpan={5} className="table-empty">暂无用户</td></tr>
+                <tr><td colSpan={6} className="table-empty">暂无用户</td></tr>
               ) : (
                 filteredUsers.map(user => (
                   <tr key={user.username}>
                     <td className="user-name-cell">
                       <span className="user-avatar">{user.username.charAt(0).toUpperCase()}</span>
                       <span>{user.username}</span>
+                    </td>
+                    <td>
+                      <span className="ip-badge" title={user.registerIp || '未知'}>
+                        {user.registerIp || '未知'}
+                      </span>
                     </td>
                     <td>{new Date(user.createdAt).toLocaleDateString()}</td>
                     <td>

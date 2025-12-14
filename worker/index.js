@@ -96,6 +96,7 @@ async function getAllUsersFromDB(db) {
       u.id,
       u.username,
       u.ai_quota,
+      u.register_ip,
       u.created_at,
       (SELECT COUNT(*) FROM ai_usage WHERE user_id = u.id AND date(used_at) = date('now')) as ai_used_today
     FROM users u

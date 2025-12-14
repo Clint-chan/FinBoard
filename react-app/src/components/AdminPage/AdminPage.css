@@ -211,6 +211,22 @@
   background: rgba(239, 68, 68, 0.15);
 }
 
+/* IP 徽章 */
+.ip-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  background: #f3f4f6;
+  color: #6b7280;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-family: 'Courier New', monospace;
+}
+
+[data-theme="dark"] .ip-badge {
+  background: rgba(107, 114, 128, 0.15);
+  color: #9ca3af;
+}
+
 /* 配额输入框 */
 .quota-input {
   width: 60px;
