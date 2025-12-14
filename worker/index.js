@@ -1036,7 +1036,12 @@ async function handleAIChat(request, env) {
         }
       }
     } else {
-      console.log('No username, skipping quota check')
+      // 未登录用户不允许使用 AI
+      console.log('No username, AI access denied')
+      return jsonResponse({ 
+        error: '请先登录后使用 AI 功能',
+        needLogin: true
+      }, 401)
     }
     
     // 获取配置

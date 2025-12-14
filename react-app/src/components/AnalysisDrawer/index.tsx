@@ -170,11 +170,27 @@ export function AnalysisDrawer({
       
       // 更新配额显示
       import('@/services/aiChatService').then(({ getUserQuota }) => {
-        getUserQuota().then(setAiQuota).catch(console.error)
+        getUserQuota().then(setAiQuota).catch(err => {
+          console.error('获取配额失败:', err)
+          // 如果获取配额失败，设置为未登录状态
+          setAiQuota({ quota: 0, used: 0, remaining: 0, isAdmin: false })
+        })
       })
     } catch (error) {
       console.error('AI error:', error)
-      const errorMsg = error instanceof Error ? error.message : 'AI 服务暂时不可用'
+      let errorMsg = 'AI 服务暂时不可用'
+      
+      // 检查是否是未登录错误
+      if (error instanceof Error) {
+        if (error.message.includes('登录') || error.message.includes('401')) {
+          errorMsg = '请先登录后使用 AI 功能'
+        } else if (error.message.includes('429') || error.message.includes('用完')) {
+          errorMsg = '今日 AI 使用次数已用完'
+        } else {
+          errorMsg = error.message
+        }
+      }
+      
       setChatHistory(prev => {
         const messages = [...(prev[currentCode] || [])]
         if (messages[aiMsgIndex]) {

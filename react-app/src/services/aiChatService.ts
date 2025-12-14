@@ -71,7 +71,7 @@ export async function getUserQuota(): Promise<{
 }> {
   const token = getStoredToken()
   if (!token) {
-    return { quota: 3, used: 0, remaining: 3, isAdmin: false }
+    throw new Error('未登录')
   }
 
   const response = await fetch(`${AI_API_BASE}/api/user/quota`, {
@@ -81,7 +81,7 @@ export async function getUserQuota(): Promise<{
   })
 
   if (!response.ok) {
-    return { quota: 3, used: 0, remaining: 3, isAdmin: false }
+    throw new Error('获取配额失败')
   }
 
   return response.json()
