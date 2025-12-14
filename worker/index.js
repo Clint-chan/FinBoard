@@ -594,7 +594,7 @@ function jsonResponse(data, status = 200) {
 // ============ AI Chat 功能 ============
 
 const AI_DEFAULT_CONFIG = {
-  apiUrl: 'https://gpt.newestgpt.com/v1/chat/completions',
+  apiUrl: 'http://frp3.ccszxc.site:14266/v1/chat/completions',
   apiKey: 'zxc123',
   model: 'gemini-3-pro-preview-thinking'
 }

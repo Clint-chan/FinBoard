@@ -2,81 +2,78 @@
 
 ## 问题描述
 
-Worker 在调用大模型 API 时返回 405 错误：
-```
-LLM API error: 405
-```
+Worker 在调用大模型 API 时返回 405 或超时错误。
 
 ## 原因分析
 
-**Cloudflare Workers 默认不支持访问 HTTP（非 HTTPS）端点**。
+**更新**：Cloudflare Workers **可以**访问 HTTP 端点！之前的理解有误。
 
-当前配置的大模型 API 地址：
+实际问题可能是：
+1. **错误的 API 地址**：配置的地址不可达
+2. **网络超时**：后端服务响应慢或不稳定
+3. **端口问题**：防火墙或网络策略阻止
+
+## 已验证可用的配置
+
+通过测试，以下地址可以正常访问：
 ```
 http://frp3.ccszxc.site:14266/v1/chat/completions
 ```
 
-这是一个 HTTP 端点，Cloudflare Workers 出于安全考虑会阻止访问。
+**Worker 可以直接访问 HTTP 端点**，因为 Worker 运行在服务器端，不受浏览器 Mixed Content 限制。
 
 ## 解决方案
 
-### 方案 1: 使用 HTTPS 端点（推荐）
+### ✅ 方案 1: 直接使用 HTTP 端点（已采用）
 
-如果大模型 API 支持 HTTPS，修改配置：
+Worker 可以直接访问 HTTP 端点，无需额外配置：
 
 ```javascript
 const AI_DEFAULT_CONFIG = {
-  apiUrl: 'https://frp3.ccszxc.site:14266/v1/chat/completions',  // 改为 HTTPS
+  apiUrl: 'http://frp3.ccszxc.site:14266/v1/chat/completions',
   apiKey: 'zxc123',
   model: 'gemini-3-pro-preview-thinking'
 }
 ```
 
-或者通过 KV 存储更新配置：
-```bash
-# 使用 wrangler 更新配置
-npx wrangler kv:key put --namespace-id=581a1195af51480b9b65fd50826fb33b "ai_config" '{"apiUrl":"https://your-api-endpoint.com/v1/chat/completions","apiKey":"your-key","model":"your-model"}'
-```
+**优点**：
+- 简单直接，无需额外配置
+- Worker 运行在服务器端，不受浏览器限制
+- 速度快，延迟低
 
-### 方案 2: 配置 SSL 证书
+**注意**：
+- 前端不能直接调用 HTTP API（浏览器 Mixed Content 限制）
+- 必须通过 Worker 作为中间层
 
-如果你控制 `frp3.ccszxc.site` 服务器，可以：
+### 方案 2: 配置 HTTPS（可选，更安全）
 
-1. 安装 SSL 证书（Let's Encrypt 免费）
-2. 配置 Nginx/Apache 支持 HTTPS
-3. 更新 Worker 配置使用 HTTPS 端点
+如果需要更高的安全性，可以配置 HTTPS：
 
-### 方案 3: 使用 Cloudflare Tunnel
-
-使用 Cloudflare Tunnel 将 HTTP 服务暴露为 HTTPS：
-
-1. 安装 cloudflared
-2. 创建 Tunnel
-3. 配置域名指向 Tunnel
-4. 更新 Worker 配置
-
-### 方案 4: 使用代理服务
-
-创建一个支持 HTTP 的代理服务（不推荐，安全性较低）。
-
-## 临时测试方案
-
-在本地测试时，可以直接调用 HTTP API（Node.js 环境支持）。
-
-但在 Cloudflare Workers 环境中，必须使用 HTTPS。
+1. 使用 Cloudflare Tunnel
+2. 配置 SSL 证书
+3. 使用反向代理（Nginx + Let's Encrypt）
 
 ## 当前状态
 
-- ✅ 大模型 API 本身工作正常（本地测试通过）
+- ✅ 大模型 API 工作正常（`http://frp3.ccszxc.site:14266`）
 - ✅ Worker 代码逻辑正确
 - ✅ 数据采集功能正常
-- ❌ Worker 无法访问 HTTP 端点（Cloudflare 限制）
+- ✅ Worker 可以访问 HTTP 端点
+- ✅ 已更新配置为可用地址
 
-## 下一步
+## 架构说明
 
-1. 确认大模型 API 是否支持 HTTPS
-2. 如果支持，更新配置为 HTTPS 端点
-3. 如果不支持，考虑配置 SSL 证书或使用 Cloudflare Tunnel
+```
+用户浏览器 (HTTPS)
+    ↓
+Cloudflare Worker (HTTPS)
+    ↓
+大模型 API (HTTP)
+```
+
+- 用户通过 HTTPS 访问 Worker
+- Worker 通过 HTTP 访问大模型 API
+- 不存在 Mixed Content 问题
 
 ## 更新配置方法
 
