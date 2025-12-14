@@ -19,6 +19,7 @@ async function initDB(db) {
       username TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
       ai_quota INTEGER DEFAULT 3,
+      register_ip TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -34,6 +35,7 @@ async function initDB(db) {
     );
     
     CREATE INDEX IF NOT EXISTS idx_ai_usage_user_date ON ai_usage(user_id, used_at);
+    CREATE INDEX IF NOT EXISTS idx_users_register_ip ON users(register_ip);
   `)
 }
 
@@ -48,11 +50,21 @@ async function getUserFromDB(db, username) {
 /**
  * 创建用户到 D1
  */
-async function createUserInDB(db, username, passwordHash) {
+async function createUserInDB(db, username, passwordHash, registerIp) {
   const result = await db.prepare(
-    'INSERT INTO users (username, password_hash, ai_quota) VALUES (?, ?, ?)'
-  ).bind(username, passwordHash, DEFAULT_AI_QUOTA).run()
+    'INSERT INTO users (username, password_hash, ai_quota, register_ip) VALUES (?, ?, ?, ?)'
+  ).bind(username, passwordHash, DEFAULT_AI_QUOTA, registerIp).run()
   return result.meta.last_row_id
+}
+
+/**
+ * 检查 IP 是否已注册过
+ */
+async function checkIPRegistered(db, ip) {
+  const result = await db.prepare(
+    'SELECT COUNT(*) as count FROM users WHERE register_ip = ?'
+  ).bind(ip).first()
+  return (result?.count || 0) > 0
 }
 
 /**
@@ -125,17 +137,31 @@ export default {
           return jsonResponse({ error: '密码至少 6 位' }, 400);
         }
 
+        // 获取客户端 IP
+        const clientIP = request.headers.get('CF-Connecting-IP') || 
+                        request.headers.get('X-Forwarded-For')?.split(',')[0] || 
+                        'unknown';
+
         const passwordHash = await hashPassword(password);
 
         // 优先使用 D1
         if (env.DB) {
           try {
             await initDB(env.DB);
+            
+            // 检查用户名是否存在
             const existing = await getUserFromDB(env.DB, username);
             if (existing) {
               return jsonResponse({ error: '用户名已存在' }, 400);
             }
-            await createUserInDB(env.DB, username, passwordHash);
+            
+            // 检查 IP 是否已注册过
+            const ipRegistered = await checkIPRegistered(env.DB, clientIP);
+            if (ipRegistered) {
+              return jsonResponse({ error: '该 IP 已注册过账号' }, 400);
+            }
+            
+            await createUserInDB(env.DB, username, passwordHash, clientIP);
             return jsonResponse({ success: true, message: '注册成功' });
           } catch (e) {
             console.error('D1 register error:', e);
@@ -149,13 +175,24 @@ export default {
           return jsonResponse({ error: '用户名已存在' }, 400);
         }
         
+        // KV 中也检查 IP（简单实现）
+        const ipKey = `ip:${clientIP}`;
+        const ipExists = await env.CONFIG_KV.get(ipKey);
+        if (ipExists) {
+          return jsonResponse({ error: '该 IP 已注册过账号' }, 400);
+        }
+        
         await env.CONFIG_KV.put(`user:${username}`, JSON.stringify({
           passwordHash,
+          registerIp: clientIP,
           createdAt: Date.now(),
           aiQuota: DEFAULT_AI_QUOTA,
           aiUsedToday: 0,
           aiUsedDate: getTodayStr()
         }));
+        
+        // 记录 IP
+        await env.CONFIG_KV.put(ipKey, username);
 
         return jsonResponse({ success: true, message: '注册成功' });
       }
@@ -348,8 +385,7 @@ export default {
         return jsonResponse({
           quota,
           used: aiUsedToday,
-          remaining: Math.max(0, quota - aiUsedToday),
-          isAdmin
+          remaining: Math.max(0, quota - aiUsedToday)
         });
       }
 

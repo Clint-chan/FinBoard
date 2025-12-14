@@ -42,7 +42,7 @@ export function AnalysisDrawer({
   const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>({})
   
   // AI 配额
-  const [aiQuota, setAiQuota] = useState<{ quota: number; used: number; remaining: number; isAdmin: boolean } | null>(null)
+  const [aiQuota, setAiQuota] = useState<{ quota: number; used: number; remaining: number } | null>(null)
   
   // 输入框
   const [inputValue, setInputValue] = useState('')
@@ -173,7 +173,7 @@ export function AnalysisDrawer({
         getUserQuota().then(setAiQuota).catch(err => {
           console.error('获取配额失败:', err)
           // 如果获取配额失败，设置为未登录状态
-          setAiQuota({ quota: 0, used: 0, remaining: 0, isAdmin: false })
+          setAiQuota({ quota: 0, used: 0, remaining: 0 })
         })
       })
     } catch (error) {
@@ -375,7 +375,7 @@ export function AnalysisDrawer({
                     <path d="M2 17l10 5 10-5"></path>
                     <path d="M2 12l10 5 10-5"></path>
                   </svg>
-                  <span>{aiQuota.isAdmin ? '∞' : `${aiQuota.remaining}/${aiQuota.quota}`}</span>
+                  <span>{`${aiQuota.remaining}/${aiQuota.quota}`}</span>
                 </div>
               )}
             </div>

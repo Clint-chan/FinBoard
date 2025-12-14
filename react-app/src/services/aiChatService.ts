@@ -67,7 +67,6 @@ export async function getUserQuota(): Promise<{
   quota: number
   used: number
   remaining: number
-  isAdmin: boolean
 }> {
   const token = getStoredToken()
   if (!token) {
