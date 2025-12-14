@@ -77,6 +77,8 @@ interface SidebarProps {
   cloudUsername?: string | null
   syncing?: boolean
   isAdmin?: boolean
+  expanded?: boolean
+  onExpandedChange?: (expanded: boolean) => void
   onPageChange: (page: PageType) => void
   onLoginClick: () => void
   onLogoutClick: () => void
@@ -88,6 +90,8 @@ function Sidebar({
   activePage,
   user,
   isLoggedIn = false,
+  expanded: externalExpanded,
+  onExpandedChange,
   cloudUsername,
   syncing = false,
   isAdmin = false,
@@ -181,9 +185,15 @@ function Sidebar({
   return (
     <>
       <aside
-        className={`sidebar ${expanded ? 'expanded' : ''}`}
-        onMouseEnter={() => setExpanded(true)}
-        onMouseLeave={() => setExpanded(false)}
+        className={`sidebar ${(externalExpanded !== undefined ? externalExpanded : expanded) ? 'expanded' : ''}`}
+        onMouseEnter={() => !externalExpanded && setExpanded(true)}
+        onMouseLeave={() => !externalExpanded && setExpanded(false)}
+        onClick={(e) => {
+          // 移动端点击遮罩关闭
+          if (externalExpanded && e.target === e.currentTarget) {
+            onExpandedChange?.(false)
+          }
+        }}
       >
         <div className="sidebar-logo">
           <span className="sidebar-logo-text">Fintell</span>

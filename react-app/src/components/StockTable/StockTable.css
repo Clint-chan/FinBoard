@@ -419,30 +419,39 @@ tr.alert-triggered td {
   background-color: #fef3c7 !important;
 }
 
-@media (max-width: 767px) {
+/* 移动端优化 */
+@media (max-width: 768px) {
+  /* 隐藏次要列 */
+  th:nth-child(n+6),
+  td:nth-child(n+6) {
+    display: none;
+  }
+  
+  /* 保留：股票名称、现价、涨跌幅、涨跌额、操作 */
   th {
-    padding: 12px 8px;
+    padding: 10px 6px;
     font-size: 0.7rem;
   }
 
   td {
-    padding: 14px 8px;
-    font-size: 0.9rem;
+    padding: 12px 6px;
+    font-size: 0.85rem;
   }
 
   .price-cell {
-    font-size: 1rem;
+    font-size: 1.05rem;
     font-weight: 700;
   }
 
   .change-badge {
-    padding: 4px 8px;
-    font-size: 0.8rem;
-    min-width: 65px;
+    padding: 4px 6px;
+    font-size: 0.75rem;
+    min-width: 60px;
   }
 
   .symbol-cell {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    max-width: 80px;
   }
 
   .symbol-name {
@@ -450,11 +459,33 @@ tr.alert-triggered td {
   }
 
   .range-container {
-    width: 90px;
+    width: 80px;
   }
 
   .range-label {
     font-size: 0.6rem;
-    width: 28px;
+    width: 26px;
+  }
+  
+  /* 操作按钮优化 */
+  .action-btn {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    min-height: 32px;
+  }
+  
+  .action-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+  
+  /* 拖拽手柄优化 */
+  .drag-handle {
+    padding: 0 4px;
+  }
+  
+  .drag-handle svg {
+    width: 16px;
+    height: 16px;
   }
 }

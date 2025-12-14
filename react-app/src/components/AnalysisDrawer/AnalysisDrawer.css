@@ -844,28 +844,132 @@
     width: 150px;
   }
   .analysis-drawer .chat-section {
-    width: 300px;
+    width: 320px;
   }
 }
 
 @media (max-width: 768px) {
+  /* 隐藏股票侧边栏 */
   .stock-sidebar {
     display: none;
   }
+  
+  /* 垂直布局 */
   .drawer-content {
     flex-direction: column;
+    padding: 8px;
+    gap: 8px;
   }
+  
+  /* 图表区域 */
+  .analysis-drawer .chart-section {
+    flex: 1;
+    min-height: 300px;
+    max-height: 55%;
+  }
+  
+  /* 聊天区域 */
   .analysis-drawer .chat-section {
     width: 100% !important;
-    height: 45%;
+    height: auto;
+    min-height: 280px;
+    max-height: 45%;
     flex-shrink: 0;
+    gap: 8px;
   }
-  .analysis-drawer .chart-section {
+  
+  /* 新闻区域在移动端收起 */
+  .analysis-drawer .news-section {
+    max-height: 120px;
+  }
+  
+  /* 聊天容器 */
+  .analysis-drawer .chat-container {
     flex: 1;
     min-height: 200px;
   }
+  
+  /* 隐藏拖拽条 */
   .drawer-resizer {
     display: none;
+  }
+  
+  /* 关闭按钮优化 */
+  .analysis-drawer .close-drawer-btn {
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+  }
+  
+  .analysis-drawer .close-drawer-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+  
+  /* 返回按钮优化 */
+  .analysis-drawer .back-btn {
+    top: 12px;
+    left: 12px;
+    width: 36px;
+    height: 36px;
+  }
+  
+  .analysis-drawer .back-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+  
+  /* 聊天消息区域 */
+  .analysis-drawer .chat-messages {
+    padding: 12px;
+    gap: 12px;
+  }
+  
+  /* 气泡样式 */
+  .analysis-drawer .bubble {
+    font-size: 0.85rem;
+  }
+  
+  .analysis-drawer .chat-message.user .bubble {
+    max-width: 90%;
+    padding: 8px 14px;
+  }
+  
+  /* 输入区域 */
+  .analysis-drawer .chat-input-zone {
+    padding: 10px;
+  }
+  
+  .analysis-drawer .input-main {
+    padding: 12px 8px 8px 14px;
+  }
+  
+  .analysis-drawer .chat-textarea {
+    font-size: 0.9rem;
+  }
+  
+  /* 工具栏 */
+  .analysis-drawer .input-toolbar {
+    padding: 6px 10px 10px;
+  }
+  
+  /* AI 头部 */
+  .analysis-drawer .chat-header {
+    padding: 10px 12px;
+  }
+  
+  .analysis-drawer .ai-avatar {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .analysis-drawer .ai-name {
+    font-size: 0.8rem;
+  }
+  
+  .analysis-drawer .ai-status {
+    font-size: 0.65rem;
   }
 }
 

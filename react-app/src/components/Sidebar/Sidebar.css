@@ -484,13 +484,39 @@
   background: #0052cc;
 }
 
+/* 移动端优化 */
 @media (max-width: 768px) {
   .sidebar {
     transform: translateX(-100%);
+    width: 240px;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
   }
   
   .sidebar.expanded {
     transform: translateX(0);
-    width: 240px;
+  }
+  
+  /* 移动端展开时显示遮罩 */
+  .sidebar.expanded::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 240px;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: -1;
+  }
+  
+  /* 移动端始终显示文字 */
+  .sidebar .sidebar-label,
+  .sidebar .sidebar-username,
+  .sidebar .sidebar-logo-text {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  
+  .sidebar-logo::before {
+    opacity: 0;
   }
 }

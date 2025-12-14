@@ -7,6 +7,7 @@ import { useCloudSync } from '@/hooks/useCloudSync'
 import { useAlertCheck } from '@/hooks/useAlertCheck'
 import { requestNotificationPermission } from '@/utils/format'
 import Sidebar from '@/components/Sidebar'
+import { MobileHeader } from '@/components/MobileHeader'
 import StockTable from '@/components/StockTable'
 import StatusBar from '@/components/StatusBar'
 import ChartTooltip from '@/components/ChartTooltip'
@@ -34,6 +35,7 @@ function App() {
   const [bossMode, setBossMode] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [expandedAlerts, setExpandedAlerts] = useState<Record<string, boolean>>({})
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   
   // 管理员账号
   const ADMIN_USERS = ['cdg']
@@ -380,6 +382,11 @@ function App() {
 
   return (
     <div className="app" data-theme={isDark ? 'dark' : 'light'}>
+      <MobileHeader 
+        onMenuClick={() => setMobileSidebarOpen(true)}
+        title={activePage === 'watchlist' ? '行情看板' : activePage === 'alerts' ? '价格预警' : activePage === 'settings' ? '设置' : '管理'}
+      />
+      
       <Sidebar
         activePage={activePage}
         user={user}
@@ -387,8 +394,16 @@ function App() {
         cloudUsername={cloudUsername}
         syncing={syncing}
         isAdmin={isAdmin}
-        onPageChange={setActivePage}
-        onLoginClick={() => setAuthModalOpen(true)}
+        expanded={mobileSidebarOpen}
+        onExpandedChange={setMobileSidebarOpen}
+        onPageChange={(page) => {
+          setActivePage(page)
+          setMobileSidebarOpen(false)
+        }}
+        onLoginClick={() => {
+          setAuthModalOpen(true)
+          setMobileSidebarOpen(false)
+        }}
         onLogoutClick={handleLogout}
         onInsightClick={handleInsightClick}
         onProfileSave={handleProfileSave}
