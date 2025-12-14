@@ -1239,18 +1239,29 @@ async function handleAIChat(request, env) {
     if (error.message.includes('405')) {
       return jsonResponse({ 
         error: '大模型 API 访问失败 (405)。可能原因：1) Worker 无法访问 HTTP 端点，需要使用 HTTPS；2) API 端点配置错误。',
-        details: error.message,
         suggestion: '请检查 AI 配置中的 API URL 是否支持 HTTPS，或联系管理员配置 Worker 网络权限。'
       }, 500)
     }
     
+    // 检查是否是后端服务超时或连接错误
+    if (error.message.includes('代理服务器错误') || error.message.includes('后端服务响应超时')) {
+      return jsonResponse({ 
+        error: 'AI 服务暂时不可用，请稍后重试',
+        hint: '后端服务可能正在维护或网络连接异常'
+      }, 503)
+    }
+    
+    // 通用错误处理 - 不暴露敏感信息
+    const sanitizedError = error.message
+      .replace(/"backend":"[^"]+"/g, '"backend":"[HIDDEN]"')  // 先替换 JSON 中的 backend 字段
+      .replace(/http:\/\/[^\s"'}]+/gi, '[API_ENDPOINT]')
+      .replace(/https:\/\/[^\s"'}]+/gi, '[API_ENDPOINT]')
+      .replace(/gemini-[^\s"'}]+/gi, '[MODEL]')
+      .replace(/gpt-[^\s"'}]+/gi, '[MODEL]')
+    
     return jsonResponse({ 
-      error: error.message, 
-      stack: error.stack,
-      config: {
-        apiUrl: config.apiUrl,
-        model: config.model
-      }
+      error: 'AI 服务调用失败',
+      details: sanitizedError
     }, 500)
   }
 }

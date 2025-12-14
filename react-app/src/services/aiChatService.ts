@@ -119,7 +119,16 @@ export async function sendChatMessage(
       const data = await response.json()
       throw new Error(data.error || '今日 AI 使用次数已用完')
     }
-    throw new Error(`AI API error: ${response.status}`)
+    
+    // 尝试解析错误信息
+    try {
+      const errorData = await response.json()
+      // 使用后端返回的错误信息（已经过滤敏感信息）
+      throw new Error(errorData.error || errorData.details || 'AI 服务暂时不可用')
+    } catch (e) {
+      // 如果无法解析 JSON，返回通用错误
+      throw new Error('AI 服务暂时不可用')
+    }
   }
 
   const reader = response.body?.getReader()

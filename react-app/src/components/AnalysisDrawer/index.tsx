@@ -186,8 +186,20 @@ export function AnalysisDrawer({
           errorMsg = '请先登录后使用 AI 功能'
         } else if (error.message.includes('429') || error.message.includes('用完')) {
           errorMsg = '今日 AI 使用次数已用完'
+        } else if (error.message.includes('503') || error.message.includes('不可用')) {
+          errorMsg = 'AI 服务暂时不可用，请稍后重试'
         } else {
-          errorMsg = error.message
+          // 过滤敏感信息（URL、模型名称等）
+          const sanitized = error.message
+            .replace(/http:\/\/[^\s]+/gi, '')
+            .replace(/https:\/\/[^\s]+/gi, '')
+            .replace(/gemini-[^\s"'}]+/gi, '')
+            .replace(/gpt-[^\s"'}]+/gi, '')
+            .replace(/\[API_ENDPOINT\]/g, '')
+            .replace(/\[MODEL\]/g, '')
+            .trim()
+          
+          errorMsg = sanitized || 'AI 服务暂时不可用'
         }
       }
       
