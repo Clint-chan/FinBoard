@@ -213,10 +213,10 @@ export function SuperChart({
       return (
         <div className="sc-ohlc" style={{ color: kColor }}>
           <span className="sc-ohlc-time">{crosshairData.time}</span>
-          <span>开 {crosshairData.open.toFixed(2)}</span>
-          <span>高 {crosshairData.high?.toFixed(2)}</span>
-          <span>低 {crosshairData.low?.toFixed(2)}</span>
-          <span>收 {crosshairData.close?.toFixed(2)}</span>
+          {crosshairData.open != null && <span>开 {crosshairData.open.toFixed(2)}</span>}
+          {crosshairData.high != null && <span>高 {crosshairData.high.toFixed(2)}</span>}
+          {crosshairData.low != null && <span>低 {crosshairData.low.toFixed(2)}</span>}
+          {crosshairData.close != null && <span>收 {crosshairData.close.toFixed(2)}</span>}
           {toNowPct != null && !isNaN(toNowPct) && (
             <span>至今 {toNowPct >= 0 ? '+' : ''}{toNowPct.toFixed(2)}%</span>
           )}
@@ -304,9 +304,9 @@ export function SuperChart({
           {renderOhlcInfo()}
         </div>
         <div className="sc-header-right" style={{ color: isUp ? 'var(--color-up)' : 'var(--color-down)' }}>
-          <div className="sc-price">{displayPrice?.toFixed(2) || '--'}</div>
+          <div className="sc-price">{displayPrice != null ? displayPrice.toFixed(2) : '--'}</div>
           <div className="sc-change">
-            {isUp ? '+' : ''}{change.toFixed(2)} ({isUp ? '+' : ''}{pct.toFixed(2)}%)
+            {isUp ? '+' : ''}{(change || 0).toFixed(2)} ({isUp ? '+' : ''}{(pct || 0).toFixed(2)}%)
           </div>
         </div>
       </div>
