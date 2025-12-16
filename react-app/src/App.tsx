@@ -745,7 +745,7 @@ function App() {
         onMouseLeave={handleChartMouseLeave}
         alertPrices={chartTooltip.code && config.alerts[chartTooltip.code]
           ? config.alerts[chartTooltip.code].conditions
-              .filter(c => c.type === 'price')
+              .filter(c => c.type === 'price' && !c.triggered)
               .map(c => c.value)
           : []}
       />

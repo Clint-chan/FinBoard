@@ -18,7 +18,7 @@ interface AnalysisDrawerProps {
   isDark?: boolean
   onOpenAlert?: (code: string, price?: number) => void
   onSaveAlerts?: (code: string, alerts: Array<{ price: number; operator: 'above' | 'below'; note: string }>) => void
-  alerts?: Record<string, { conditions: Array<{ type: 'price' | 'pct'; operator: 'above' | 'below'; value: number }> }>
+  alerts?: Record<string, { conditions: Array<{ type: 'price' | 'pct'; operator: 'above' | 'below'; value: number; triggered?: boolean }> }>
 }
 
 export function AnalysisDrawer({
@@ -349,7 +349,7 @@ export function AnalysisDrawer({
               pe={currentStock?.pe}
               onAddAlert={(price) => onOpenAlert?.(currentCode, price)}
               alertPrices={alerts[currentCode]?.conditions
-                .filter(c => c.type === 'price')
+                .filter(c => c.type === 'price' && !c.triggered)
                 .map(c => c.value) || []}
             />
           </div>
