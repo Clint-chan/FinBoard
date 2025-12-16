@@ -144,6 +144,7 @@ export interface SuperChartProps {
   pe?: number // 市盈率
   onAddAlert?: (price: number) => void // 添加预警回调
   onConfigChange?: (config: ChartConfig) => void // 配置变化回调
+  alertPrices?: number[] // 预警价格列表
 }
 
 // 处理后的 K 线数据

@@ -21,6 +21,7 @@ interface ChartCanvasProps {
   onWheel: (deltaY: number) => void
   onCrosshairData?: (data: CrosshairData | null) => void
   onPanToEdge?: () => void // 拖动到左边界时触发加载更多
+  alertPrices?: number[] // 预警价格列表
 }
 
 // 十字线数据类型
@@ -48,7 +49,8 @@ export function ChartCanvas({
   onCrosshairChange,
   onWheel,
   onCrosshairData,
-  onPanToEdge
+  onPanToEdge,
+  alertPrices = []
 }: ChartCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const colors = isDark ? DARK_THEME : LIGHT_THEME
@@ -566,6 +568,69 @@ export function ChartCanvas({
     }
   }, [colors, isIntraday, intradayData, klineData, timeToX, formatVol, getDataIndex, drawSubAxisLabel, drawLine])
 
+  // 绘制预警价位线 - 符合交易美学的设计
+  const drawAlertLines = useCallback((
+    ctx: CanvasRenderingContext2D,
+    padding: typeof layout.padding,
+    mainH: number,
+    chartW: number,
+    priceRange: { min: number; max: number },
+    alerts: number[]
+  ) => {
+    if (!alerts || alerts.length === 0) return
+    
+    const axisX = padding.left + chartW
+    
+    alerts.forEach(alertPrice => {
+      // 检查价格是否在可见范围内
+      if (alertPrice < priceRange.min || alertPrice > priceRange.max) return
+      
+      // 计算Y坐标
+      const y = padding.top + mainH - ((alertPrice - priceRange.min) / (priceRange.max - priceRange.min)) * mainH
+      
+      // 绘制虚线 - 使用警告色
+      ctx.strokeStyle = '#f59e0b' // 橙色，符合预警主题
+      ctx.lineWidth = 1.5
+      ctx.setLineDash([6, 3])
+      ctx.globalAlpha = 0.8
+      ctx.beginPath()
+      ctx.moveTo(padding.left, y)
+      ctx.lineTo(padding.left + chartW, y)
+      ctx.stroke()
+      ctx.setLineDash([])
+      ctx.globalAlpha = 1
+      
+      // 右侧价格标签 - 醒目的预警标记
+      const labelW = 50
+      const labelH = 20
+      const labelX = axisX + 4
+      const labelY = y - labelH / 2
+      
+      // 背景 - 使用渐变效果
+      const gradient = ctx.createLinearGradient(labelX, labelY, labelX + labelW, labelY)
+      gradient.addColorStop(0, '#f59e0b')
+      gradient.addColorStop(1, '#d97706')
+      ctx.fillStyle = gradient
+      ctx.fillRect(labelX, labelY, labelW, labelH)
+      
+      // 左侧小三角标记
+      ctx.fillStyle = '#f59e0b'
+      ctx.beginPath()
+      ctx.moveTo(labelX, y)
+      ctx.lineTo(labelX - 4, y - 4)
+      ctx.lineTo(labelX - 4, y + 4)
+      ctx.closePath()
+      ctx.fill()
+      
+      // 价格文字
+      ctx.font = 'bold 11px Inter, -apple-system, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = '#ffffff'
+      ctx.fillText(alertPrice.toFixed(2), labelX + labelW / 2, y)
+    })
+  }, [layout])
+
   // 绘制十字线 - 对照原版 drawCrosshair，添加右侧价格标记
   const drawCrosshair = useCallback((
     ctx: CanvasRenderingContext2D,
@@ -742,13 +807,18 @@ export function ChartCanvas({
       })
     }
 
+    // 绘制预警线 - 在十字线之前绘制，避免遮挡
+    const priceRange = isIntraday && intradayData 
+      ? intradayData.priceRange 
+      : klineData?.priceRange || { min: 0, max: 100 }
+    if (alertPrices && alertPrices.length > 0) {
+      drawAlertLines(ctx, padding, dynamicMainH, chartW, priceRange, alertPrices)
+    }
+    
     // 绘制十字线 - 对照原版
     if (crosshair) {
       const subCount = isIntraday ? 1 : subIndicators.length
       const subTotalH = subCount * subH + (subCount > 0 ? (subCount - 1) * subGap : 0)
-      const priceRange = isIntraday && intradayData 
-        ? intradayData.priceRange 
-        : klineData?.priceRange || { min: 0, max: 100 }
       drawCrosshair(ctx, padding, dynamicMainH, subTotalH, chartW, crosshair, priceRange)
       updateCrosshairData(crosshair.x, padding, chartW)
     } else {
@@ -756,8 +826,8 @@ export function ChartCanvas({
     }
   }, [
     width, height, colors, layout, isIntraday, intradayData, klineData,
-    subIndicators, showBoll, crosshair, priceScale, panOffset,
-    drawIntradayMain, drawKlineMain, drawSingleSubChart, drawDivider, drawCrosshair, updateCrosshairData, onCrosshairData
+    subIndicators, showBoll, crosshair, priceScale, panOffset, alertPrices,
+    drawIntradayMain, drawKlineMain, drawSingleSubChart, drawDivider, drawAlertLines, drawCrosshair, updateCrosshairData, onCrosshairData
   ])
 
   // 鼠标移动 - 支持Y轴拖拽调整价格缩放和图表拖拽平移

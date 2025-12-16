@@ -24,7 +24,8 @@ export function SuperChart({
   initialPreClose,
   pe,
   onAddAlert,
-  onConfigChange
+  onConfigChange,
+  alertPrices = []
 }: SuperChartProps) {
   void _height // 避免 unused 警告
   const containerRef = useRef<HTMLDivElement>(null)
@@ -416,6 +417,7 @@ export function SuperChart({
             subIndicators={subIndicators}
             showBoll={showBoll}
             crosshair={crosshair}
+            alertPrices={alertPrices}
             onCrosshairChange={(pos) => {
               setCrosshair(pos)
               // 更新预警按钮位置 - 只记录 Y 位置

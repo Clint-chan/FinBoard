@@ -18,6 +18,7 @@ interface AnalysisDrawerProps {
   isDark?: boolean
   onOpenAlert?: (code: string, price?: number) => void
   onSaveAlerts?: (code: string, alerts: Array<{ price: number; operator: 'above' | 'below'; note: string }>) => void
+  alerts?: Record<string, { conditions: Array<{ type: 'price' | 'pct'; operator: 'above' | 'below'; value: number }> }>
 }
 
 export function AnalysisDrawer({
@@ -28,7 +29,8 @@ export function AnalysisDrawer({
   stockData,
   isDark = false,
   onOpenAlert,
-  onSaveAlerts
+  onSaveAlerts,
+  alerts = {}
 }: AnalysisDrawerProps) {
   // 当前选中的股票
   const [currentCode, setCurrentCode] = useState(initialCode)
@@ -346,6 +348,9 @@ export function AnalysisDrawer({
               initialPreClose={currentStock?.preClose}
               pe={currentStock?.pe}
               onAddAlert={(price) => onOpenAlert?.(currentCode, price)}
+              alertPrices={alerts[currentCode]?.conditions
+                .filter(c => c.type === 'price')
+                .map(c => c.value) || []}
             />
           </div>
         </div>

@@ -55,6 +55,7 @@ interface ChartTooltipProps {
   y: number
   onMouseEnter: () => void
   onMouseLeave: () => void
+  alertPrices?: number[]
 }
 
 function ChartTooltip({
@@ -67,6 +68,7 @@ function ChartTooltip({
   y,
   onMouseEnter,
   onMouseLeave,
+  alertPrices = []
 }: ChartTooltipProps) {
   const [isHovered, setIsHovered] = useState(false)
   const tooltipRef = useRef<HTMLDivElement>(null)
@@ -194,6 +196,7 @@ function ChartTooltip({
         initialPreClose={stockPreClose}
         onConfigChange={handleConfigChange}
         fillContainer={isMobile}
+        alertPrices={alertPrices}
       />
     </div>
   )

@@ -743,6 +743,11 @@ function App() {
         y={chartTooltip.y}
         onMouseEnter={handleChartMouseEnter}
         onMouseLeave={handleChartMouseLeave}
+        alertPrices={chartTooltip.code && config.alerts[chartTooltip.code]
+          ? config.alerts[chartTooltip.code].conditions
+              .filter(c => c.type === 'price')
+              .map(c => c.value)
+          : []}
       />
 
       {/* 分析大屏 */}
@@ -757,6 +762,7 @@ function App() {
           setAlertModal({ open: true, code, initialPrice: price })
         }}
         onSaveAlerts={saveAlertsFromAI}
+        alerts={config.alerts}
       />
 
       {/* 老板键遮罩 */}
