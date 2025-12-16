@@ -28,6 +28,7 @@ interface ChartCanvasProps {
   onCrosshairData?: (data: CrosshairData | null) => void
   onPanToEdge?: () => void // 拖动到左边界时触发加载更多
   alertLines?: AlertLine[] // 预警线列表
+  hoveredAlertIndex?: number | null // 当前悬停的预警线索引
 }
 
 // 十字线数据类型
@@ -56,7 +57,8 @@ export function ChartCanvas({
   onWheel,
   onCrosshairData,
   onPanToEdge,
-  alertLines = []
+  alertLines = [],
+  hoveredAlertIndex = null
 }: ChartCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const colors = isDark ? DARK_THEME : LIGHT_THEME
@@ -581,13 +583,14 @@ export function ChartCanvas({
     mainH: number,
     chartW: number,
     priceRange: { min: number; max: number },
-    alerts: AlertLine[]
+    alerts: AlertLine[],
+    hoveredAlertIndex: number | null
   ) => {
     if (!alerts || alerts.length === 0) return
     
     const axisX = padding.left + chartW
     
-    alerts.forEach(alert => {
+    alerts.forEach((alert, index) => {
       const { price: alertPrice, operator, note } = alert
       
       // 检查价格是否在可见范围内
@@ -596,11 +599,13 @@ export function ChartCanvas({
       // 计算Y坐标
       const y = padding.top + mainH - ((alertPrice - priceRange.min) / (priceRange.max - priceRange.min)) * mainH
       
+      const isHovered = hoveredAlertIndex === index
+      
       // 绘制虚线 - 使用低调的颜色
       ctx.strokeStyle = colors.textSecondary
       ctx.lineWidth = 1
       ctx.setLineDash([4, 2])
-      ctx.globalAlpha = 0.5
+      ctx.globalAlpha = isHovered ? 0.8 : 0.5
       ctx.beginPath()
       ctx.moveTo(padding.left, y)
       ctx.lineTo(padding.left + chartW, y)
@@ -611,7 +616,7 @@ export function ChartCanvas({
       // 左侧小标记 - 突破/跌破指示
       const markerSize = 6
       ctx.fillStyle = colors.textSecondary
-      ctx.globalAlpha = 0.6
+      ctx.globalAlpha = isHovered ? 0.9 : 0.6
       ctx.beginPath()
       if (operator === 'above') {
         // 向上三角形
@@ -628,43 +633,47 @@ export function ChartCanvas({
       ctx.fill()
       ctx.globalAlpha = 1
       
-      // 右侧价格标签 - 简洁设计
-      const labelW = 50
-      const labelH = 16
-      const labelX = axisX + 4
-      const labelY = y - labelH / 2
-      
-      // 背景
-      ctx.fillStyle = colors.textSecondary
-      ctx.globalAlpha = 0.15
-      ctx.fillRect(labelX, labelY, labelW, labelH)
-      ctx.globalAlpha = 1
-      
-      // 边框
-      ctx.strokeStyle = colors.textSecondary
-      ctx.lineWidth = 0.5
-      ctx.globalAlpha = 0.3
-      ctx.strokeRect(labelX, labelY, labelW, labelH)
-      ctx.globalAlpha = 1
-      
-      // 价格文字
+      // 右侧价格文字 - 无背景，直接显示
       ctx.font = '10px Inter, -apple-system, sans-serif'
-      ctx.textAlign = 'center'
+      ctx.textAlign = 'left'
       ctx.textBaseline = 'middle'
-      ctx.fillStyle = colors.text
-      ctx.fillText(alertPrice.toFixed(2), labelX + labelW / 2, y)
+      ctx.fillStyle = colors.textSecondary
+      ctx.globalAlpha = isHovered ? 1 : 0.7
+      ctx.fillText(alertPrice.toFixed(2), axisX + 6, y)
+      ctx.globalAlpha = 1
       
       // 如果有备注，在左侧显示
       if (note && note.trim()) {
-        const noteMaxWidth = 120
         const noteX = padding.left + 8
         const noteY = y - 8
         
-        // 测量文字宽度
-        ctx.font = '10px Inter, -apple-system, sans-serif'
-        const textMetrics = ctx.measureText(note)
-        const noteW = Math.min(textMetrics.width + 12, noteMaxWidth)
-        const noteH = 18
+        ctx.font = '11px Inter, -apple-system, sans-serif'
+        
+        // 默认显示前3个字，悬停时显示全部
+        let displayText = note
+        let noteW = 0
+        
+        if (isHovered) {
+          // 悬停时显示完整备注
+          const maxWidth = 200
+          const textMetrics = ctx.measureText(note)
+          noteW = Math.min(textMetrics.width + 16, maxWidth)
+          
+          // 如果文字太长，截断
+          if (textMetrics.width > maxWidth - 16) {
+            let truncated = note
+            while (ctx.measureText(truncated + '...').width > maxWidth - 16 && truncated.length > 0) {
+              truncated = truncated.slice(0, -1)
+            }
+            displayText = truncated + '...'
+          }
+        } else {
+          // 默认只显示前3个字
+          displayText = note.length > 3 ? note.substring(0, 3) + '...' : note
+          noteW = ctx.measureText(displayText).width + 16
+        }
+        
+        const noteH = 20
         
         // 背景
         ctx.fillStyle = colors.bg
@@ -678,21 +687,10 @@ export function ChartCanvas({
         ctx.strokeRect(noteX, noteY - noteH / 2, noteW, noteH)
         
         // 文字
-        ctx.fillStyle = colors.textSecondary
+        ctx.fillStyle = colors.text
         ctx.textAlign = 'left'
         ctx.textBaseline = 'middle'
-        
-        // 如果文字太长，截断并添加省略号
-        let displayText = note
-        if (textMetrics.width > noteMaxWidth - 12) {
-          let truncated = note
-          while (ctx.measureText(truncated + '...').width > noteMaxWidth - 12 && truncated.length > 0) {
-            truncated = truncated.slice(0, -1)
-          }
-          displayText = truncated + '...'
-        }
-        
-        ctx.fillText(displayText, noteX + 6, noteY)
+        ctx.fillText(displayText, noteX + 8, noteY)
       }
     })
   }, [layout, colors])
@@ -878,7 +876,7 @@ export function ChartCanvas({
       ? intradayData.priceRange 
       : klineData?.priceRange || { min: 0, max: 100 }
     if (alertLines && alertLines.length > 0) {
-      drawAlertLines(ctx, padding, dynamicMainH, chartW, priceRange, alertLines)
+      drawAlertLines(ctx, padding, dynamicMainH, chartW, priceRange, alertLines, hoveredAlertIndex)
     }
     
     // 绘制十字线 - 对照原版
@@ -892,7 +890,7 @@ export function ChartCanvas({
     }
   }, [
     width, height, colors, layout, isIntraday, intradayData, klineData,
-    subIndicators, showBoll, crosshair, priceScale, panOffset, alertLines,
+    subIndicators, showBoll, crosshair, priceScale, panOffset, alertLines, hoveredAlertIndex,
     drawIntradayMain, drawKlineMain, drawSingleSubChart, drawDivider, drawAlertLines, drawCrosshair, updateCrosshairData, onCrosshairData
   ])
 

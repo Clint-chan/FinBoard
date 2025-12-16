@@ -45,6 +45,9 @@ export function SuperChart({
   const [alertButtonPos, setAlertButtonPos] = useState<{ y: number; price: number } | null>(null)
   const alertButtonTimerRef = useRef<number | null>(null)
   
+  // 预警线悬停状态
+  const [hoveredAlertIndex, setHoveredAlertIndex] = useState<number | null>(null)
+  
   const {
     currentTab,
     subIndicators,
@@ -418,8 +421,40 @@ export function SuperChart({
             showBoll={showBoll}
             crosshair={crosshair}
             alertLines={alertLines}
+            hoveredAlertIndex={hoveredAlertIndex}
             onCrosshairChange={(pos) => {
               setCrosshair(pos)
+              
+              // 检测是否悬停在预警线附近
+              if (pos && alertLines.length > 0) {
+                const priceRange = isIntraday && intradayData 
+                  ? intradayData.priceRange 
+                  : processedData?.priceRange || { min: 0, max: 100 }
+                
+                const mainH = canvasContentH - DEFAULT_LAYOUT.padding.top - DEFAULT_LAYOUT.padding.bottom - 
+                  (isIntraday ? 1 : subIndicators.length) * (DEFAULT_LAYOUT.subH + DEFAULT_LAYOUT.subGap) - 
+                  DEFAULT_LAYOUT.mainSubGap
+                
+                // 检查鼠标是否接近某条预警线
+                let foundIndex: number | null = null
+                const threshold = 8 // 8px 容差
+                
+                alertLines.forEach((alert, index) => {
+                  if (alert.price < priceRange.min || alert.price > priceRange.max) return
+                  
+                  const alertY = DEFAULT_LAYOUT.padding.top + mainH - 
+                    ((alert.price - priceRange.min) / (priceRange.max - priceRange.min)) * mainH
+                  
+                  if (Math.abs(pos.y - alertY) < threshold) {
+                    foundIndex = index
+                  }
+                })
+                
+                setHoveredAlertIndex(foundIndex)
+              } else {
+                setHoveredAlertIndex(null)
+              }
+              
               // 更新预警按钮位置 - 只记录 Y 位置
               if (pos && crosshairData && (crosshairData.price || crosshairData.close)) {
                 const price = crosshairData.price || crosshairData.close || 0
