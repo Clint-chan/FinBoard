@@ -141,6 +141,9 @@ export function ChartCanvas({
     const textX = axisStartX + textGap
 
     const drawTickLabel = (val: number, yPos: number, color: string) => {
+      // 确保val是有效数字
+      if (typeof val !== 'number' || isNaN(val)) return
+      
       ctx.strokeStyle = colors.border
       ctx.beginPath()
       ctx.moveTo(axisStartX, yPos)
@@ -240,25 +243,39 @@ export function ChartCanvas({
     // 应用X轴平移偏移量
     const xOffset = panOffset.x
 
-    // 价格线
+    // 价格线 - 跳过无效数据点
     ctx.beginPath()
-    priceData.forEach((d, i) => {
+    let priceLineStarted = false
+    priceData.forEach((d) => {
+      if (typeof d.value !== 'number' || isNaN(d.value)) return
+      
       const px = x + timeToX(d.time) * xStep + xOffset
       const py = y + h - ((d.value - priceRange.min) / (priceRange.max - priceRange.min)) * h
-      if (i === 0) ctx.moveTo(px, py)
-      else ctx.lineTo(px, py)
+      if (!priceLineStarted) {
+        ctx.moveTo(px, py)
+        priceLineStarted = true
+      } else {
+        ctx.lineTo(px, py)
+      }
     })
     ctx.strokeStyle = colors.line
     ctx.lineWidth = 1.5
     ctx.stroke()
 
-    // 均价线
+    // 均价线 - 跳过无效数据点
     ctx.beginPath()
-    priceData.forEach((d, i) => {
+    let avgLineStarted = false
+    priceData.forEach((d) => {
+      if (typeof d.avgPrice !== 'number' || isNaN(d.avgPrice)) return
+      
       const px = x + timeToX(d.time) * xStep + xOffset
       const py = y + h - ((d.avgPrice - priceRange.min) / (priceRange.max - priceRange.min)) * h
-      if (i === 0) ctx.moveTo(px, py)
-      else ctx.lineTo(px, py)
+      if (!avgLineStarted) {
+        ctx.moveTo(px, py)
+        avgLineStarted = true
+      } else {
+        ctx.lineTo(px, py)
+      }
     })
     ctx.strokeStyle = colors.avgLine
     ctx.lineWidth = 1
@@ -386,12 +403,20 @@ export function ChartCanvas({
     // 分时图 VOL - 对照原版
     if (isIntraday && indicator === 'vol' && intradayData) {
       const { volumeData, priceData } = intradayData
-      const maxVol = Math.max(...volumeData.map(d => d.value))
-      if (maxVol > 0) {
+      // 过滤掉无效的成交量数据，防止 NaN 导致 toFixed 报错
+      const validVolumes = volumeData
+        .map(d => d.value)
+        .filter(v => typeof v === 'number' && !isNaN(v) && v > 0)
+      
+      if (validVolumes.length > 0) {
+        const maxVol = Math.max(...validVolumes)
         const xStep = w / 240
         const barW = Math.max(1.5, xStep * 0.7)
         ctx.globalAlpha = 0.5
         volumeData.forEach((d, i) => {
+          // 跳过无效数据
+          if (typeof d.value !== 'number' || isNaN(d.value) || d.value <= 0) return
+          
           const px = x + timeToX(d.time) * xStep
           const barH = Math.max(1, (d.value / maxVol) * h * 0.75)
           ctx.fillStyle = (i > 0 && priceData[i].value >= priceData[i - 1].value) ? colors.up : colors.down
@@ -575,22 +600,26 @@ export function ChartCanvas({
       
       // 右侧价格标记
       const price = priceRange.max - ((y - padding.top) / mainH) * (priceRange.max - priceRange.min)
-      const axisX = padding.left + chartW
-      const labelW = 50
-      const labelH = 18
-      const labelX = axisX + 4
-      const labelY = y - labelH / 2
       
-      // 背景
-      ctx.fillStyle = colors.textSecondary
-      ctx.fillRect(labelX, labelY, labelW, labelH)
-      
-      // 文字
-      ctx.font = '11px Inter, -apple-system, sans-serif'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillStyle = colors.bg
-      ctx.fillText(price.toFixed(2), labelX + labelW / 2, y)
+      // 确保价格是有效数字
+      if (typeof price === 'number' && !isNaN(price)) {
+        const axisX = padding.left + chartW
+        const labelW = 50
+        const labelH = 18
+        const labelX = axisX + 4
+        const labelY = y - labelH / 2
+        
+        // 背景
+        ctx.fillStyle = colors.textSecondary
+        ctx.fillRect(labelX, labelY, labelW, labelH)
+        
+        // 文字
+        ctx.font = '11px Inter, -apple-system, sans-serif'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillStyle = colors.bg
+        ctx.fillText(price.toFixed(2), labelX + labelW / 2, y)
+      }
     }
     ctx.setLineDash([])
   }, [colors, layout])

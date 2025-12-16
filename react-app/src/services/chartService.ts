@@ -97,15 +97,25 @@ export async function fetchIntradayData(code: string): Promise<IntradayData> {
   
   const trends: IntradayPoint[] = data.data.trends.map((item: string) => {
     const parts = item.split(',')
+    // 安全解析数值，处理非交易时间可能返回的 null/undefined/"-" 等异常值
+    const safeParseFloat = (val: string): number => {
+      const num = parseFloat(val)
+      return isNaN(num) ? 0 : num
+    }
+    const safeParseInt = (val: string): number => {
+      const num = parseInt(val)
+      return isNaN(num) ? 0 : num
+    }
+    
     return {
       time: parts[0],
-      open: parseFloat(parts[1]),
-      price: parseFloat(parts[2]),
-      high: parseFloat(parts[3]),
-      low: parseFloat(parts[4]),
-      volume: parseInt(parts[5]),
-      amount: parseFloat(parts[6]),
-      avgPrice: parseFloat(parts[7])
+      open: safeParseFloat(parts[1]),
+      price: safeParseFloat(parts[2]),
+      high: safeParseFloat(parts[3]),
+      low: safeParseFloat(parts[4]),
+      volume: safeParseInt(parts[5]),
+      amount: safeParseFloat(parts[6]),
+      avgPrice: safeParseFloat(parts[7])
     }
   })
 
@@ -132,11 +142,14 @@ export function formatChartData(data: IntradayData): ChartData {
       : 'rgba(16, 185, 129, 0.5)'
   }))
 
-  const prices = trends.map(t => t.price)
-  const avgPrices = trends.map(t => t.avgPrice)
-  const allPrices = [...prices, ...avgPrices, preClose]
-  const minPrice = Math.min(...allPrices)
-  const maxPrice = Math.max(...allPrices)
+  // 过滤掉无效数值（NaN、null、undefined）
+  const prices = trends.map(t => t.price).filter(p => typeof p === 'number' && !isNaN(p))
+  const avgPrices = trends.map(t => t.avgPrice).filter(p => typeof p === 'number' && !isNaN(p))
+  const allPrices = [...prices, ...avgPrices, preClose].filter(p => typeof p === 'number' && !isNaN(p))
+  
+  // 如果没有有效价格数据，使用昨收价作为默认值
+  const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : preClose
+  const maxPrice = allPrices.length > 0 ? Math.max(...allPrices) : preClose
   
   const maxDiff = Math.max(maxPrice - preClose, preClose - minPrice)
   const priceRange = {
