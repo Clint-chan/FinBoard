@@ -44,6 +44,12 @@ function saveGlobalConfig(): void {
 // 初始化加载配置
 loadGlobalConfig()
 
+interface AlertLine {
+  price: number
+  operator: 'above' | 'below'
+  note?: string
+}
+
 interface ChartTooltipProps {
   visible: boolean
   code: string | null
@@ -55,7 +61,7 @@ interface ChartTooltipProps {
   y: number
   onMouseEnter: () => void
   onMouseLeave: () => void
-  alertPrices?: number[]
+  alertLines?: AlertLine[]
 }
 
 function ChartTooltip({
@@ -68,7 +74,7 @@ function ChartTooltip({
   y,
   onMouseEnter,
   onMouseLeave,
-  alertPrices = []
+  alertLines = []
 }: ChartTooltipProps) {
   const [isHovered, setIsHovered] = useState(false)
   const tooltipRef = useRef<HTMLDivElement>(null)
@@ -196,7 +202,7 @@ function ChartTooltip({
         initialPreClose={stockPreClose}
         onConfigChange={handleConfigChange}
         fillContainer={isMobile}
-        alertPrices={alertPrices}
+        alertLines={alertLines}
       />
     </div>
   )

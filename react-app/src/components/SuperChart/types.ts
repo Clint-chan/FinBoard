@@ -126,6 +126,13 @@ export interface ChartConfig {
   showBoll: boolean
 }
 
+// 预警线
+export interface AlertLine {
+  price: number
+  operator: 'above' | 'below'
+  note?: string
+}
+
 // 组件 Props
 export interface SuperChartProps {
   code: string
@@ -144,7 +151,7 @@ export interface SuperChartProps {
   pe?: number // 市盈率
   onAddAlert?: (price: number) => void // 添加预警回调
   onConfigChange?: (config: ChartConfig) => void // 配置变化回调
-  alertPrices?: number[] // 预警价格列表
+  alertLines?: AlertLine[] // 预警线列表
 }
 
 // 处理后的 K 线数据
