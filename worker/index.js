@@ -603,7 +603,51 @@ const AI_DEFAULT_CONFIG = {
  * 构建系统提示词（根据模式路由）
  */
 function buildSystemPrompt(mode, stockData) {
-  const stockInfo = stockData ? `当前分析标的：${stockData.name || ''}(${stockData.code})` : ''
+  let stockInfo = ''
+  let timeInfo = ''
+  
+  if (stockData) {
+    stockInfo = `当前分析标的：${stockData.name || ''}(${stockData.code})`
+    
+    // 解析时间戳并判断交易状态
+    if (stockData.timestamp) {
+      try {
+        const dataTime = new Date(stockData.timestamp)
+        const day = dataTime.getDay()
+        const hours = dataTime.getHours()
+        const minutes = dataTime.getMinutes()
+        const time = hours * 60 + minutes
+        
+        // 格式化时间显示
+        const timeStr = dataTime.toLocaleString('zh-CN', { 
+          timeZone: 'Asia/Shanghai',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        })
+        
+        // 判断是否在交易时段
+        const isWeekend = day === 0 || day === 6
+        const morningStart = 9 * 60 + 30  // 9:30
+        const morningEnd = 11 * 60 + 30   // 11:30
+        const afternoonStart = 13 * 60     // 13:00
+        const afternoonEnd = 15 * 60       // 15:00
+        
+        const isTrading = !isWeekend && (
+          (time >= morningStart && time <= morningEnd) ||
+          (time >= afternoonStart && time <= afternoonEnd)
+        )
+        
+        timeInfo = `\n数据时间：${timeStr}\n交易状态：${isTrading ? '交易时段（盘中）' : '非交易时段（盘后/盘前）'}`
+      } catch (e) {
+        // 时间解析失败，忽略
+      }
+    }
+  }
   
   if (mode === 'intraday') {
     return `你是专业的A股短线交易分析师，专注日内做T策略。
@@ -641,19 +685,19 @@ function buildSystemPrompt(mode, stockData) {
 - reason: 简短说明，不超过20字
 - 必须包含至少一个 buy 和一个 stop 信号
 
-${stockInfo}`
+${stockInfo}${timeInfo}`
   }
   
   if (mode === 'trend') {
     return `你是专业的A股中期趋势分析师，专注波段操作策略。
 基于周线、日线趋势，结合成交量和技术指标，给出中期趋势判断和波段操作建议。
-${stockInfo}`
+${stockInfo}${timeInfo}`
   }
   
   if (mode === 'fundamental') {
     return `你是专业的A股基本面分析师。
 基于财务数据、行业地位、估值水平，给出基本面分析和投资价值判断。
-${stockInfo}`
+${stockInfo}${timeInfo}`
   }
   
   return ''

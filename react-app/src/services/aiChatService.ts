@@ -20,6 +20,7 @@ export interface StockDataForAI {
   low: number
   vol: number
   amt: number
+  timestamp?: string // 当前时间戳（ISO格式）
 }
 
 export interface ChartDataForAI {

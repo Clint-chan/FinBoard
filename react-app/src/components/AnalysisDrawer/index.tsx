@@ -129,7 +129,8 @@ export function AnalysisDrawer({
         high: currentStock.high || currentStock.price,
         low: currentStock.low || currentStock.price,
         vol: currentStock.vol || 0,
-        amt: currentStock.amt || 0
+        amt: currentStock.amt || 0,
+        timestamp: new Date().toISOString() // 添加当前时间
       } : undefined
 
       // 获取历史消息
