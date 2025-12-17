@@ -1120,7 +1120,9 @@ async function handleAIChat(request, env) {
       }
     }
     
-    // 如果有用户，检查配额（优先 D1）
+    // 如果有用户，检查配额（但不扣除，等 AI 成功后再扣除）
+    let userInfo = null; // 保存用户信息，用于后续扣除配额
+    
     if (username) {
       let quotaChecked = false;
       
@@ -1142,9 +1144,9 @@ async function handleAIChat(request, env) {
               }, 429);
             }
             
-            // 记录使用
-            await recordAIUsage(env.DB, user.id, mode, stockData?.code, stockData?.name);
-            console.log('D1 Usage recorded')
+            // 保存用户信息，等 AI 成功后再扣除
+            userInfo = { type: 'd1', user, mode, stockData };
+            console.log('D1 Quota check passed, will record after AI success')
             quotaChecked = true;
           }
         } catch (e) {
@@ -1177,13 +1179,9 @@ async function handleAIChat(request, env) {
             }, 429);
           }
           
-          userData.aiUsedToday = aiUsedToday + 1;
-          userData.aiUsedDate = today;
-          if (!userData.aiQuota) {
-            userData.aiQuota = DEFAULT_AI_QUOTA;
-          }
-          await env.CONFIG_KV.put(`user:${username}`, JSON.stringify(userData));
-          console.log('KV Quota updated:', userData.aiUsedToday)
+          // 保存用户信息，等 AI 成功后再扣除
+          userInfo = { type: 'kv', username, userData, today };
+          console.log('KV Quota check passed, will update after AI success')
         }
       }
     } else {
@@ -1270,6 +1268,31 @@ async function handleAIChat(request, env) {
     if (!llmRes.ok) {
       const errorText = await llmRes.text()
       throw new Error(`LLM API error: ${llmRes.status} - ${errorText}`)
+    }
+
+    // AI 调用成功，现在扣除配额
+    if (userInfo) {
+      if (userInfo.type === 'd1' && env.DB) {
+        try {
+          await recordAIUsage(env.DB, userInfo.user.id, userInfo.mode, userInfo.stockData?.code, userInfo.stockData?.name);
+          console.log('D1 Usage recorded after AI success')
+        } catch (e) {
+          console.error('Failed to record D1 usage:', e);
+        }
+      } else if (userInfo.type === 'kv' && env.CONFIG_KV) {
+        try {
+          const { username, userData, today } = userInfo;
+          userData.aiUsedToday = (userData.aiUsedToday || 0) + 1;
+          userData.aiUsedDate = today;
+          if (!userData.aiQuota) {
+            userData.aiQuota = DEFAULT_AI_QUOTA;
+          }
+          await env.CONFIG_KV.put(`user:${username}`, JSON.stringify(userData));
+          console.log('KV Quota updated after AI success:', userData.aiUsedToday)
+        } catch (e) {
+          console.error('Failed to update KV quota:', e);
+        }
+      }
     }
 
     // 直接转发流式响应
