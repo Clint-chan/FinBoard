@@ -83,7 +83,6 @@ interface SidebarProps {
   onLoginClick: () => void
   onLogoutClick: () => void
   onInsightClick: () => void
-  onProfileSave: (profile: UserProfile) => void
   onSync?: () => void | Promise<void>
   token?: string | null
 }
@@ -101,7 +100,6 @@ function Sidebar({
   onLoginClick,
   onLogoutClick,
   onInsightClick,
-  onProfileSave,
   onSync,
   token,
 }: SidebarProps) {
