@@ -1,15 +1,14 @@
 /**
  * MobileTabBar - 移动端底部导航栏
- * 对照 2.html 设计：自选、行情、交易（中间突出）、我的
+ * 自选、行情、AI（中间突出）、预警、我的
  */
 import './MobileTabBar.css'
 
-export type MobileTab = 'watchlist' | 'market' | 'trade' | 'alerts' | 'profile'
+export type MobileTab = 'watchlist' | 'market' | 'ai' | 'alerts' | 'profile'
 
 interface MobileTabBarProps {
   activeTab: MobileTab
   onTabChange: (tab: MobileTab) => void
-  onFintellClick?: () => void
 }
 
 const Icons = {
@@ -28,9 +27,22 @@ const Icons = {
       <path d="M6 20v-6"></path>
     </svg>
   ),
-  trade: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M12 5v14M5 12h14"/>
+  // AI 图标 - 机器人/智能助手风格
+  ai: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      {/* 头部外框 */}
+      <rect x="4" y="4" width="16" height="12" rx="2"></rect>
+      {/* 左眼 */}
+      <circle cx="9" cy="10" r="1.5" fill="currentColor" stroke="none"></circle>
+      {/* 右眼 */}
+      <circle cx="15" cy="10" r="1.5" fill="currentColor" stroke="none"></circle>
+      {/* 天线 */}
+      <path d="M12 4V2"></path>
+      <circle cx="12" cy="1.5" r="0.5" fill="currentColor" stroke="none"></circle>
+      {/* 底部支架 */}
+      <path d="M8 16v2"></path>
+      <path d="M16 16v2"></path>
+      <path d="M6 18h12"></path>
     </svg>
   ),
   alerts: (
@@ -47,47 +59,34 @@ const Icons = {
   )
 }
 
-export function MobileTabBar({ activeTab, onTabChange, onFintellClick }: MobileTabBarProps) {
+export function MobileTabBar({ activeTab, onTabChange }: MobileTabBarProps) {
   const tabs: { id: MobileTab; label: string; icon: JSX.Element }[] = [
     { id: 'watchlist', label: '自选', icon: Icons.watchlist },
     { id: 'market', label: '行情', icon: Icons.market },
-    { id: 'trade', label: '交易', icon: Icons.trade },
+    { id: 'ai', label: 'AI', icon: Icons.ai },
     { id: 'alerts', label: '预警', icon: Icons.alerts },
     { id: 'profile', label: '我的', icon: Icons.profile }
   ]
 
   return (
-    <>
-      {/* Fintell 悬浮入口 */}
-      {onFintellClick && (
-        <div className="fintell-fab" onClick={onFintellClick}>
-          <svg className="fintell-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-          </svg>
-          <span className="fintell-text">问Fintell</span>
+    <nav className="mobile-tab-bar">
+      {tabs.map(tab => (
+        <div
+          key={tab.id}
+          className={`tab-item ${activeTab === tab.id ? 'active' : ''} ${tab.id === 'ai' ? 'ai-btn' : ''}`}
+          onClick={() => onTabChange(tab.id)}
+        >
+          {tab.id === 'ai' ? (
+            <div className="ai-icon-wrapper">
+              {tab.icon}
+            </div>
+          ) : (
+            <span className="tab-icon">{tab.icon}</span>
+          )}
+          <span className="tab-label">{tab.label}</span>
         </div>
-      )}
-
-      {/* 底部导航栏 */}
-      <nav className="mobile-tab-bar">
-        {tabs.map(tab => (
-          <div
-            key={tab.id}
-            className={`tab-item ${activeTab === tab.id ? 'active' : ''} ${tab.id === 'trade' ? 'trade-btn' : ''}`}
-            onClick={() => onTabChange(tab.id)}
-          >
-            {tab.id === 'trade' ? (
-              <div className="trade-icon-wrapper">
-                {tab.icon}
-              </div>
-            ) : (
-              <span className="tab-icon">{tab.icon}</span>
-            )}
-            <span className="tab-label">{tab.label}</span>
-          </div>
-        ))}
-      </nav>
-    </>
+      ))}
+    </nav>
   )
 }
 

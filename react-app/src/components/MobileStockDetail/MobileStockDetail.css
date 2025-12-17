@@ -40,12 +40,79 @@
 .msd-stock-info {
   flex: 1;
   min-width: 0;
+  position: relative;
+  cursor: pointer;
 }
 
 .msd-name-row {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.msd-arrow {
+  transition: transform 0.2s;
+  color: var(--text-tertiary);
+}
+
+.msd-arrow.open {
+  transform: rotate(180deg);
+}
+
+/* 股票选择下拉 */
+.msd-stock-picker {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.msd-stock-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-light);
+  transition: background 0.15s;
+}
+
+.msd-stock-option:last-child {
+  border-bottom: none;
+}
+
+.msd-stock-option:active {
+  background: var(--bg-hover);
+}
+
+.msd-stock-option.active {
+  background: rgba(79, 106, 245, 0.08);
+}
+
+.msd-stock-option .option-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.msd-stock-option .option-pct {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.msd-stock-option .option-pct.up {
+  color: var(--color-up);
+}
+
+.msd-stock-option .option-pct.down {
+  color: var(--color-down);
 }
 
 .msd-name {

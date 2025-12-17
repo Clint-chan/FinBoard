@@ -42,9 +42,16 @@ function App() {
   
   // 移动端状态
   const [mobileTab, setMobileTab] = useState<MobileTab>('watchlist')
-  const [mobileStockCode, setMobileStockCode] = useState<string>('') // 当前查看的股票
+  const [mobileStockCode, setMobileStockCode] = useState<string>('') // 当前查看的股票（行情页）
   const [fintellOpen, setFintellOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+  
+  // 当切换到行情页时，如果没有选中股票，默认选第一只
+  useEffect(() => {
+    if (isMobile && mobileTab === 'market' && !mobileStockCode && config.codes.length > 0) {
+      setMobileStockCode(config.codes[0])
+    }
+  }, [isMobile, mobileTab, mobileStockCode, config.codes])
   
   // 管理员账号
   const ADMIN_USERS = ['cdg']
@@ -414,16 +421,24 @@ function App() {
 
   // 移动端标签页切换处理
   const handleMobileTabChange = useCallback((tab: MobileTab) => {
-    setMobileTab(tab)
-    // 如果切换到非行情页，清空当前股票
-    if (tab !== 'market') {
-      setMobileStockCode('')
+    // AI 标签页直接打开 Fintell 对话
+    if (tab === 'ai') {
+      setFintellOpen(true)
+      return
     }
+    
+    setMobileTab(tab)
+    
+    // 切换到行情页时，如果没有选中股票，默认选第一只
+    if (tab === 'market' && !mobileStockCode && config.codes.length > 0) {
+      setMobileStockCode(config.codes[0])
+    }
+    
     // 同步到桌面端页面
     if (tab === 'watchlist') setActivePage('watchlist')
     else if (tab === 'alerts') setActivePage('alerts')
     else if (tab === 'profile') setActivePage('settings')
-  }, [])
+  }, [mobileStockCode, config.codes])
 
   // 获取移动端标题
   const getMobileTitle = () => {
@@ -433,7 +448,7 @@ function App() {
     switch (mobileTab) {
       case 'watchlist': return '自选'
       case 'market': return '行情'
-      case 'trade': return '交易'
+      case 'ai': return 'AI'
       case 'alerts': return '预警'
       case 'profile': return '我的'
       default: return 'Fintell'
@@ -775,7 +790,9 @@ function App() {
           <MobileStockDetail
             code={mobileStockCode}
             stockData={stockData}
+            stockList={config.codes}
             isDark={isDark}
+            onStockChange={setMobileStockCode}
             onBack={() => {
               setMobileStockCode('')
               setMobileTab('watchlist')
@@ -793,7 +810,6 @@ function App() {
         <MobileTabBar
           activeTab={mobileTab}
           onTabChange={handleMobileTabChange}
-          onFintellClick={() => setFintellOpen(true)}
         />
       )}
 
