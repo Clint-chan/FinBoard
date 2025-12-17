@@ -88,8 +88,14 @@ export async function fetchIntradayData(code: string): Promise<IntradayData> {
   const response = await fetch(`${url}?${params}`)
   const data = await response.json()
   
-  if (!data.data || !data.data.trends) {
-    throw new Error('无分时数据')
+  if (!data.data || !data.data.trends || data.data.trends.length === 0) {
+    // 非开盘时间可能没有分时数据，返回空数据而不是抛出错误
+    return {
+      code,
+      name: data.data?.name || '',
+      preClose: data.data?.preClose || 0,
+      trends: []
+    }
   }
 
   const preClose = data.data.preClose

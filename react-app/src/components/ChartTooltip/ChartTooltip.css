@@ -6,7 +6,7 @@
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--border-light);
   padding: 0;
-  z-index: 1000;
+  z-index: 999; /* 降低到 999，低于拖动行的 1100 */
   overflow: visible;
   opacity: 0;
   transform: scale(0.95);
@@ -26,6 +26,12 @@
 
 .chart-tooltip.interactive {
   pointer-events: auto;
+}
+
+/* 拖动时隐藏 tooltip */
+body.dragging .chart-tooltip {
+  opacity: 0;
+  pointer-events: none;
 }
 
 [data-theme="dark"] .chart-tooltip {

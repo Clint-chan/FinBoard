@@ -96,6 +96,8 @@ export function useDragSort({
     document.removeEventListener('mouseup', handleDragEnd)
     document.removeEventListener('touchmove', handleDragMove)
     document.removeEventListener('touchend', handleDragEnd)
+    
+    document.body.classList.remove('dragging') // 移除 body class
 
     const positionChanged = state.currentIndex !== state.initialIndex && state.currentIndex >= 0
 
@@ -151,6 +153,7 @@ export function useDragSort({
     }
 
     element.classList.add('drag-source')
+    document.body.classList.add('dragging') // 添加 body class
 
     // 添加全局事件
     document.addEventListener('mousemove', handleDragMove)

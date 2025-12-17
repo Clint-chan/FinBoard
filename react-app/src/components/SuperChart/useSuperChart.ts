@@ -67,9 +67,17 @@ export function useSuperChart(options: UseSuperChartOptions) {
     setError(null)
     try {
       const rawData = await fetchIntradayData(code)
-      const formatted = formatChartData(rawData)
-      setIntradayData({ ...formatted, name: rawData.name } as ChartData & { name: string })
-      setStockName(rawData.name)
+      
+      // 如果没有分时数据（非开盘时间），显示提示但不报错
+      if (!rawData.trends || rawData.trends.length === 0) {
+        setError('当前非交易时间，暂无分时数据')
+        setIntradayData(null)
+        setStockName(rawData.name || initialName)
+      } else {
+        const formatted = formatChartData(rawData)
+        setIntradayData({ ...formatted, name: rawData.name } as ChartData & { name: string })
+        setStockName(rawData.name)
+      }
     } catch (err) {
       console.error('加载分时数据失败:', err)
       // 只在showLoading时才设置错误，避免静默刷新时显示错误
@@ -79,7 +87,7 @@ export function useSuperChart(options: UseSuperChartOptions) {
     } finally {
       if (showLoading) setLoading(false)
     }
-  }, [code])
+  }, [code, initialName])
 
   // 加载 K 线数据 - 对照原版：切换周期时不显示 loading
   const loadKlineData = useCallback(async (showLoading = false, limit?: number) => {
