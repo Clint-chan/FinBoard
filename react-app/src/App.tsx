@@ -328,6 +328,12 @@ function App() {
     }
   }, [config.codes])
 
+  // 保存用户资料
+  const handleProfileSave = useCallback((profile: UserProfile) => {
+    setUser(profile)
+    updateConfig({ userProfile: profile })
+  }, [updateConfig])
+
   // 关闭右键菜单
   useEffect(() => {
     const handleClick = () => setContextMenu(prev => ({ ...prev, open: false }))
@@ -404,6 +410,7 @@ function App() {
         }}
         onLogoutClick={handleLogout}
         onInsightClick={handleInsightClick}
+        onProfileSave={handleProfileSave}
         onSync={async () => {
           try {
             await cloudSync()

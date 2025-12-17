@@ -83,6 +83,7 @@ interface SidebarProps {
   onLoginClick: () => void
   onLogoutClick: () => void
   onInsightClick: () => void
+  onProfileSave: (profile: UserProfile) => void
   onSync?: () => void | Promise<void>
   token?: string | null
 }
@@ -100,12 +101,14 @@ function Sidebar({
   onLoginClick,
   onLogoutClick,
   onInsightClick,
+  onProfileSave,
   onSync,
   token,
 }: SidebarProps) {
   const [expanded, setExpanded] = useState(false)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [editUsername, setEditUsername] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState('')
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -128,19 +131,12 @@ function Sidebar({
     }
   }
 
-  const handleAuthClick = () => {
-    if (isLoggedIn) {
-      onLogoutClick()
-    } else {
-      onLoginClick()
-    }
-  }
-
   // 显示的用户名：优先云端用户名，其次本地用户资料
   const displayUsername = cloudUsername || user?.username
 
   const openProfileModal = useCallback(() => {
     setEditUsername(cloudUsername || user?.username || '')
+    setAvatarUrl(user?.avatar || '')
     setOldPassword('')
     setNewPassword('')
     setConfirmPassword('')
@@ -148,6 +144,46 @@ function Sidebar({
     setPasswordSuccess(false)
     setProfileModalOpen(true)
   }, [user, cloudUsername])
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    if (file.size > 500 * 1024) {
+      alert('图片大小不能超过 500KB')
+      return
+    }
+    
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const size = 128
+        canvas.width = size
+        canvas.height = size
+        const ctx = canvas.getContext('2d')!
+        
+        const minDim = Math.min(img.width, img.height)
+        const sx = (img.width - minDim) / 2
+        const sy = (img.height - minDim) / 2
+        
+        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size)
+        const compressedUrl = canvas.toDataURL('image/jpeg', 0.8)
+        setAvatarUrl(compressedUrl)
+        
+        // 自动保存头像
+        onProfileSave({
+          username: editUsername,
+          avatar: compressedUrl
+        })
+      }
+      img.src = dataUrl
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
 
   const handlePasswordChange = async () => {
     setPasswordError('')
@@ -219,13 +255,6 @@ function Sidebar({
               <span className="sidebar-label">{item.label}</span>
             </div>
           ))}
-          
-          <div className="sidebar-item auth-btn" onClick={handleAuthClick}>
-            <span className="sidebar-icon">{isLoggedIn ? Icons.logout : Icons.login}</span>
-            <span className="sidebar-label">
-              {isLoggedIn ? 'Logout' : 'Login'}
-            </span>
-          </div>
         </nav>
 
         <div className="sidebar-user" onClick={displayUsername ? openProfileModal : onLoginClick}>
@@ -245,19 +274,14 @@ function Sidebar({
             </button>
           )}
           <div className="sidebar-avatar">
-            {Icons.user}
+            {user?.avatar ? (
+              <img src={user.avatar} alt="" />
+            ) : (
+              Icons.user
+            )}
           </div>
-          <span className="sidebar-username">{displayUsername || '点击登录'}</span>
+          <span className="sidebar-username">{displayUsername || 'Login'}</span>
         </div>
-
-        {user && (
-          <div className="user-menu">
-            <div className="user-menu-item" onClick={openProfileModal}>
-              <span className="sidebar-icon">{Icons.edit}</span>
-              <span>Profile</span>
-            </div>
-          </div>
-        )}
       </aside>
 
       {/* 用户资料弹窗 */}
@@ -274,8 +298,16 @@ function Sidebar({
               {/* 用户信息 */}
               <div className="profile-info-section">
                 <div className="profile-avatar-large">
-                  {Icons.user}
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="头像" />
+                  ) : (
+                    Icons.user
+                  )}
                 </div>
+                <label className="profile-avatar-upload-btn">
+                  <input type="file" accept="image/*" onChange={handleAvatarUpload} />
+                  上传头像
+                </label>
                 <div className="profile-username-display">{editUsername}</div>
               </div>
 
@@ -334,11 +366,21 @@ function Sidebar({
                   </button>
                 </div>
               )}
-            </div>
-            <div className="profile-modal-footer">
-              <button className="profile-btn profile-btn-cancel" onClick={() => setProfileModalOpen(false)}>
-                关闭
-              </button>
+
+              {/* 登出按钮 */}
+              {isLoggedIn && (
+                <div className="profile-logout-section">
+                  <button 
+                    className="profile-btn profile-btn-logout"
+                    onClick={() => {
+                      setProfileModalOpen(false)
+                      onLogoutClick()
+                    }}
+                  >
+                    退出登录
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
