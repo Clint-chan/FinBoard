@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>福达股份 - 移动端设计 (Fintell独立版)</title>
+    <style>
+        /* --- 基础设置 --- */
+        :root {
+            --up-color: #FA4C4C;
+            --down-color: #00B578;
+            --bg-color: #FFFFFF;
+            --gray-bg: #F7F8FA;
+            --text-main: #1A1A1A;
+            --text-sub: #888888;
+            --border-color: #EEEEEE;
+            --primary-blue: #4F6AF5; 
+            --primary-gradient: linear-gradient(135deg, #4F6AF5 0%, #7B4FF5 100%); /* AI 渐变色 */
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--gray-bg);
+            color: var(--text-main);
+            padding-bottom: 60px; /* 底部导航高度 */
+            overflow-x: hidden;
+        }
+
+        /* --- 顶部行情 --- */
+        .stock-header {
+            background: #fff;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .stock-name h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+        .stock-name span { font-size: 12px; color: var(--text-sub); background: #F2F3F5; padding: 2px 6px; border-radius: 4px; }
+        .stock-data { text-align: right; color: var(--up-color); }
+        .price { font-size: 26px; font-weight: bold; line-height: 1; display: block; }
+        .change { font-size: 12px; font-weight: 500; margin-top: 4px; display: block; }
+
+        /* --- K线图区域 --- */
+        .chart-card {
+            background: #fff;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+        }
+        .chart-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .chart-tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px 0;
+            font-size: 14px;
+            color: var(--text-sub);
+        }
+        .chart-tab.active { color: var(--text-main); font-weight: bold; border-bottom: 2px solid var(--text-main); }
+        
+        .chart-area {
+            height: 260px;
+            position: relative;
+            background-image: linear-gradient(#f0f0f0 1px, transparent 1px);
+            background-size: 100% 40px;
+            margin: 15px 0;
+        }
+        /* 简单的SVG模拟K线 */
+        .k-line-svg { width: 100%; height: 100%; }
+        .candle-up { fill: var(--up-color); }
+        .candle-down { fill: var(--down-color); }
+
+        .indicators {
+            display: flex;
+            gap: 12px;
+            padding: 0 16px;
+        }
+        .ind-btn {
+            font-size: 12px;
+            color: var(--text-sub);
+            border: 1px solid #ddd;
+            padding: 2px 8px;
+            border-radius: 2px;
+        }
+        .ind-btn.active { color: var(--primary-blue); border-color: var(--primary-blue); background: #EFF3FF; }
+
+        /* --- 资讯/新闻列表 (替代原来的混合Tab) --- */
+        .news-section {
+            background: #fff;
+            padding: 0 16px;
+        }
+        .section-header {
+            padding: 16px 0;
+            font-weight: bold;
+            font-size: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .news-item {
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .news-title {
+            font-size: 15px;
+            line-height: 1.5;
+            margin-bottom: 8px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .news-meta {
+            font-size: 12px;
+            color: #999;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* --- 底部导航栏 --- */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 55px;
+            background: #fff;
+            box-shadow: 0 -1px 5px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 90;
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 10px;
+            color: var(--text-sub);
+            width: 20%;
+        }
+        .nav-item.active { color: var(--text-main); }
+        .nav-icon { width: 24px; height: 24px; margin-bottom: 2px; }
+        
+        /* --- Fintell 悬浮入口 (Floating Action Button) --- */
+        .fintell-entry {
+            position: fixed;
+            bottom: 70px; /* 在底部导航栏上方 */
+            right: 16px;
+            background: var(--primary-gradient);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 24px;
+            box-shadow: 0 4px 12px rgba(79, 106, 245, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 95;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .fintell-entry:active { transform: scale(0.95); }
+        .fintell-icon { width: 20px; height: 20px; }
+        .fintell-text { font-size: 14px; font-weight: 600; }
+
+        /* --- 全屏智能助手 Modal --- */
+        .fintell-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(100%); /* 默认隐藏在底部 */
+            transition: transform 0.3s ease-out;
+        }
+        .fintell-modal.open { transform: translateY(0); }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            background: #fff;
+        }
+        .close-btn { 
+            font-size: 24px; 
+            padding: 0 10px; 
+            color: #333; 
+            cursor: pointer;
+        }
+        .modal-title { flex: 1; text-align: center; font-weight: 600; font-size: 16px; }
+        .modal-action { width: 44px; } /* 占位，保持标题居中 */
+
+        .chat-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: var(--gray-bg);
+        }
+
+        .chat-row { display: flex; margin-bottom: 16px; }
+        .chat-row.ai { justify-content: flex-start; }
+        .chat-row.user { justify-content: flex-end; }
+
+        .chat-avatar {
+            width: 32px;
+            height: 32px;
+            background: var(--primary-blue);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+
+        .bubble {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 15px;
+            line-height: 1.5;
+            position: relative;
+        }
+        .ai .bubble {
+            background: #fff;
+            color: #333;
+            border-bottom-left-radius: 2px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .user .bubble {
+            background: var(--primary-blue);
+            color: #fff;
+            border-bottom-right-radius: 2px;
+        }
+
+        .chat-input-area {
+            background: #fff;
+            padding: 10px 16px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: max(10px, env(safe-area-inset-bottom)); /* 适配 iPhone X */
+        }
+        .chat-input {
+            flex: 1;
+            background: #F5F5F5;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 20px;
+            font-size: 15px;
+            outline: none;
+        }
+        .send-btn {
+            width: 36px;
+            height: 36px;
+            background: var(--primary-blue);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header class="stock-header">
+        <div class="stock-name">
+            <h1>福达股份</h1>
+            <span>603166.SH</span>
+        </div>
+        <div class="stock-data">
+            <span class="price">14.83</span>
+            <span class="change">+0.36 (+2.48%)</span>
+        </div>
+    </header>
+
+    <div class="chart-card">
+        <div class="chart-tabs">
+            <div class="chart-tab">分时</div>
+            <div class="chart-tab active">日K</div>
+            <div class="chart-tab">周K</div>
+            <div class="chart-tab">月K</div>
+        </div>
+        <div class="chart-area">
+            <svg class="k-line-svg" viewBox="0 0 300 150" preserveAspectRatio="none">
+                <polyline points="0,80 50,75 100,85 150,70 200,60 250,65 300,50" fill="none" stroke="#FFA500" stroke-width="1"/>
+                <polyline points="0,90 50,85 100,95 150,80 200,75 250,80 300,70" fill="none" stroke="#4F6AF5" stroke-width="1"/>
+                
+                <rect x="20" y="70" width="8" height="20" class="candle-down" />
+                <line x1="24" y1="65" x2="24" y2="95" stroke="#00B578" stroke-width="1"/>
+
+                <rect x="50" y="60" width="8" height="30" class="candle-up" />
+                <line x1="54" y1="55" x2="54" y2="95" stroke="#FA4C4C" stroke-width="1"/>
+
+                <rect x="80" y="75" width="8" height="10" class="candle-down" />
+                <rect x="110" y="65" width="8" height="15" class="candle-up" />
+                <rect x="140" y="55" width="8" height="25" class="candle-up" />
+                <rect x="170" y="45" width="8" height="10" class="candle-down" />
+                <rect x="200" y="50" width="8" height="30" class="candle-up" />
+                
+                <line x1="0" y1="50" x2="300" y2="50" stroke="#ccc" stroke-dasharray="2,2" stroke-width="0.5" />
+            </svg>
+        </div>
+        <div class="indicators">
+            <div class="ind-btn">VOL</div>
+            <div class="ind-btn active">MACD</div>
+            <div class="ind-btn">RSI</div>
+            <div class="ind-btn">KDJ</div>
+        </div>
+    </div>
+
+    <div class="news-section">
+        <div class="section-header">相关资讯</div>
+        <div class="news-item">
+            <div class="news-title">福达股份：拟出资3000万元设立全资子公司，进一步拓展新能源汽车零部件业务版图</div>
+            <div class="news-meta">
+                <span>人民财讯</span>
+                <span>20分钟前</span>
+            </div>
+        </div>
+        <div class="news-item">
+            <div class="news-title">人形机器人概念股持续走强，福达股份盘中涨超5%，主力资金净流入明显</div>
+            <div class="news-meta">
+                <span>证券时报</span>
+                <span>1小时前</span>
+            </div>
+        </div>
+        <div class="news-item">
+            <div class="news-title">2025年三季报深度解析：净利润稳步增长，海外市场拓展成效显著</div>
+            <div class="news-meta">
+                <span>Fintell研报</span>
+                <span>昨天</span>
+            </div>
+        </div>
+        <div style="height: 100px;"></div>
+    </div>
+
+    <div class="fintell-entry" onclick="toggleFintell(true)">
+        <svg class="fintell-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+        </svg>
+        <span class="fintell-text">问Fintell</span>
+    </div>
+
+    <nav class="bottom-nav">
+        <div class="nav-item">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            <span>自选</span>
+        </div>
+        <div class="nav-item active">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 20V10"></path>
+                <path d="M12 20V4"></path>
+                <path d="M6 20v-6"></path>
+            </svg>
+            <span>行情</span>
+        </div>
+        <div class="nav-item">
+            <div style="background:var(--primary-blue); border-radius: 50%; width: 36px; height: 36px; display:flex; align-items:center; justify-content:center; margin-top:-10px; box-shadow: 0 2px 5px rgba(79,106,245,0.3);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+            </div>
+            <span style="margin-top: 4px;">交易</span>
+        </div>
+        <div class="nav-item">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span>我的</span>
+        </div>
+    </nav>
+
+    <div class="fintell-modal" id="fintellModal">
+        <div class="modal-header">
+            <div class="close-btn" onclick="toggleFintell(false)">✕</div>
+            <div class="modal-title">Fintell 智能助手</div>
+            <div class="modal-action"></div>
+        </div>
+        
+        <div class="chat-content">
+            <div class="chat-row ai">
+                <div class="chat-avatar">F</div>
+                <div class="bubble">
+                    你好！我是 Fintell。当前正在分析 <b>福达股份 (603166)</b>。<br><br>
+                    该股今日放量上涨，MACD 出现金叉信号。你想了解它的基本面数据，还是技术面阻力位？
+                </div>
+            </div>
+
+            <div class="chat-row user">
+                <div class="bubble">帮我分析一下最新的财报亮点。</div>
+            </div>
+
+            <div class="chat-row ai">
+                <div class="chat-avatar">F</div>
+                <div class="bubble">
+                    好的。根据2025年三季报：<br>
+                    1. <b>净利润</b>：同比增长15.2%，主要得益于新能源曲轴业务放量。<br>
+                    2. <b>现金流</b>：经营性现金流大幅改善，达到2.1亿元。<br>
+                    需要我对比同行业估值吗？
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input-area">
+            <input type="text" class="chat-input" placeholder="输入你想问的问题...">
+            <div class="send-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleFintell(show) {
+            const modal = document.getElementById('fintellModal');
+            if (show) {
+                modal.classList.add('open');
+            } else {
+                modal.classList.remove('open');
+            }
+        }
+    </script>
+
+</body>
+</html>

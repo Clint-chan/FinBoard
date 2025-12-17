@@ -8,6 +8,9 @@ import { useAlertCheck } from '@/hooks/useAlertCheck'
 import { requestNotificationPermission } from '@/utils/format'
 import Sidebar from '@/components/Sidebar'
 import { MobileHeader } from '@/components/MobileHeader'
+import { MobileTabBar, type MobileTab } from '@/components/MobileTabBar'
+import { MobileStockDetail } from '@/components/MobileStockDetail'
+import { FintellChat } from '@/components/FintellChat'
 import StockTable from '@/components/StockTable'
 import StatusBar from '@/components/StatusBar'
 import ChartTooltip from '@/components/ChartTooltip'
@@ -37,6 +40,12 @@ function App() {
   const [expandedAlerts, setExpandedAlerts] = useState<Record<string, boolean>>({})
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   
+  // 移动端状态
+  const [mobileTab, setMobileTab] = useState<MobileTab>('watchlist')
+  const [mobileStockCode, setMobileStockCode] = useState<string>('') // 当前查看的股票
+  const [fintellOpen, setFintellOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+  
   // 管理员账号
   const ADMIN_USERS = ['cdg']
   
@@ -55,6 +64,15 @@ function App() {
   // 固定页面标题
   useEffect(() => {
     document.title = 'Fintell'
+  }, [])
+  
+  // 监听窗口大小变化
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
   
   // 行情数据
@@ -314,10 +332,15 @@ function App() {
     setChartTooltip(prev => ({ ...prev, visible: false }))
   }, [])
 
-  // 双击打开分析大屏
+  // 双击打开分析大屏（桌面端）或行情详情（移动端）
   const handleDoubleClick = useCallback((code: string) => {
-    setAnalysisDrawer({ open: true, code })
-  }, [])
+    if (isMobile) {
+      setMobileStockCode(code)
+      setMobileTab('market')
+    } else {
+      setAnalysisDrawer({ open: true, code })
+    }
+  }, [isMobile])
 
   // 打开分析大屏（从侧边栏 Insight 按钮）
   const handleInsightClick = useCallback(() => {
@@ -343,8 +366,10 @@ function App() {
 
   // ESC 键处理
   const handleEscape = useCallback(() => {
-    // 优先级：弹窗 > 分析大屏 > 老板键
-    if (authModalOpen) {
+    // 优先级：Fintell > 弹窗 > 分析大屏 > 移动端行情详情 > 老板键
+    if (fintellOpen) {
+      setFintellOpen(false)
+    } else if (authModalOpen) {
       setAuthModalOpen(false)
     } else if (addStockOpen) {
       setAddStockOpen(false)
@@ -354,10 +379,13 @@ function App() {
       setCostModal({ open: false, code: null })
     } else if (analysisDrawer.open) {
       setAnalysisDrawer({ open: false, code: '' })
+    } else if (isMobile && mobileStockCode) {
+      setMobileStockCode('')
+      setMobileTab('watchlist')
     } else {
       setBossMode(prev => !prev)
     }
-  }, [authModalOpen, addStockOpen, alertModal.open, costModal.open, analysisDrawer.open])
+  }, [fintellOpen, authModalOpen, addStockOpen, alertModal.open, costModal.open, analysisDrawer.open, isMobile, mobileStockCode])
 
   // 处理登录成功
   const handleAuthSuccess = useCallback((token: string, username: string) => {
@@ -384,13 +412,45 @@ function App() {
     onEscape: handleEscape
   })
 
+  // 移动端标签页切换处理
+  const handleMobileTabChange = useCallback((tab: MobileTab) => {
+    setMobileTab(tab)
+    // 如果切换到非行情页，清空当前股票
+    if (tab !== 'market') {
+      setMobileStockCode('')
+    }
+    // 同步到桌面端页面
+    if (tab === 'watchlist') setActivePage('watchlist')
+    else if (tab === 'alerts') setActivePage('alerts')
+    else if (tab === 'profile') setActivePage('settings')
+  }, [])
+
+  // 获取移动端标题
+  const getMobileTitle = () => {
+    if (mobileTab === 'market' && mobileStockCode) {
+      return stockData[mobileStockCode]?.name || mobileStockCode
+    }
+    switch (mobileTab) {
+      case 'watchlist': return '自选'
+      case 'market': return '行情'
+      case 'trade': return '交易'
+      case 'alerts': return '预警'
+      case 'profile': return '我的'
+      default: return 'Fintell'
+    }
+  }
+
   return (
-    <div className="app" data-theme={isDark ? 'dark' : 'light'}>
-      <MobileHeader 
-        onMenuClick={() => setMobileSidebarOpen(true)}
-        title={activePage === 'watchlist' ? '行情看板' : activePage === 'alerts' ? '价格预警' : activePage === 'settings' ? '设置' : '管理'}
-      />
+    <div className={`app ${isMobile ? 'mobile-layout' : ''}`} data-theme={isDark ? 'dark' : 'light'}>
+      {/* 移动端顶部导航 - 仅在非行情详情页显示 */}
+      {(!isMobile || mobileTab !== 'market' || !mobileStockCode) && (
+        <MobileHeader 
+          onMenuClick={() => setMobileSidebarOpen(true)}
+          title={isMobile ? getMobileTitle() : (activePage === 'watchlist' ? '行情看板' : activePage === 'alerts' ? '价格预警' : activePage === 'settings' ? '设置' : '管理')}
+        />
+      )}
       
+      {/* 桌面端侧边栏 */}
       <Sidebar
         activePage={activePage}
         user={user}
@@ -708,6 +768,45 @@ function App() {
         
         {activePage === 'admin' && isAdmin && <AdminPage />}
       </main>
+
+      {/* 移动端行情详情页 */}
+      {isMobile && mobileTab === 'market' && mobileStockCode && (
+        <div className="mobile-stock-detail-container">
+          <MobileStockDetail
+            code={mobileStockCode}
+            stockData={stockData}
+            isDark={isDark}
+            onBack={() => {
+              setMobileStockCode('')
+              setMobileTab('watchlist')
+            }}
+            onOpenAlert={(code, price) => {
+              setAlertModal({ open: true, code, initialPrice: price })
+            }}
+            alerts={config.alerts}
+          />
+        </div>
+      )}
+
+      {/* 移动端底部导航栏 */}
+      {isMobile && (
+        <MobileTabBar
+          activeTab={mobileTab}
+          onTabChange={handleMobileTabChange}
+          onFintellClick={() => setFintellOpen(true)}
+        />
+      )}
+
+      {/* Fintell 全屏对话 */}
+      <FintellChat
+        open={fintellOpen}
+        onClose={() => setFintellOpen(false)}
+        stockCode={mobileStockCode || config.codes[0]}
+        stockData={stockData}
+        stockList={config.codes}
+        isDark={isDark}
+        onSaveAlerts={saveAlertsFromAI}
+      />
 
       {/* 弹窗 */}
       <AddStockModal

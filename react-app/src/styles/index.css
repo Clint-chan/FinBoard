@@ -489,3 +489,77 @@ input:checked + .slider:before {
 .alert-empty-state p {
   margin: 0 0 16px 0;
 }
+
+
+/* ========== 移动端布局 ========== */
+.app.mobile-layout {
+  padding-bottom: 55px; /* 底部导航栏高度 */
+}
+
+.app.mobile-layout .main-content {
+  padding-bottom: 70px;
+}
+
+/* 移动端行情详情容器 */
+.mobile-stock-detail-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 55px; /* 底部导航栏高度 */
+  z-index: 50;
+  background: var(--bg-body);
+}
+
+/* 移动端隐藏桌面端侧边栏 */
+@media (max-width: 768px) {
+  .app.mobile-layout .sidebar {
+    display: none;
+  }
+  
+  .app.mobile-layout .main-content {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  
+  /* 移动端隐藏桌面端 header */
+  .app.mobile-layout .page > header {
+    display: none;
+  }
+  
+  /* 移动端卡片样式优化 */
+  .app.mobile-layout .card {
+    border-radius: 8px;
+    margin: 0;
+  }
+}
+
+
+/* 移动端底部安全区域适配 */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .app.mobile-layout {
+    padding-bottom: calc(55px + env(safe-area-inset-bottom));
+  }
+  
+  .mobile-stock-detail-container {
+    bottom: calc(55px + env(safe-area-inset-bottom));
+  }
+}
+
+/* 移动端页面内容区域 */
+@media (max-width: 768px) {
+  .app.mobile-layout .page {
+    padding-top: 8px;
+  }
+  
+  /* 移动端表格优化 */
+  .app.mobile-layout .stock-table {
+    font-size: 13px;
+  }
+  
+  /* 移动端状态栏优化 */
+  .app.mobile-layout .status-bar {
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+}

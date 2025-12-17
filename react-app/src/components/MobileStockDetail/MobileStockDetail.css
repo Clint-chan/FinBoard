@@ -1,0 +1,135 @@
+/* 移动端行情详情页 */
+.mobile-stock-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-body);
+  overflow: hidden;
+}
+
+/* 顶部股票信息 */
+.msd-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+
+.msd-back {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  margin-right: 8px;
+  padding: 0;
+  box-shadow: none;
+}
+
+.msd-back:hover {
+  color: var(--text-primary);
+}
+
+.msd-stock-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.msd-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.msd-name {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.msd-code {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  background: var(--bg-hover);
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.msd-price-info {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.msd-price-info.up {
+  color: var(--color-up);
+}
+
+.msd-price-info.down {
+  color: var(--color-down);
+}
+
+.msd-price {
+  display: block;
+  font-size: 24px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.msd-change {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+/* K线图区域 */
+.msd-chart-section {
+  height: 320px;
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+/* 资讯区域 */
+.msd-news-section {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-surface);
+  margin-top: 10px;
+}
+
+.msd-news-section .stock-info-panel {
+  height: 100%;
+  border-radius: 0;
+}
+
+/* 加载状态 */
+.msd-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+/* 深色模式 */
+[data-theme="dark"] .mobile-stock-detail,
+.mobile-stock-detail.dark {
+  --bg-body: #0f172a;
+  --bg-surface: #1e293b;
+  --bg-hover: #334155;
+  --border-light: #334155;
+}

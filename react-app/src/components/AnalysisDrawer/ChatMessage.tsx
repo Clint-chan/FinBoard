@@ -13,6 +13,7 @@ interface ChatMessageProps {
   isStreaming?: boolean
   streamStartTime?: number
   onSaveAlerts?: (code: string, alerts: Array<{ price: number; operator: 'above' | 'below'; note: string }>) => void
+  compact?: boolean // 紧凑模式，用于移动端全屏对话
 }
 
 interface ParsedContent {
@@ -223,6 +224,7 @@ export function ChatMessage({
   isStreaming = false,
   streamStartTime,
   onSaveAlerts,
+  compact = false,
 }: ChatMessageProps) {
   const [startTime] = useState(() => streamStartTime || Date.now())
 
@@ -243,7 +245,7 @@ export function ChatMessage({
 
   // AI 消息
   return (
-    <div className="chat-message ai">
+    <div className={`chat-message ai ${compact ? 'compact' : ''}`}>
       <div className="bubble">
         {/* 思考过程 */}
         {thinking && (
