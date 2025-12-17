@@ -234,9 +234,10 @@ export function useSuperChart(options: UseSuperChartOptions) {
   useEffect(() => {
     const isCodeChange = code !== prevCodeRef.current
     const isTabChange = currentTab !== prevTabRef.current
+    const isInitialMount = prevCodeRef.current === code && prevTabRef.current === currentTab && !intradayData && !klineRawData
     
-    if (isCodeChange) {
-      // code 变化：重置所有数据
+    if (isCodeChange || isInitialMount) {
+      // code 变化或初始挂载：重置所有数据
       setIntradayData(null)
       setKlineRawData(null)
       setProcessedData(null)
