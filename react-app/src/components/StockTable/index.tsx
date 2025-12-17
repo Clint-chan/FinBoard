@@ -3,6 +3,7 @@ import type { StockData, AlertConfig } from '@/types'
 import { normalizeCode } from '@/services/dataService'
 import { fmtNum, fmtVol, fmtAmt, calcPct, getPctClass } from '@/utils/format'
 import { Sparkline } from '@/components/Sparkline'
+import { useDragSort } from '@/hooks/useDragSort'
 import './StockTable.css'
 
 interface StockRowProps {
@@ -194,14 +195,7 @@ function StockTable({
   const [sortColumn, setSortColumn] = useState<SortColumn>(null)
   const [sortAsc, setSortAsc] = useState(false)
   const [addRowShow, setAddRowShow] = useState(false) // 对照原版的添加行展开状态
-  
-  // 拖拽状态
-  const dragState = useRef<{
-    dragging: boolean
-    startIndex: number
-    currentIndex: number
-    startY: number
-  }>({ dragging: false, startIndex: -1, currentIndex: -1, startY: 0 })
+  const tableRef = useRef<HTMLTableElement>(null)
 
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
@@ -244,48 +238,26 @@ function StockTable({
     return sortAsc ? 'sort-asc' : 'sort-desc'
   }
 
-  // 拖拽处理
-  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, index: number) => {
+  // 使用 useDragSort hook 实现拖拽
+  useDragSort({
+    containerRef: tableRef,
+    itemSelector: 'tbody tr:not(.add-stock-row)',
+    handleSelector: '.drag-handle',
+    onReorder
+  })
+  
+  // 简化的拖动处理（用于触发 useDragSort）
+  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, _index: number) => {
+    // useDragSort 会自动处理，这里只需要阻止默认行为
     const handle = (e.target as HTMLElement).closest('.drag-handle')
-    if (!handle) return
-    
-    e.preventDefault()
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
-    
-    dragState.current = {
-      dragging: true,
-      startIndex: index,
-      currentIndex: index,
-      startY: clientY,
+    if (handle) {
+      e.preventDefault()
     }
-    
-    document.addEventListener('mousemove', handleDragMove)
-    document.addEventListener('mouseup', handleDragEnd)
-    document.addEventListener('touchmove', handleDragMove)
-    document.addEventListener('touchend', handleDragEnd)
   }, [])
-
-  const handleDragMove = useCallback((_e: MouseEvent | TouchEvent) => {
-    if (!dragState.current.dragging) return
-    // 简化版拖拽，实际项目中需要更完整的实现
-  }, [])
-
-  const handleDragEnd = useCallback(() => {
-    const { startIndex, currentIndex } = dragState.current
-    if (startIndex !== currentIndex && currentIndex >= 0) {
-      onReorder(startIndex, currentIndex)
-    }
-    
-    dragState.current = { dragging: false, startIndex: -1, currentIndex: -1, startY: 0 }
-    document.removeEventListener('mousemove', handleDragMove)
-    document.removeEventListener('mouseup', handleDragEnd)
-    document.removeEventListener('touchmove', handleDragMove)
-    document.removeEventListener('touchend', handleDragEnd)
-  }, [onReorder, handleDragMove])
 
   return (
     <div className="table-responsive">
-      <table>
+      <table ref={tableRef}>
         <thead>
           <tr>
             <th>标的</th>

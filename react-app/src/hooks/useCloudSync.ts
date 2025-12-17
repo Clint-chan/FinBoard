@@ -53,6 +53,25 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
       setSyncing(false)
     }
   }, [onConfigLoaded])
+  
+  // 页面加载时自动同步（如果已登录）
+  useEffect(() => {
+    if (auth?.token) {
+      // 延迟一点，避免阻塞初始渲染
+      const timer = setTimeout(() => {
+        cloudLoadConfig(auth.token).then(cloudConfig => {
+          if (cloudConfig) {
+            onConfigLoaded(cloudConfig)
+          }
+        }).catch(err => {
+          console.error('Auto sync failed:', err)
+        })
+      }, 1000)
+      
+      return () => clearTimeout(timer)
+    }
+  }, []) // 只在挂载时执行一次
+  // eslint-disable-line react-hooks/exhaustive-deps
 
 
   // 登出
