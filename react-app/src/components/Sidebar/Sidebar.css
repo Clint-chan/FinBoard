@@ -96,6 +96,29 @@
   font-weight: 500;
 }
 
+.sidebar-item.sync-btn {
+  color: #3b82f6;
+}
+
+.sidebar-item.sync-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.sidebar-item.sync-btn.syncing {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.sidebar-item.sync-btn.syncing .sidebar-icon svg {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .sidebar-item.auth-btn {
   margin-top: auto;
 }

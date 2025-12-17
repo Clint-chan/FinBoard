@@ -66,7 +66,7 @@ function App() {
   )
 
   // 云同步
-  const { isLoggedIn, username: cloudUsername, syncing, login: cloudLogin, logout: cloudLogout } = useCloudSync({
+  const { isLoggedIn, username: cloudUsername, syncing, login: cloudLogin, logout: cloudLogout, sync: cloudSync } = useCloudSync({
     config,
     onConfigLoaded: (cloudConfig) => {
       setConfig(prev => ({ ...prev, ...cloudConfig }))
@@ -364,7 +364,11 @@ function App() {
     cloudLogin(token, username)
     // 更新用户资料
     setUser(prev => prev ? { ...prev, username } : { username, avatar: '' })
-  }, [cloudLogin])
+    // 登录后立即刷新行情，显示新加的股票
+    setTimeout(() => {
+      refresh()
+    }, 500)
+  }, [cloudLogin, refresh])
 
   // 处理登出
   const handleLogout = useCallback(() => {
@@ -407,6 +411,15 @@ function App() {
         onLogoutClick={handleLogout}
         onInsightClick={handleInsightClick}
         onProfileSave={handleProfileSave}
+        onSync={async () => {
+          try {
+            await cloudSync()
+            // 同步后刷新行情
+            refresh()
+          } catch (err) {
+            console.error('Sync error:', err)
+          }
+        }}
       />
       
       <main className="main-content">

@@ -85,21 +85,28 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
     }, 2000)
   }, [auth?.token, config])
 
-  // 手动同步
+  // 手动同步（双向：先拉取云端，再保存本地）
   const sync = useCallback(async () => {
     if (!auth?.token) return
 
     setSyncing(true)
     try {
-      // 先保存本地配置
+      // 1. 先从云端加载最新配置
+      const cloudConfig = await cloudLoadConfig(auth.token)
+      if (cloudConfig) {
+        onConfigLoaded(cloudConfig)
+      }
+      
+      // 2. 然后保存本地配置到云端
       await cloudSaveConfig(auth.token, config)
       setLastSyncTime(new Date())
     } catch (err) {
       console.error('Sync failed:', err)
+      throw err
     } finally {
       setSyncing(false)
     }
-  }, [auth?.token, config])
+  }, [auth?.token, config, onConfigLoaded])
 
   // 验证 Token 有效性
   useEffect(() => {

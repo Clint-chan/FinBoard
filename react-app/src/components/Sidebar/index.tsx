@@ -84,6 +84,7 @@ interface SidebarProps {
   onLogoutClick: () => void
   onInsightClick: () => void
   onProfileSave: (profile: UserProfile) => void
+  onSync?: () => void | Promise<void>
 }
 
 function Sidebar({
@@ -100,6 +101,7 @@ function Sidebar({
   onLogoutClick,
   onInsightClick,
   onProfileSave,
+  onSync,
 }: SidebarProps) {
   const [expanded, setExpanded] = useState(false)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
@@ -217,11 +219,28 @@ function Sidebar({
             </div>
           ))}
           
+          {/* 同步按钮 - 仅登录时显示 */}
+          {isLoggedIn && onSync && (
+            <div 
+              className={`sidebar-item sync-btn ${syncing ? 'syncing' : ''}`} 
+              onClick={onSync}
+              title="同步云端配置"
+            >
+              <span className="sidebar-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"></path>
+                </svg>
+              </span>
+              <span className="sidebar-label">
+                {syncing ? 'Syncing...' : 'Sync'}
+              </span>
+            </div>
+          )}
+          
           <div className="sidebar-item auth-btn" onClick={handleAuthClick}>
             <span className="sidebar-icon">{isLoggedIn ? Icons.logout : Icons.login}</span>
             <span className="sidebar-label">
               {isLoggedIn ? 'Logout' : 'Login'}
-              {syncing && <span className="sync-indicator">⟳</span>}
             </span>
           </div>
         </nav>
