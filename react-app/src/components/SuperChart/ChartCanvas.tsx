@@ -7,6 +7,12 @@ import type { ChartData } from '@/services/chartService'
 import type { SubIndicator, ProcessedKlineData } from './types'
 import { LIGHT_THEME, DARK_THEME, DEFAULT_LAYOUT } from './types'
 
+interface AlertLine {
+  price: number
+  operator: 'above' | 'below'
+  note?: string
+}
+
 interface ChartCanvasProps {
   width: number
   height: number
@@ -21,6 +27,8 @@ interface ChartCanvasProps {
   onWheel: (deltaY: number) => void
   onCrosshairData?: (data: CrosshairData | null) => void
   onPanToEdge?: () => void // 拖动到左边界时触发加载更多
+  alertLines?: AlertLine[] // 预警线列表
+  hoveredAlertIndex?: number | null // 当前悬停的预警线索引
 }
 
 // 十字线数据类型
@@ -48,7 +56,9 @@ export function ChartCanvas({
   onCrosshairChange,
   onWheel,
   onCrosshairData,
-  onPanToEdge
+  onPanToEdge,
+  alertLines = [],
+  hoveredAlertIndex = null
 }: ChartCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const colors = isDark ? DARK_THEME : LIGHT_THEME
@@ -141,6 +151,9 @@ export function ChartCanvas({
     const textX = axisStartX + textGap
 
     const drawTickLabel = (val: number, yPos: number, color: string) => {
+      // 确保val是有效数字
+      if (typeof val !== 'number' || isNaN(val)) return
+      
       ctx.strokeStyle = colors.border
       ctx.beginPath()
       ctx.moveTo(axisStartX, yPos)
@@ -240,25 +253,39 @@ export function ChartCanvas({
     // 应用X轴平移偏移量
     const xOffset = panOffset.x
 
-    // 价格线
+    // 价格线 - 跳过无效数据点
     ctx.beginPath()
-    priceData.forEach((d, i) => {
+    let priceLineStarted = false
+    priceData.forEach((d) => {
+      if (typeof d.value !== 'number' || isNaN(d.value)) return
+      
       const px = x + timeToX(d.time) * xStep + xOffset
       const py = y + h - ((d.value - priceRange.min) / (priceRange.max - priceRange.min)) * h
-      if (i === 0) ctx.moveTo(px, py)
-      else ctx.lineTo(px, py)
+      if (!priceLineStarted) {
+        ctx.moveTo(px, py)
+        priceLineStarted = true
+      } else {
+        ctx.lineTo(px, py)
+      }
     })
     ctx.strokeStyle = colors.line
     ctx.lineWidth = 1.5
     ctx.stroke()
 
-    // 均价线
+    // 均价线 - 跳过无效数据点
     ctx.beginPath()
-    priceData.forEach((d, i) => {
+    let avgLineStarted = false
+    priceData.forEach((d) => {
+      if (typeof d.avgPrice !== 'number' || isNaN(d.avgPrice)) return
+      
       const px = x + timeToX(d.time) * xStep + xOffset
       const py = y + h - ((d.avgPrice - priceRange.min) / (priceRange.max - priceRange.min)) * h
-      if (i === 0) ctx.moveTo(px, py)
-      else ctx.lineTo(px, py)
+      if (!avgLineStarted) {
+        ctx.moveTo(px, py)
+        avgLineStarted = true
+      } else {
+        ctx.lineTo(px, py)
+      }
     })
     ctx.strokeStyle = colors.avgLine
     ctx.lineWidth = 1
@@ -386,12 +413,20 @@ export function ChartCanvas({
     // 分时图 VOL - 对照原版
     if (isIntraday && indicator === 'vol' && intradayData) {
       const { volumeData, priceData } = intradayData
-      const maxVol = Math.max(...volumeData.map(d => d.value))
-      if (maxVol > 0) {
+      // 过滤掉无效的成交量数据，防止 NaN 导致 toFixed 报错
+      const validVolumes = volumeData
+        .map(d => d.value)
+        .filter(v => typeof v === 'number' && !isNaN(v) && v > 0)
+      
+      if (validVolumes.length > 0) {
+        const maxVol = Math.max(...validVolumes)
         const xStep = w / 240
         const barW = Math.max(1.5, xStep * 0.7)
         ctx.globalAlpha = 0.5
         volumeData.forEach((d, i) => {
+          // 跳过无效数据
+          if (typeof d.value !== 'number' || isNaN(d.value) || d.value <= 0) return
+          
           const px = x + timeToX(d.time) * xStep
           const barH = Math.max(1, (d.value / maxVol) * h * 0.75)
           ctx.fillStyle = (i > 0 && priceData[i].value >= priceData[i - 1].value) ? colors.up : colors.down
@@ -541,6 +576,125 @@ export function ChartCanvas({
     }
   }, [colors, isIntraday, intradayData, klineData, timeToX, formatVol, getDataIndex, drawSubAxisLabel, drawLine])
 
+  // 绘制预警价位线 - 低调优雅的设计
+  const drawAlertLines = useCallback((
+    ctx: CanvasRenderingContext2D,
+    padding: typeof layout.padding,
+    mainH: number,
+    chartW: number,
+    priceRange: { min: number; max: number },
+    alerts: AlertLine[],
+    hoveredAlertIndex: number | null
+  ) => {
+    if (!alerts || alerts.length === 0) return
+    
+    const axisX = padding.left + chartW
+    
+    alerts.forEach((alert, index) => {
+      const { price: alertPrice, operator, note } = alert
+      
+      // 检查价格是否在可见范围内
+      if (alertPrice < priceRange.min || alertPrice > priceRange.max) return
+      
+      // 计算Y坐标
+      const y = padding.top + mainH - ((alertPrice - priceRange.min) / (priceRange.max - priceRange.min)) * mainH
+      
+      const isHovered = hoveredAlertIndex === index
+      
+      // 绘制虚线 - 使用低调的颜色
+      ctx.strokeStyle = colors.textSecondary
+      ctx.lineWidth = 1
+      ctx.setLineDash([4, 2])
+      ctx.globalAlpha = isHovered ? 0.8 : 0.5
+      ctx.beginPath()
+      ctx.moveTo(padding.left, y)
+      ctx.lineTo(padding.left + chartW, y)
+      ctx.stroke()
+      ctx.setLineDash([])
+      ctx.globalAlpha = 1
+      
+      // 左侧小标记 - 突破/跌破指示
+      const markerSize = 6
+      ctx.fillStyle = colors.textSecondary
+      ctx.globalAlpha = isHovered ? 0.9 : 0.6
+      ctx.beginPath()
+      if (operator === 'above') {
+        // 向上三角形
+        ctx.moveTo(padding.left - 2, y)
+        ctx.lineTo(padding.left - 2 - markerSize, y + markerSize)
+        ctx.lineTo(padding.left - 2 - markerSize, y - markerSize)
+      } else {
+        // 向下三角形
+        ctx.moveTo(padding.left - 2, y)
+        ctx.lineTo(padding.left - 2 - markerSize, y - markerSize)
+        ctx.lineTo(padding.left - 2 - markerSize, y + markerSize)
+      }
+      ctx.closePath()
+      ctx.fill()
+      ctx.globalAlpha = 1
+      
+      // 右侧价格文字 - 无背景，直接显示
+      ctx.font = '10px Inter, -apple-system, sans-serif'
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = colors.textSecondary
+      ctx.globalAlpha = isHovered ? 1 : 0.7
+      ctx.fillText(alertPrice.toFixed(2), axisX + 6, y)
+      ctx.globalAlpha = 1
+      
+      // 如果有备注，在左侧显示
+      if (note && note.trim()) {
+        const noteX = padding.left + 8
+        const noteY = y - 8
+        
+        ctx.font = '11px Inter, -apple-system, sans-serif'
+        
+        // 默认显示前3个字，悬停时显示全部
+        let displayText = note
+        let noteW = 0
+        
+        if (isHovered) {
+          // 悬停时显示完整备注
+          const maxWidth = 200
+          const textMetrics = ctx.measureText(note)
+          noteW = Math.min(textMetrics.width + 16, maxWidth)
+          
+          // 如果文字太长，截断
+          if (textMetrics.width > maxWidth - 16) {
+            let truncated = note
+            while (ctx.measureText(truncated + '...').width > maxWidth - 16 && truncated.length > 0) {
+              truncated = truncated.slice(0, -1)
+            }
+            displayText = truncated + '...'
+          }
+        } else {
+          // 默认只显示前3个字
+          displayText = note.length > 3 ? note.substring(0, 3) + '...' : note
+          noteW = ctx.measureText(displayText).width + 16
+        }
+        
+        const noteH = 20
+        
+        // 背景
+        ctx.fillStyle = colors.bg
+        ctx.globalAlpha = 0.95
+        ctx.fillRect(noteX, noteY - noteH / 2, noteW, noteH)
+        ctx.globalAlpha = 1
+        
+        // 边框
+        ctx.strokeStyle = colors.border
+        ctx.lineWidth = 1
+        ctx.strokeRect(noteX, noteY - noteH / 2, noteW, noteH)
+        
+        // 文字
+        ctx.fillStyle = colors.text
+        ctx.textAlign = 'left'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(displayText, noteX + 8, noteY)
+      }
+    })
+  }, [layout, colors])
+
   // 绘制十字线 - 对照原版 drawCrosshair，添加右侧价格标记
   const drawCrosshair = useCallback((
     ctx: CanvasRenderingContext2D,
@@ -575,22 +729,26 @@ export function ChartCanvas({
       
       // 右侧价格标记
       const price = priceRange.max - ((y - padding.top) / mainH) * (priceRange.max - priceRange.min)
-      const axisX = padding.left + chartW
-      const labelW = 50
-      const labelH = 18
-      const labelX = axisX + 4
-      const labelY = y - labelH / 2
       
-      // 背景
-      ctx.fillStyle = colors.textSecondary
-      ctx.fillRect(labelX, labelY, labelW, labelH)
-      
-      // 文字
-      ctx.font = '11px Inter, -apple-system, sans-serif'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillStyle = colors.bg
-      ctx.fillText(price.toFixed(2), labelX + labelW / 2, y)
+      // 确保价格是有效数字
+      if (typeof price === 'number' && !isNaN(price)) {
+        const axisX = padding.left + chartW
+        const labelW = 50
+        const labelH = 18
+        const labelX = axisX + 4
+        const labelY = y - labelH / 2
+        
+        // 背景
+        ctx.fillStyle = colors.textSecondary
+        ctx.fillRect(labelX, labelY, labelW, labelH)
+        
+        // 文字
+        ctx.font = '11px Inter, -apple-system, sans-serif'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillStyle = colors.bg
+        ctx.fillText(price.toFixed(2), labelX + labelW / 2, y)
+      }
     }
     ctx.setLineDash([])
   }, [colors, layout])
@@ -713,13 +871,18 @@ export function ChartCanvas({
       })
     }
 
+    // 绘制预警线 - 在十字线之前绘制，避免遮挡
+    const priceRange = isIntraday && intradayData 
+      ? intradayData.priceRange 
+      : klineData?.priceRange || { min: 0, max: 100 }
+    if (alertLines && alertLines.length > 0) {
+      drawAlertLines(ctx, padding, dynamicMainH, chartW, priceRange, alertLines, hoveredAlertIndex)
+    }
+    
     // 绘制十字线 - 对照原版
     if (crosshair) {
       const subCount = isIntraday ? 1 : subIndicators.length
       const subTotalH = subCount * subH + (subCount > 0 ? (subCount - 1) * subGap : 0)
-      const priceRange = isIntraday && intradayData 
-        ? intradayData.priceRange 
-        : klineData?.priceRange || { min: 0, max: 100 }
       drawCrosshair(ctx, padding, dynamicMainH, subTotalH, chartW, crosshair, priceRange)
       updateCrosshairData(crosshair.x, padding, chartW)
     } else {
@@ -727,8 +890,8 @@ export function ChartCanvas({
     }
   }, [
     width, height, colors, layout, isIntraday, intradayData, klineData,
-    subIndicators, showBoll, crosshair, priceScale, panOffset,
-    drawIntradayMain, drawKlineMain, drawSingleSubChart, drawDivider, drawCrosshair, updateCrosshairData, onCrosshairData
+    subIndicators, showBoll, crosshair, priceScale, panOffset, alertLines, hoveredAlertIndex,
+    drawIntradayMain, drawKlineMain, drawSingleSubChart, drawDivider, drawAlertLines, drawCrosshair, updateCrosshairData, onCrosshairData
   ])
 
   // 鼠标移动 - 支持Y轴拖拽调整价格缩放和图表拖拽平移

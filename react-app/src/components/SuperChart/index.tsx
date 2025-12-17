@@ -24,7 +24,8 @@ export function SuperChart({
   initialPreClose,
   pe,
   onAddAlert,
-  onConfigChange
+  onConfigChange,
+  alertLines = []
 }: SuperChartProps) {
   void _height // 避免 unused 警告
   const containerRef = useRef<HTMLDivElement>(null)
@@ -43,6 +44,9 @@ export function SuperChart({
   // 预警按钮状态 - 只记录 Y 位置和价格
   const [alertButtonPos, setAlertButtonPos] = useState<{ y: number; price: number } | null>(null)
   const alertButtonTimerRef = useRef<number | null>(null)
+  
+  // 预警线悬停状态
+  const [hoveredAlertIndex, setHoveredAlertIndex] = useState<number | null>(null)
   
   const {
     currentTab,
@@ -213,10 +217,10 @@ export function SuperChart({
       return (
         <div className="sc-ohlc" style={{ color: kColor }}>
           <span className="sc-ohlc-time">{crosshairData.time}</span>
-          <span>开 {crosshairData.open.toFixed(2)}</span>
-          <span>高 {crosshairData.high?.toFixed(2)}</span>
-          <span>低 {crosshairData.low?.toFixed(2)}</span>
-          <span>收 {crosshairData.close?.toFixed(2)}</span>
+          {crosshairData.open != null && <span>开 {crosshairData.open.toFixed(2)}</span>}
+          {crosshairData.high != null && <span>高 {crosshairData.high.toFixed(2)}</span>}
+          {crosshairData.low != null && <span>低 {crosshairData.low.toFixed(2)}</span>}
+          {crosshairData.close != null && <span>收 {crosshairData.close.toFixed(2)}</span>}
           {toNowPct != null && !isNaN(toNowPct) && (
             <span>至今 {toNowPct >= 0 ? '+' : ''}{toNowPct.toFixed(2)}%</span>
           )}
@@ -304,9 +308,9 @@ export function SuperChart({
           {renderOhlcInfo()}
         </div>
         <div className="sc-header-right" style={{ color: isUp ? 'var(--color-up)' : 'var(--color-down)' }}>
-          <div className="sc-price">{displayPrice?.toFixed(2) || '--'}</div>
+          <div className="sc-price">{displayPrice != null ? displayPrice.toFixed(2) : '--'}</div>
           <div className="sc-change">
-            {isUp ? '+' : ''}{change.toFixed(2)} ({isUp ? '+' : ''}{pct.toFixed(2)}%)
+            {isUp ? '+' : ''}{(change || 0).toFixed(2)} ({isUp ? '+' : ''}{(pct || 0).toFixed(2)}%)
           </div>
         </div>
       </div>
@@ -416,8 +420,41 @@ export function SuperChart({
             subIndicators={subIndicators}
             showBoll={showBoll}
             crosshair={crosshair}
+            alertLines={alertLines}
+            hoveredAlertIndex={hoveredAlertIndex}
             onCrosshairChange={(pos) => {
               setCrosshair(pos)
+              
+              // 检测是否悬停在预警线附近
+              if (pos && alertLines.length > 0) {
+                const priceRange = isIntraday && intradayData 
+                  ? intradayData.priceRange 
+                  : processedData?.priceRange || { min: 0, max: 100 }
+                
+                const mainH = canvasContentH - DEFAULT_LAYOUT.padding.top - DEFAULT_LAYOUT.padding.bottom - 
+                  (isIntraday ? 1 : subIndicators.length) * (DEFAULT_LAYOUT.subH + DEFAULT_LAYOUT.subGap) - 
+                  DEFAULT_LAYOUT.mainSubGap
+                
+                // 检查鼠标是否接近某条预警线
+                let foundIndex: number | null = null
+                const threshold = 8 // 8px 容差
+                
+                alertLines.forEach((alert, index) => {
+                  if (alert.price < priceRange.min || alert.price > priceRange.max) return
+                  
+                  const alertY = DEFAULT_LAYOUT.padding.top + mainH - 
+                    ((alert.price - priceRange.min) / (priceRange.max - priceRange.min)) * mainH
+                  
+                  if (Math.abs(pos.y - alertY) < threshold) {
+                    foundIndex = index
+                  }
+                })
+                
+                setHoveredAlertIndex(foundIndex)
+              } else {
+                setHoveredAlertIndex(null)
+              }
+              
               // 更新预警按钮位置 - 只记录 Y 位置
               if (pos && crosshairData && (crosshairData.price || crosshairData.close)) {
                 const price = crosshairData.price || crosshairData.close || 0
