@@ -1,7 +1,7 @@
 /**
  * SuperChart 核心逻辑 Hook
  */
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { 
   fetchIntradayData, 
   formatChartData, 
@@ -48,6 +48,10 @@ export function useSuperChart(options: UseSuperChartOptions) {
   const [intradayData, setIntradayData] = useState<ChartData | null>(null)
   const [klineRawData, setKlineRawData] = useState<KlineData | null>(null)
   const [processedData, setProcessedData] = useState<ProcessedKlineData | null>(null)
+  
+  // 用 ref 追踪上一次的值，避免重复加载
+  const prevCodeRef = useRef(code)
+  const prevTabRef = useRef(currentTab)
   const [stockName, setStockName] = useState<string>(initialName)
   
   // 动态加载状态
@@ -218,26 +222,28 @@ export function useSuperChart(options: UseSuperChartOptions) {
     loadMoreKlineData()
   }, [currentTab, isLoadingMore, totalLoadedCount, loadMoreKlineData])
 
-  // 当 code 变化时，重置数据并重新加载
+  // 当 code 或 currentTab 变化时加载数据
   useEffect(() => {
-    // 重置数据
-    setIntradayData(null)
-    setKlineRawData(null)
-    setProcessedData(null)
-    setError(null)
-    setTotalLoadedCount(120) // 重置为初始120条
-    // 显示 loading 并加载数据
-    setLoading(true)
-    loadData(true)
-  }, [code]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // 切换周期时加载数据（不显示 loading）
-  useEffect(() => {
-    // 只有在有数据的情况下切换周期才不显示 loading
-    if (intradayData || klineRawData) {
+    const isCodeChange = code !== prevCodeRef.current
+    const isTabChange = currentTab !== prevTabRef.current
+    
+    if (isCodeChange) {
+      // code 变化：重置所有数据
+      setIntradayData(null)
+      setKlineRawData(null)
+      setProcessedData(null)
+      setError(null)
+      setTotalLoadedCount(120)
+      setLoading(true)
+      loadData(true)
+      prevCodeRef.current = code
+      prevTabRef.current = currentTab
+    } else if (isTabChange) {
+      // 仅周期变化：不显示 loading，静默切换
       loadData(false)
+      prevTabRef.current = currentTab
     }
-  }, [currentTab]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [code, currentTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 开盘时间自动刷新 - 每1.5秒刷新一次
   useEffect(() => {
