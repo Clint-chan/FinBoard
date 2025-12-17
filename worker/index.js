@@ -243,6 +243,76 @@ export default {
         return jsonResponse({ success: true, token, username });
       }
 
+      // POST /api/change-password - 修改密码 (需要 token)
+      if (path === '/api/change-password' && request.method === 'POST') {
+        const username = await verifyToken(request, env);
+        if (!username) {
+          return jsonResponse({ error: '未登录' }, 401);
+        }
+
+        const { oldPassword, newPassword } = await request.json();
+        
+        if (!oldPassword || !newPassword) {
+          return jsonResponse({ error: '旧密码和新密码不能为空' }, 400);
+        }
+
+        if (newPassword.length < 6) {
+          return jsonResponse({ error: '新密码至少 6 位' }, 400);
+        }
+
+        let userData = null;
+        let fromD1 = false;
+
+        // 优先从 D1 查询
+        if (env.DB) {
+          try {
+            userData = await getUserFromDB(env.DB, username);
+            if (userData) {
+              fromD1 = true;
+            }
+          } catch (e) {
+            console.error('D1 change password error:', e);
+          }
+        }
+
+        // 回退到 KV
+        if (!userData) {
+          userData = await env.CONFIG_KV.get(`user:${username}`, 'json');
+        }
+
+        if (!userData) {
+          return jsonResponse({ error: '用户不存在' }, 404);
+        }
+
+        // 验证旧密码
+        const passwordHash = fromD1 ? userData.password_hash : userData.passwordHash;
+        const valid = await verifyPassword(oldPassword, passwordHash);
+        if (!valid) {
+          return jsonResponse({ error: '旧密码错误' }, 401);
+        }
+
+        // 生成新密码哈希
+        const newPasswordHash = await hashPassword(newPassword);
+
+        // 更新密码
+        if (fromD1 && env.DB) {
+          try {
+            await env.DB.prepare('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?')
+              .bind(newPasswordHash, username)
+              .run();
+          } catch (e) {
+            console.error('D1 update password error:', e);
+            return jsonResponse({ error: '修改密码失败' }, 500);
+          }
+        } else {
+          // 更新 KV
+          userData.passwordHash = newPasswordHash;
+          await env.CONFIG_KV.put(`user:${username}`, JSON.stringify(userData));
+        }
+
+        return jsonResponse({ success: true, message: '密码修改成功' });
+      }
+
       // GET /api/config - 获取配置 (需要 token)
       if (path === '/api/config' && request.method === 'GET') {
         const username = await verifyToken(request, env);

@@ -420,6 +420,7 @@ function App() {
             console.error('Sync error:', err)
           }
         }}
+        token={localStorage.getItem('cloud_token')}
       />
       
       <main className="main-content">

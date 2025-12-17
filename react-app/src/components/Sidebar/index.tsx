@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import type { PageType, UserProfile } from '@/types'
-import { AVATARS } from '@/services/config'
+import { cloudChangePassword } from '@/services/cloudService'
 import './Sidebar.css'
 
 // 图标组件
@@ -62,10 +62,10 @@ const Icons = {
       <line x1="6" y1="6" x2="18" y2="18"></line>
     </svg>
   ),
-  plus: (
-    <svg viewBox="0 0 24 24">
-      <line x1="12" y1="5" x2="12" y2="19"></line>
-      <line x1="5" y1="12" x2="19" y2="12"></line>
+  user: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+      <circle cx="12" cy="7" r="4"></circle>
     </svg>
   ),
 }
@@ -85,6 +85,7 @@ interface SidebarProps {
   onInsightClick: () => void
   onProfileSave: (profile: UserProfile) => void
   onSync?: () => void | Promise<void>
+  token?: string | null
 }
 
 function Sidebar({
@@ -102,11 +103,16 @@ function Sidebar({
   onInsightClick,
   onProfileSave,
   onSync,
+  token,
 }: SidebarProps) {
   const [expanded, setExpanded] = useState(false)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [editUsername, setEditUsername] = useState('')
-  const [selectedAvatar, setSelectedAvatar] = useState('')
+  const [oldPassword, setOldPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState(false)
 
   const navItems: { id: PageType | 'insight'; label: string; icon: JSX.Element; adminOnly?: boolean }[] = [
     { id: 'watchlist', label: 'Watchlist', icon: Icons.watchlist },
@@ -136,52 +142,49 @@ function Sidebar({
   const displayUsername = cloudUsername || user?.username
 
   const openProfileModal = useCallback(() => {
-    setEditUsername(user?.username || '')
-    setSelectedAvatar(user?.avatar || AVATARS[0])
+    setEditUsername(cloudUsername || user?.username || '')
+    setOldPassword('')
+    setNewPassword('')
+    setConfirmPassword('')
+    setPasswordError('')
+    setPasswordSuccess(false)
     setProfileModalOpen(true)
-  }, [user])
+  }, [user, cloudUsername])
 
-  const handleProfileSave = () => {
-    if (editUsername.trim()) {
-      onProfileSave({
-        username: editUsername.trim(),
-        avatar: selectedAvatar,
-      })
-      setProfileModalOpen(false)
-    }
-  }
+  const handlePasswordChange = async () => {
+    setPasswordError('')
+    setPasswordSuccess(false)
 
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    
-    if (file.size > 500 * 1024) {
-      alert('图片大小不能超过 500KB')
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      setPasswordError('请填写所有密码字段')
       return
     }
-    
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string
-      const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        const size = 128
-        canvas.width = size
-        canvas.height = size
-        const ctx = canvas.getContext('2d')!
-        
-        const minDim = Math.min(img.width, img.height)
-        const sx = (img.width - minDim) / 2
-        const sy = (img.height - minDim) / 2
-        
-        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size)
-        setSelectedAvatar(canvas.toDataURL('image/jpeg', 0.8))
-      }
-      img.src = dataUrl
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('两次新密码输入不一致')
+      return
     }
-    reader.readAsDataURL(file)
-    e.target.value = ''
+
+    if (newPassword.length < 6) {
+      setPasswordError('新密码长度至少 6 位')
+      return
+    }
+
+    if (!token) {
+      setPasswordError('未登录，无法修改密码')
+      return
+    }
+
+    try {
+      await cloudChangePassword(token, oldPassword, newPassword)
+      setPasswordSuccess(true)
+      setOldPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setTimeout(() => setPasswordSuccess(false), 3000)
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : '修改密码失败')
+    }
   }
 
   const isExpanded = externalExpanded !== undefined ? externalExpanded : expanded
@@ -244,11 +247,7 @@ function Sidebar({
             </button>
           )}
           <div className="sidebar-avatar">
-            {user?.avatar ? (
-              <img src={user.avatar} alt="" />
-            ) : (
-              <span>{displayUsername?.charAt(0)?.toUpperCase() || '?'}</span>
-            )}
+            {Icons.user}
           </div>
           <span className="sidebar-username">{displayUsername || '点击登录'}</span>
         </div>
@@ -263,57 +262,84 @@ function Sidebar({
         )}
       </aside>
 
-      {/* 编辑资料弹窗 */}
+      {/* 用户资料弹窗 */}
       {profileModalOpen && (
         <div className="profile-modal-backdrop show" onClick={() => setProfileModalOpen(false)}>
           <div className="profile-modal" onClick={e => e.stopPropagation()}>
             <div className="profile-modal-header">
-              <span className="profile-modal-title">Edit Profile</span>
+              <span className="profile-modal-title">用户资料</span>
               <div className="profile-modal-close" onClick={() => setProfileModalOpen(false)}>
                 {Icons.close}
               </div>
             </div>
             <div className="profile-modal-body">
-              <div className="profile-avatar-section">
-                <div className="profile-avatar-preview">
-                  {selectedAvatar ? (
-                    <img src={selectedAvatar} alt="" />
-                  ) : (
-                    <span>{editUsername?.charAt(0)?.toUpperCase() || '?'}</span>
-                  )}
+              {/* 用户信息 */}
+              <div className="profile-info-section">
+                <div className="profile-avatar-large">
+                  {Icons.user}
                 </div>
-                <div className="avatar-picker">
-                  <label className="avatar-upload" title="上传头像">
-                    <input type="file" accept="image/*" onChange={handleAvatarUpload} />
-                    {Icons.plus}
-                  </label>
-                  {AVATARS.map((url, i) => (
-                    <div
-                      key={i}
-                      className={`avatar-option ${selectedAvatar === url ? 'selected' : ''}`}
-                      onClick={() => setSelectedAvatar(url)}
-                    >
-                      <img src={url} alt={`Avatar ${i + 1}`} />
+                <div className="profile-username-display">{editUsername}</div>
+              </div>
+
+              {/* 修改密码 */}
+              {isLoggedIn && (
+                <div className="profile-password-section">
+                  <h3 className="profile-section-title">修改密码</h3>
+                  
+                  {passwordError && (
+                    <div className="profile-message profile-message-error">
+                      {passwordError}
                     </div>
-                  ))}
+                  )}
+                  
+                  {passwordSuccess && (
+                    <div className="profile-message profile-message-success">
+                      密码修改成功
+                    </div>
+                  )}
+
+                  <div className="profile-form-group">
+                    <label>当前密码</label>
+                    <input
+                      type="password"
+                      value={oldPassword}
+                      onChange={e => setOldPassword(e.target.value)}
+                      placeholder="请输入当前密码"
+                    />
+                  </div>
+
+                  <div className="profile-form-group">
+                    <label>新密码</label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      placeholder="至少 6 位"
+                    />
+                  </div>
+
+                  <div className="profile-form-group">
+                    <label>确认新密码</label>
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      placeholder="再次输入新密码"
+                    />
+                  </div>
+
+                  <button 
+                    className="profile-btn profile-btn-primary"
+                    onClick={handlePasswordChange}
+                  >
+                    修改密码
+                  </button>
                 </div>
-              </div>
-              <div className="profile-form-group">
-                <label>Username</label>
-                <input
-                  type="text"
-                  value={editUsername}
-                  onChange={e => setEditUsername(e.target.value)}
-                  placeholder="Enter username"
-                />
-              </div>
+              )}
             </div>
             <div className="profile-modal-footer">
               <button className="profile-btn profile-btn-cancel" onClick={() => setProfileModalOpen(false)}>
-                Cancel
-              </button>
-              <button className="profile-btn profile-btn-save" onClick={handleProfileSave}>
-                Save
+                关闭
               </button>
             </div>
           </div>

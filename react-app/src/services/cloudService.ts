@@ -101,10 +101,32 @@ export async function verifyToken(token: string): Promise<boolean> {
   }
 }
 
+/**
+ * 修改密码
+ */
+export async function cloudChangePassword(token: string, oldPassword: string, newPassword: string): Promise<void> {
+  if (!token) throw new Error('未登录')
+  
+  const res = await fetch(`${SYNC_API}/api/change-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ oldPassword, newPassword })
+  })
+  
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error((data as ErrorResponse).error || '修改密码失败')
+  }
+}
+
 export default {
   cloudLogin,
   cloudRegister,
   cloudSaveConfig,
   cloudLoadConfig,
-  verifyToken
+  verifyToken,
+  cloudChangePassword
 }
