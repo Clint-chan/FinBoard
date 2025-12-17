@@ -136,7 +136,9 @@ function Sidebar({
 
   const openProfileModal = useCallback(() => {
     setEditUsername(cloudUsername || user?.username || '')
-    setAvatarUrl(user?.avatar || '')
+    // 只使用有效的头像 URL（data: 或 http 开头）
+    const validAvatar = user?.avatar && (user.avatar.startsWith('data:') || user.avatar.startsWith('http')) ? user.avatar : ''
+    setAvatarUrl(validAvatar)
     setOldPassword('')
     setNewPassword('')
     setConfirmPassword('')
@@ -274,7 +276,7 @@ function Sidebar({
             </button>
           )}
           <div className="sidebar-avatar">
-            {user?.avatar ? (
+            {user?.avatar && (user.avatar.startsWith('data:') || user.avatar.startsWith('http')) ? (
               <img src={user.avatar} alt="" />
             ) : (
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -301,7 +303,7 @@ function Sidebar({
               {/* 用户信息 */}
               <div className="profile-info-section">
                 <div className="profile-avatar-large">
-                  {avatarUrl ? (
+                  {avatarUrl && (avatarUrl.startsWith('data:') || avatarUrl.startsWith('http')) ? (
                     <img src={avatarUrl} alt="头像" />
                   ) : (
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
