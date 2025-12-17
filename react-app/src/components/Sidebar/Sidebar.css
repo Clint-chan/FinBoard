@@ -343,6 +343,9 @@
 .profile-avatar-large svg {
   width: 40px;
   height: 40px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
 }
 
 .profile-avatar-large img {
