@@ -18,18 +18,20 @@
   display: flex;
   flex-direction: column;
   
-  /* 丝滑的弹出动画 */
-  transform: translateY(100%);
+  /* 与其他页面一致的淡入动画 */
   opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
   transition: 
-    transform 0.35s cubic-bezier(0.32, 0.72, 0, 1),
-    opacity 0.25s ease;
+    transform 0.25s ease-out,
+    opacity 0.25s ease-out;
   will-change: transform, opacity;
 }
 
 .fintell-modal.open {
-  transform: translateY(0);
   opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 /* 深色模式 */

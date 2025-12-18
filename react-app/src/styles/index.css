@@ -553,6 +553,18 @@ input:checked + .slider:before {
   display: none !important;
 }
 
+/* 移动端页面切换动画 */
+@keyframes mobilePageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* 移动端自选列表容器 */
 .mobile-watchlist-container {
   position: fixed;
@@ -563,6 +575,7 @@ input:checked + .slider:before {
   z-index: 10;
   background: var(--bg-surface);
   overflow: hidden;
+  animation: mobilePageIn 0.25s ease-out;
 }
 
 /* 移动端行情详情容器 */
@@ -574,6 +587,14 @@ input:checked + .slider:before {
   bottom: calc(55px + env(safe-area-inset-bottom));
   z-index: 50;
   background: var(--bg-body);
+  animation: mobilePageIn 0.25s ease-out;
+}
+
+/* 移动端主内容区域（预警、我的页面）也使用动画 */
+@media (max-width: 768px) {
+  .app.mobile-layout .main-content:not(.mobile-hidden) {
+    animation: mobilePageIn 0.25s ease-out;
+  }
 }
 
 /* 移动端隐藏桌面端侧边栏 */
