@@ -9,53 +9,30 @@
   background: var(--bg-body);
 }
 
-/* ========== 顶部导航栏 ========== */
-.msd-navbar {
-  display: flex;
-  align-items: center;
-  padding: 10px 16px;
+/* ========== 可滚动内容区 ========== */
+.msd-scroll-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ========== 价格信息区 ========== */
+.msd-price-section {
   background: var(--bg-surface);
-  border-bottom: 1px solid var(--border-light);
-  flex-shrink: 0;
+  padding: 16px;
   position: relative;
-  z-index: 10;
 }
 
-.msd-back {
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
+/* 股票名称 */
+.msd-stock-name {
+  font-size: 15px;
+  font-weight: 500;
   color: var(--text-secondary);
-  cursor: pointer;
-  margin-right: 8px;
-  padding: 0;
-  box-shadow: none;
-}
-
-.msd-back:hover {
-  color: var(--text-primary);
-}
-
-.msd-title-area {
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
-}
-
-.msd-title {
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.msd-code {
-  font-size: 12px;
-  color: var(--text-tertiary);
 }
 
 .msd-arrow {
@@ -70,7 +47,7 @@
 /* 股票切换下拉 */
 .msd-stock-picker {
   position: absolute;
-  top: 100%;
+  top: 40px;
   left: 16px;
   right: 16px;
   background: var(--bg-surface);
@@ -118,19 +95,7 @@
   color: var(--color-down);
 }
 
-/* ========== 可滚动内容区 ========== */
-.msd-scroll-content {
-  flex: 1;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* ========== 价格信息区 ========== */
-.msd-price-section {
-  background: var(--bg-surface);
-  padding: 16px;
-}
-
+/* 价格 */
 .msd-main-price .msd-price {
   display: block;
   font-size: 36px;
@@ -166,11 +131,7 @@
   gap: 12px 8px;
 }
 
-.msd-quote-ext {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-light);
-}
+/* 删除了 msd-quote-ext，现在只有一个网格 */
 
 .quote-item {
   display: flex;
@@ -203,7 +164,6 @@
   height: 380px;
   background: var(--bg-surface);
   margin-top: 10px;
-  /* 移动端图表不需要显示 header，只显示工具栏和图表 */
 }
 
 /* ========== 资讯区域 ========== */
