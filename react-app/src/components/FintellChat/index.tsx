@@ -5,6 +5,7 @@
  */
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { ChatMessage as ChatMessageComponent } from '@/components/AnalysisDrawer/ChatMessage'
+import { sendChatMessage, getUserQuota } from '@/services/aiChatService'
 import type { StockData } from '@/types'
 import { type AIMode, AI_MODES, type ChatMessage } from '@/components/AnalysisDrawer/types'
 import './FintellChat.css'
@@ -63,9 +64,7 @@ export function FintellChat({
   // 加载 AI 配额
   useEffect(() => {
     if (open) {
-      import('@/services/aiChatService').then(({ getUserQuota }) => {
-        getUserQuota().then(setAiQuota).catch(console.error)
-      })
+      getUserQuota().then(setAiQuota).catch(console.error)
     }
   }, [open])
 
@@ -97,8 +96,6 @@ export function FintellChat({
     }))
 
     try {
-      const { sendChatMessage } = await import('@/services/aiChatService')
-      
       const currentStock = stockData[currentCode]
       const stockDataForAI = currentStock ? {
         code: currentCode,
@@ -144,20 +141,27 @@ export function FintellChat({
         return { ...prev, [currentCode]: messages }
       })
       
-      import('@/services/aiChatService').then(({ getUserQuota }) => {
-        getUserQuota().then(setAiQuota).catch(console.error)
-      })
+      // 更新配额
+      getUserQuota().then(setAiQuota).catch(console.error)
     } catch (error) {
       console.error('AI error:', error)
+      console.error('Error details:', error instanceof Error ? error.message : String(error))
+      
       let errorMsg = 'AI 服务暂时不可用'
       
       if (error instanceof Error) {
-        if (error.message.includes('登录') || error.message.includes('401')) {
+        const msg = error.message
+        if (msg.includes('登录') || msg.includes('401')) {
           errorMsg = '请先登录后使用 AI 功能'
-        } else if (error.message.includes('429') || error.message.includes('用完')) {
+        } else if (msg.includes('429') || msg.includes('用完')) {
           errorMsg = '今日 AI 使用次数已用完'
-        } else if (error.message.includes('503') || error.message.includes('不可用')) {
+        } else if (msg.includes('503') || msg.includes('不可用')) {
           errorMsg = 'AI 服务暂时不可用，请稍后重试'
+        } else if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+          errorMsg = '网络连接失败，请检查网络'
+        } else if (msg) {
+          // 显示实际错误信息（调试用）
+          errorMsg = msg
         }
       }
       

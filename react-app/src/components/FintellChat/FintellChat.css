@@ -494,10 +494,12 @@
   min-height: 24px;
   max-height: 120px;
   font-family: inherit;
-  font-size: 15px;
+  font-size: 16px; /* iOS 要求至少 16px 才不会自动缩放 */
   color: var(--text-primary);
   line-height: 1.5;
   overflow-y: auto;
+  -webkit-appearance: none; /* 禁用 iOS 默认样式 */
+  appearance: none;
 }
 
 .fintell-input:focus {
@@ -506,6 +508,13 @@
 
 .fintell-input::placeholder {
   color: var(--text-tertiary);
+}
+
+/* 键盘弹出时的适配 */
+@supports (height: 100dvh) {
+  .fintell-modal {
+    height: 100dvh; /* 动态视口高度，自动适配键盘 */
+  }
 }
 
 /* 发送按钮 - 与电脑端一致的蓝色小按钮 */

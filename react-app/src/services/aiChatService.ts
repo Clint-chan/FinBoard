@@ -101,18 +101,24 @@ export async function sendChatMessage(
   const token = getStoredToken()
   
   // 通过 Worker 调用 AI（Worker 负责系统提示词和数据采集）
-  const response = await fetch(`${AI_API_BASE}/api/ai/chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      messages,
-      stockData,
-      mode,
-      token // 传递 token 用于配额验证
+  let response: Response
+  try {
+    response = await fetch(`${AI_API_BASE}/api/ai/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages,
+        stockData,
+        mode,
+        token // 传递 token 用于配额验证
+      })
     })
-  })
+  } catch (fetchError) {
+    console.error('Fetch error:', fetchError)
+    throw new Error('网络连接失败，请检查网络')
+  }
 
   if (!response.ok) {
     // 检查是否是配额用尽
@@ -125,10 +131,10 @@ export async function sendChatMessage(
     try {
       const errorData = await response.json()
       // 使用后端返回的错误信息（已经过滤敏感信息）
-      throw new Error(errorData.error || errorData.details || 'AI 服务暂时不可用')
+      throw new Error(errorData.error || errorData.details || `AI 服务错误 (${response.status})`)
     } catch (e) {
       // 如果无法解析 JSON，返回通用错误
-      throw new Error('AI 服务暂时不可用')
+      throw new Error(`AI 服务暂时不可用 (${response.status})`)
     }
   }
 
