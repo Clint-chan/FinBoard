@@ -463,8 +463,8 @@ function App() {
 
   return (
     <div className={`app ${isMobile ? 'mobile-layout' : ''}`} data-theme={isDark ? 'dark' : 'light'}>
-      {/* 移动端顶部导航 - 仅在非行情详情页显示 */}
-      {(!isMobile || mobileTab !== 'market' || !mobileStockCode) && (
+      {/* 移动端顶部导航 - 在行情详情页和 Fintell 对话时隐藏 */}
+      {(!isMobile || (mobileTab !== 'market' || !mobileStockCode)) && !fintellOpen && (
         <MobileHeader 
           title={isMobile ? getMobileTitle() : (activePage === 'watchlist' ? '行情看板' : activePage === 'alerts' ? '价格预警' : activePage === 'settings' ? '设置' : '管理')}
         />
