@@ -7,7 +7,7 @@ import { useSuperChart } from './useSuperChart'
 import { ChartCanvas, type CrosshairData } from './ChartCanvas'
 import { StockInfoCard } from '@/components/StockInfoCard'
 import { isETF } from '@/utils/format'
-import { PERIODS, DEFAULT_LAYOUT, type ChartPeriod, type SubIndicator, type SuperChartProps, type ChartConfig } from './types'
+import { PERIODS, getLayout, type ChartPeriod, type SubIndicator, type SuperChartProps, type ChartConfig } from './types'
 import './SuperChart.css'
 
 export function SuperChart({
@@ -248,15 +248,17 @@ export function SuperChart({
   }
 
   // 对照原版 updateCanvasSize：计算容器动态高度
+  // 根据宽度动态获取布局参数
+  const dynamicLayout = getLayout(actualWidth)
   const subCount = isIntraday ? 1 : subIndicators.length
   const { headerH, toolbarH, padding, subH, subGap, mainSubGap, mainH } = {
-    headerH: 90, // 增加header高度以容纳更多信息
-    toolbarH: 38,
-    padding: { top: 8, bottom: 12 },
-    subH: 72,
-    subGap: 10,
-    mainSubGap: 15,
-    mainH: 150
+    headerH: dynamicLayout.headerH + 15, // header 高度
+    toolbarH: dynamicLayout.toolbarH,
+    padding: { top: dynamicLayout.padding.top, bottom: dynamicLayout.padding.bottom },
+    subH: dynamicLayout.subH,
+    subGap: dynamicLayout.subGap,
+    mainSubGap: dynamicLayout.mainSubGap,
+    mainH: dynamicLayout.mainH
   }
   const totalSubH = subCount * subH + (subCount > 0 ? (subCount - 1) * subGap : 0)
   const currentMainSubGap = subCount > 0 ? mainSubGap : 0
@@ -436,9 +438,10 @@ export function SuperChart({
                   ? intradayData.priceRange 
                   : processedData?.priceRange || { min: 0, max: 100 }
                 
-                const mainH = canvasContentH - DEFAULT_LAYOUT.padding.top - DEFAULT_LAYOUT.padding.bottom - 
-                  (isIntraday ? 1 : subIndicators.length) * (DEFAULT_LAYOUT.subH + DEFAULT_LAYOUT.subGap) - 
-                  DEFAULT_LAYOUT.mainSubGap
+                const alertLayout = getLayout(actualWidth)
+                const alertMainH = canvasContentH - alertLayout.padding.top - alertLayout.padding.bottom - 
+                  (isIntraday ? 1 : subIndicators.length) * (alertLayout.subH + alertLayout.subGap) - 
+                  alertLayout.mainSubGap
                 
                 // 检查鼠标是否接近某条预警线
                 let foundIndex: number | null = null
@@ -447,8 +450,8 @@ export function SuperChart({
                 alertLines.forEach((alert, index) => {
                   if (alert.price < priceRange.min || alert.price > priceRange.max) return
                   
-                  const alertY = DEFAULT_LAYOUT.padding.top + mainH - 
-                    ((alert.price - priceRange.min) / (priceRange.max - priceRange.min)) * mainH
+                  const alertY = alertLayout.padding.top + alertMainH - 
+                    ((alert.price - priceRange.min) / (priceRange.max - priceRange.min)) * alertMainH
                   
                   if (Math.abs(pos.y - alertY) < threshold) {
                     foundIndex = index
@@ -491,7 +494,7 @@ export function SuperChart({
         <button
           className="sc-alert-btn"
           style={{
-            right: `${DEFAULT_LAYOUT.padding.right + 8}px`,
+            right: `${dynamicLayout.padding.right + 8}px`,
             top: `${headerH + toolbarH + alertButtonPos.y - 12}px`
           }}
           onClick={(e) => {

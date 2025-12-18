@@ -119,6 +119,23 @@ export const DEFAULT_LAYOUT: ChartLayout = {
   axisTextGap: 5
 }
 
+// 移动端布局参数
+export const MOBILE_LAYOUT: ChartLayout = {
+  padding: { top: 6, right: 48, bottom: 10, left: 8 },
+  headerH: 60,
+  toolbarH: 34,
+  mainH: 140,
+  subH: 60,
+  subGap: 8,
+  mainSubGap: 12,
+  axisTextGap: 4
+}
+
+// 根据屏幕宽度获取布局参数
+export function getLayout(width: number): ChartLayout {
+  return width <= 500 ? MOBILE_LAYOUT : DEFAULT_LAYOUT
+}
+
 // 图表配置（用于缓存）
 export interface ChartConfig {
   tab: ChartPeriod

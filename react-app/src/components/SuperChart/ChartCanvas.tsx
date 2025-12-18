@@ -5,7 +5,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
 import type { ChartData } from '@/services/chartService'
 import type { SubIndicator, ProcessedKlineData } from './types'
-import { LIGHT_THEME, DARK_THEME, DEFAULT_LAYOUT } from './types'
+import { LIGHT_THEME, DARK_THEME, getLayout } from './types'
 import { isETF } from '@/utils/format'
 
 interface AlertLine {
@@ -67,7 +67,7 @@ export function ChartCanvas({
   const priceDigits = code && isETF(code) ? 3 : 2
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const colors = isDark ? DARK_THEME : LIGHT_THEME
-  const layout = DEFAULT_LAYOUT
+  const layout = getLayout(width) // 根据宽度动态获取布局参数
   const dprRef = useRef(window.devicePixelRatio || 1)
   
   // 触摸缩放状态 - 对照原版 pinchState

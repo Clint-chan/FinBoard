@@ -372,3 +372,75 @@
 .sc-error {
   color: var(--color-up);
 }
+
+
+/* ========== 移动端适配 ========== */
+@media (max-width: 768px) {
+  .sc-header {
+    min-height: 70px;
+    padding: 10px 12px 6px;
+    gap: 12px;
+  }
+
+  .sc-header-left {
+    max-width: calc(100% - 90px);
+  }
+
+  .sc-name {
+    font-size: 13px;
+  }
+
+  .sc-ohlc {
+    font-size: 10px;
+    gap: 4px 8px;
+    max-height: 36px;
+  }
+
+  .sc-header-right {
+    min-width: 80px;
+  }
+
+  .sc-price {
+    font-size: 16px;
+  }
+
+  .sc-change {
+    font-size: 10px;
+  }
+
+  .sc-toolbar {
+    padding: 0 12px 6px;
+  }
+
+  .sc-tabs {
+    gap: 3px;
+  }
+
+  .sc-tab {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+
+  .sc-tab-dropdown {
+    padding: 4px 8px 4px 10px;
+    font-size: 11px;
+  }
+
+  .sc-gear-btn {
+    width: 26px;
+    height: 26px;
+  }
+}
+
+/* 移动端详情页中隐藏 SuperChart 的 header（因为已经在外部显示了） */
+.msd-chart-section .sc-header {
+  display: none;
+}
+
+.msd-chart-section .super-chart {
+  padding-top: 0;
+}
+
+.msd-chart-section .sc-toolbar {
+  padding-top: 10px;
+}

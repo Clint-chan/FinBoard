@@ -1,12 +1,12 @@
 /**
  * MobileStockDetail - 移动端行情详情页
- * 布局：顶部固定导航 + 可滚动内容（基础信息 + K线图 + 资讯/股吧）
+ * 布局：顶部导航 + 可滚动内容（价格信息 + K线图 + 资讯）
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { SuperChart } from '@/components/SuperChart'
 import { StockNews } from '@/components/StockNews'
+import { fetchStockDetailInfoCached, type StockDetailInfo } from '@/services/stockInfoService'
 import type { StockData, AlertConfig } from '@/types'
-import { fmtVol, fmtAmt } from '@/utils/format'
 import './MobileStockDetail.css'
 
 interface MobileStockDetailProps {
@@ -20,6 +20,35 @@ interface MobileStockDetailProps {
   alerts?: Record<string, AlertConfig>
 }
 
+// 格式化大数字
+function fmtBigNum(val?: number): string {
+  if (val == null || isNaN(val)) return '--'
+  if (val >= 10000) return (val / 10000).toFixed(2) + '万亿'
+  if (val >= 1) return val.toFixed(2) + '亿'
+  return (val * 10000).toFixed(0) + '万'
+}
+
+// 格式化成交量
+function fmtVol(val?: number): string {
+  if (val == null || isNaN(val)) return '--'
+  if (val >= 1e8) return (val / 1e8).toFixed(2) + '亿'
+  if (val >= 1e4) return (val / 1e4).toFixed(0) + '万'
+  return val.toLocaleString()
+}
+
+// 格式化成交额
+function fmtAmt(val?: number): string {
+  if (val == null || isNaN(val)) return '--'
+  if (val >= 1e8) return (val / 1e8).toFixed(2) + '亿'
+  return (val / 1e4).toFixed(0) + '万'
+}
+
+// 格式化百分比
+function fmtPct(val?: number): string {
+  if (val == null || isNaN(val)) return '--'
+  return val.toFixed(2) + '%'
+}
+
 export function MobileStockDetail({
   code,
   stockData,
@@ -31,7 +60,16 @@ export function MobileStockDetail({
   alerts = {},
 }: MobileStockDetailProps) {
   const [showStockPicker, setShowStockPicker] = useState(false)
+  const [detailInfo, setDetailInfo] = useState<StockDetailInfo | null>(null)
   const stock = stockData[code]
+
+  // 加载详细信息
+  useEffect(() => {
+    if (!code) return
+    fetchStockDetailInfoCached(code)
+      .then(setDetailInfo)
+      .catch(() => setDetailInfo(null))
+  }, [code])
 
   if (!stock) {
     return (
@@ -48,7 +86,7 @@ export function MobileStockDetail({
 
   return (
     <div className={`mobile-stock-detail ${isDark ? 'dark' : ''}`}>
-      {/* 顶部导航栏 - 固定 */}
+      {/* 顶部导航栏 */}
       <header className="msd-navbar">
         {onBack && (
           <button className="msd-back" onClick={onBack}>
@@ -64,15 +102,7 @@ export function MobileStockDetail({
           <span className="msd-title">{stock.name}</span>
           <span className="msd-code">{code.toUpperCase()}</span>
           {stockList.length > 1 && (
-            <svg
-              className={`msd-arrow ${showStockPicker ? 'open' : ''}`}
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
+            <svg className={`msd-arrow ${showStockPicker ? 'open' : ''}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
           )}
@@ -87,13 +117,10 @@ export function MobileStockDetail({
                 <div
                   key={c}
                   className={`msd-stock-option ${c === code ? 'active' : ''}`}
-                  onClick={() => {
-                    onStockChange?.(c)
-                    setShowStockPicker(false)
-                  }}
+                  onClick={() => { onStockChange?.(c); setShowStockPicker(false) }}
                 >
                   <span className="option-name">{s?.name || c}</span>
-                  <span className={`option-pct ${p >= 0 ? 'up' : 'down'}`}>
+                  <span className={`option-pct ${p >= 0 ? 'is-up' : 'is-down'}`}>
                     {p >= 0 ? '+' : ''}{p.toFixed(2)}%
                   </span>
                 </div>
@@ -113,6 +140,10 @@ export function MobileStockDetail({
               {isUp ? '+' : ''}{change.toFixed(2)} ({isUp ? '+' : ''}{pct.toFixed(2)}%)
             </span>
           </div>
+        </div>
+
+        {/* 行情数据网格 */}
+        <div className="msd-quote-section">
           <div className="msd-quote-grid">
             <div className="quote-item">
               <span className="quote-label">高</span>
@@ -137,6 +168,33 @@ export function MobileStockDetail({
             <div className="quote-item">
               <span className="quote-label">成交额</span>
               <span className="quote-value">{fmtAmt(stock.amt)}</span>
+            </div>
+          </div>
+          {/* 扩展信息 */}
+          <div className="msd-quote-grid msd-quote-ext">
+            <div className="quote-item">
+              <span className="quote-label">市值</span>
+              <span className="quote-value">{fmtBigNum(detailInfo?.totalMarketCap)}</span>
+            </div>
+            <div className="quote-item">
+              <span className="quote-label">流通</span>
+              <span className="quote-value">{fmtBigNum(detailInfo?.floatMarketCap)}</span>
+            </div>
+            <div className="quote-item">
+              <span className="quote-label">市盈</span>
+              <span className="quote-value">{detailInfo?.pe?.toFixed(2) || stock.pe?.toFixed(2) || '--'}</span>
+            </div>
+            <div className="quote-item">
+              <span className="quote-label">量比</span>
+              <span className="quote-value">--</span>
+            </div>
+            <div className="quote-item">
+              <span className="quote-label">换手</span>
+              <span className="quote-value">{fmtPct(detailInfo?.turnoverRate || stock.turnover)}</span>
+            </div>
+            <div className="quote-item">
+              <span className="quote-label">振幅</span>
+              <span className="quote-value">{fmtPct(detailInfo?.amplitude)}</span>
             </div>
           </div>
         </div>
