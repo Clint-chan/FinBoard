@@ -568,7 +568,7 @@ input:checked + .slider:before {
 /* 移动端自选列表容器 */
 .mobile-watchlist-container {
   position: fixed;
-  top: 48px; /* MobileHeader 高度 */
+  top: 56px; /* MobileHeader 高度 */
   left: 0;
   right: 0;
   bottom: calc(55px + env(safe-area-inset-bottom));
