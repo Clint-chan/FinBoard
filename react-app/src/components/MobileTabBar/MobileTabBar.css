@@ -1,16 +1,28 @@
-/* 底部导航栏 */
+/**
+ * 底部导航栏 - 扁平化设计
+ * 
+ * 设计原则：
+ * 1. 毛玻璃效果 backdrop-filter
+ * 2. AI 按钮扁平化，用异色图标代替物理突起
+ * 3. 更精致的视觉层级
+ */
+
 .mobile-tab-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   width: 100%;
   height: calc(55px + env(safe-area-inset-bottom));
-  background: var(--bg-surface);
-  box-shadow: 0 -1px 5px rgba(0, 0, 0, 0.05);
-  display: none; /* 默认隐藏，移动端显示 */
+  /* 毛玻璃效果 */
+  background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  /* 更柔和的阴影 */
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.06);
+  display: none;
   justify-content: space-around;
   align-items: flex-start;
-  padding-top: 6px;
+  padding-top: 8px;
   z-index: 90;
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -50,42 +62,45 @@
   line-height: 1.2;
 }
 
-/* AI 按钮 - 中间突出 */
+/* AI 按钮 - 扁平化设计，异色图标 */
 .tab-item.ai-btn {
   position: relative;
 }
 
 .ai-icon-wrapper {
-  background: linear-gradient(135deg, #4F6AF5 0%, #7B4FF5 100%);
-  border-radius: 50%;
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: -14px;
-  box-shadow: 0 3px 10px rgba(79, 106, 245, 0.4);
-  transition: transform 0.15s, box-shadow 0.15s;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(79, 106, 245, 0.12) 0%, rgba(123, 79, 245, 0.12) 100%);
+  transition: transform 0.15s, background 0.15s;
 }
 
 .ai-icon-wrapper svg {
-  width: 24px;
-  height: 24px;
-  stroke: #fff;
+  width: 20px;
+  height: 20px;
+  stroke: #6366f1;
 }
 
 .tab-item.ai-btn:active .ai-icon-wrapper {
-  transform: scale(0.92);
-  box-shadow: 0 2px 6px rgba(79, 106, 245, 0.3);
+  transform: scale(0.95);
+  background: linear-gradient(135deg, rgba(79, 106, 245, 0.2) 0%, rgba(123, 79, 245, 0.2) 100%);
 }
 
 .tab-item.ai-btn .tab-label {
-  margin-top: 4px;
+  margin-top: 2px;
   font-weight: 600;
+  color: #6366f1;
+}
+
+.tab-item.ai-btn.active .ai-icon-wrapper {
   background: linear-gradient(135deg, #4F6AF5 0%, #7B4FF5 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+}
+
+.tab-item.ai-btn.active .ai-icon-wrapper svg {
+  stroke: #fff;
 }
 
 /* 移动端显示 */
@@ -97,9 +112,26 @@
 
 /* 深色模式 */
 [data-theme="dark"] .mobile-tab-bar {
-  box-shadow: 0 -1px 5px rgba(0, 0, 0, 0.2);
+  background: rgba(var(--bg-surface-rgb, 30, 30, 30), 0.85);
+  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.06);
 }
 
-[data-theme="dark"] .fintell-fab {
-  box-shadow: 0 4px 12px rgba(79, 106, 245, 0.3);
+[data-theme="dark"] .ai-icon-wrapper {
+  background: linear-gradient(135deg, rgba(79, 106, 245, 0.2) 0%, rgba(123, 79, 245, 0.2) 100%);
+}
+
+[data-theme="dark"] .ai-icon-wrapper svg {
+  stroke: #818cf8;
+}
+
+[data-theme="dark"] .tab-item.ai-btn .tab-label {
+  color: #818cf8;
+}
+
+[data-theme="dark"] .tab-item.ai-btn.active .ai-icon-wrapper {
+  background: linear-gradient(135deg, #4F6AF5 0%, #7B4FF5 100%);
+}
+
+[data-theme="dark"] .tab-item.ai-btn.active .ai-icon-wrapper svg {
+  stroke: #fff;
 }

@@ -1,4 +1,13 @@
-/* 移动端自选股列表 - 双行布局 */
+/**
+ * 移动端自选股列表 - 胶囊设计 (Pill Design)
+ * 
+ * 设计原则：
+ * 1. 价格纯数字无背景，涨跌幅用胶囊色块
+ * 2. 中间迷你走势图 Sparkline
+ * 3. 缩进分割线，更透气的布局
+ * 4. 等宽数字 tabular-nums
+ */
+
 .mobile-stock-list {
   display: flex;
   flex-direction: column;
@@ -54,16 +63,30 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* 单个股票项 - 双行布局 */
+/* 单个股票项 - 三栏布局 */
 .msl-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border-light);
+  padding: 16px 12px;
   cursor: pointer;
   transition: background 0.15s;
   -webkit-tap-highlight-color: transparent;
+  /* 缩进分割线 - Apple Style */
+  position: relative;
+}
+
+.msl-item::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 16px;
+  right: 0;
+  height: 1px;
+  background: var(--border-light);
+}
+
+.msl-item:last-child::after {
+  display: none;
 }
 
 .msl-item:active {
@@ -72,8 +95,9 @@
 
 /* 左侧：名称 + 代码 */
 .msl-left {
-  flex: 1;
-  min-width: 0;
+  flex: 0 0 auto;
+  min-width: 80px;
+  max-width: 100px;
 }
 
 .msl-name {
@@ -84,49 +108,78 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .msl-alert-dot {
   color: #f59e0b;
   font-size: 8px;
+  flex-shrink: 0;
+}
+
+.msl-code-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .msl-code {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-tertiary);
   letter-spacing: 0.02em;
 }
 
 .msl-profit {
   display: inline-block;
-  font-size: 11px;
-  margin-top: 4px;
-  padding: 2px 6px;
-  border-radius: 4px;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
 }
 
 .msl-profit.up {
   color: var(--color-up);
-  background: var(--color-up-bg);
+  background: rgba(var(--color-up-rgb, 239, 68, 68), 0.1);
 }
 
 .msl-profit.down {
   color: var(--color-down);
-  background: var(--color-down-bg);
+  background: rgba(var(--color-down-rgb, 34, 197, 94), 0.1);
 }
 
-/* 右侧：价格 + 涨跌幅 + 成交量 */
+/* 中间：迷你走势图 */
+.msl-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  min-width: 60px;
+}
+
+.msl-sparkline {
+  width: 60px;
+  height: 28px;
+}
+
+/* 右侧：价格 + 涨跌幅胶囊 */
 .msl-right {
+  flex: 0 0 auto;
   text-align: right;
-  flex-shrink: 0;
-  margin-left: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
 }
 
+/* 价格 - 纯数字无背景，字号加大加粗 */
 .msl-price {
   font-size: 18px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  margin-bottom: 4px;
+  line-height: 1.2;
 }
 
 .msl-price.up {
@@ -141,40 +194,31 @@
   color: var(--text-secondary);
 }
 
-.msl-meta {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.msl-pct {
-  font-size: 13px;
+/* 涨跌幅胶囊 - Pill Design */
+.msl-pct-pill {
+  display: inline-block;
+  font-size: 12px;
   font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
   font-variant-numeric: tabular-nums;
+  min-width: 64px;
+  text-align: center;
 }
 
-.msl-pct.up {
+.msl-pct-pill.up {
   color: var(--color-up);
-  background: var(--color-up-bg);
+  background: rgba(var(--color-up-rgb, 239, 68, 68), 0.12);
 }
 
-.msl-pct.down {
+.msl-pct-pill.down {
   color: var(--color-down);
-  background: var(--color-down-bg);
+  background: rgba(var(--color-down-rgb, 34, 197, 94), 0.12);
 }
 
-.msl-pct.flat {
+.msl-pct-pill.flat {
   color: var(--text-secondary);
   background: var(--bg-hover);
-}
-
-.msl-vol {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
 }
 
 /* 空状态 */
@@ -206,4 +250,20 @@
 /* 深色模式 */
 [data-theme="dark"] .msl-item:active {
   background: var(--bg-hover);
+}
+
+[data-theme="dark"] .msl-profit.up {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+[data-theme="dark"] .msl-profit.down {
+  background: rgba(34, 197, 94, 0.15);
+}
+
+[data-theme="dark"] .msl-pct-pill.up {
+  background: rgba(239, 68, 68, 0.18);
+}
+
+[data-theme="dark"] .msl-pct-pill.down {
+  background: rgba(34, 197, 94, 0.18);
 }

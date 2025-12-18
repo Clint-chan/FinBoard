@@ -33,14 +33,17 @@
 :root {
   --bg-body: #f5f7fa;
   --bg-surface: #ffffff;
+  --bg-surface-rgb: 255, 255, 255;
   --bg-hover: #f9fafb;
   --text-primary: #111827;
   --text-secondary: #6b7280;
   --text-tertiary: #9ca3af;
   --border-light: #e5e7eb;
   --color-up: #ef4444;
+  --color-up-rgb: 239, 68, 68;
   --color-up-bg: #fef2f2;
   --color-down: #10b981;
+  --color-down-rgb: 16, 185, 129;
   --color-down-bg: #ecfdf5;
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -51,14 +54,17 @@
 [data-theme="dark"] {
   --bg-body: #0f172a;
   --bg-surface: #1e293b;
+  --bg-surface-rgb: 30, 41, 59;
   --bg-hover: #334155;
   --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
   --text-tertiary: #64748b;
   --border-light: #334155;
   --color-up: #f87171;
+  --color-up-rgb: 248, 113, 113;
   --color-up-bg: rgba(248, 113, 113, 0.15);
   --color-down: #34d399;
+  --color-down-rgb: 52, 211, 153;
   --color-down-bg: rgba(52, 211, 153, 0.15);
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);

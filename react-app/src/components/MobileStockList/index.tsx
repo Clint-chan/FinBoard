@@ -1,10 +1,14 @@
 /**
  * MobileStockList - 移动端自选股列表
- * 采用双行布局，优化信息层级
+ * 采用胶囊设计 (Pill Design)，优化信息层级
+ * - 价格纯数字无背景，涨跌幅胶囊色块
+ * - 中间迷你走势图 Sparkline
+ * - 缩进分割线，更透气的布局
  */
 import { useCallback, useRef, useEffect } from 'react'
 import type { StockData, AlertConfig } from '@/types'
-import { fmtVol, calcPct, getPctClass } from '@/utils/format'
+import { calcPct, getPctClass } from '@/utils/format'
+import { Sparkline } from '@/components/Sparkline'
 import './MobileStockList.css'
 
 interface MobileStockItemProps {
@@ -92,23 +96,25 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
           {data?.name || '--'}
           {hasAlert && <span className="msl-alert-dot">●</span>}
         </div>
-        <div className="msl-code">{code.toUpperCase()}</div>
-        {profitInfo}
+        <div className="msl-code-row">
+          <span className="msl-code">{code.toUpperCase()}</span>
+          {profitInfo}
+        </div>
       </div>
 
-      {/* 右侧：价格 + 涨跌幅 + 成交量 */}
+      {/* 中间：迷你走势图 */}
+      <div className="msl-center">
+        <Sparkline code={code} className="msl-sparkline" />
+      </div>
+
+      {/* 右侧：价格 + 涨跌幅胶囊 */}
       <div className="msl-right">
         <div className={`msl-price ${pctClass}`}>
           {data?.price?.toFixed(2) || '--'}
         </div>
-        <div className="msl-meta">
-          <span className={`msl-pct ${pctClass}`}>
-            {sign}{(pct * 100).toFixed(2)}%
-          </span>
-          <span className="msl-vol">
-            {fmtVol(data?.vol)}
-          </span>
-        </div>
+        <span className={`msl-pct-pill ${pctClass}`}>
+          {sign}{(pct * 100).toFixed(2)}%
+        </span>
       </div>
     </div>
   )
