@@ -590,7 +590,20 @@ input:checked + .slider:before {
   animation: mobilePageIn 0.25s ease-out;
 }
 
-/* 移动端主内容区域（预警、我的页面）也使用动画 */
+/* 移动端"我的"页面容器 */
+.mobile-profile-container {
+  position: fixed;
+  top: 56px; /* MobileHeader 高度 */
+  left: 0;
+  right: 0;
+  bottom: calc(55px + env(safe-area-inset-bottom));
+  z-index: 10;
+  background: var(--bg-body);
+  overflow: hidden;
+  animation: mobilePageIn 0.25s ease-out;
+}
+
+/* 移动端主内容区域（预警页面）也使用动画 */
 @media (max-width: 768px) {
   .app.mobile-layout .main-content:not(.mobile-hidden) {
     animation: mobilePageIn 0.25s ease-out;

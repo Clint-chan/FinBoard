@@ -11,6 +11,7 @@ import { MobileHeader } from '@/components/MobileHeader'
 import { MobileTabBar, type MobileTab } from '@/components/MobileTabBar'
 import { MobileStockList } from '@/components/MobileStockList'
 import { MobileStockDetail } from '@/components/MobileStockDetail'
+import { MobileProfile } from '@/components/MobileProfile'
 import { FintellChat } from '@/components/FintellChat'
 import StockTable from '@/components/StockTable'
 import StatusBar from '@/components/StatusBar'
@@ -522,9 +523,38 @@ function App() {
           />
         </div>
       )}
+
+      {/* 移动端"我的"页面 */}
+      {isMobile && mobileTab === 'profile' && (
+        <div className="mobile-profile-container">
+          <MobileProfile
+            isLoggedIn={isLoggedIn}
+            username={cloudUsername || undefined}
+            onLoginSuccess={handleAuthSuccess}
+            onLogout={handleLogout}
+            onSync={async () => {
+              try {
+                await cloudSync()
+                refresh()
+              } catch (err) {
+                console.error('Sync error:', err)
+              }
+            }}
+            syncing={syncing}
+            config={{
+              interval: config.interval,
+              pctThreshold: config.pctThreshold,
+              refreshOnlyInMarketHours: config.refreshOnlyInMarketHours ?? true,
+              quoteSource: config.quoteSource || 'eastmoney',
+              theme: config.theme
+            }}
+            onConfigChange={updateConfig}
+          />
+        </div>
+      )}
       
-      {/* 主内容区域 - 移动端仅在预警/我的页面显示 */}
-      <main className={`main-content ${isMobile && (mobileTab === 'watchlist' || mobileTab === 'market') ? 'mobile-hidden' : ''}`}>
+      {/* 主内容区域 - 移动端仅在预警页面显示 */}
+      <main className={`main-content ${isMobile && (mobileTab === 'watchlist' || mobileTab === 'market' || mobileTab === 'profile') ? 'mobile-hidden' : ''}`}>
         {activePage === 'watchlist' && (
           <div className="page">
             {/* 对照原版：header 只有标题，设置按钮是隐藏的 */}
