@@ -1079,10 +1079,26 @@ export function ChartCanvas({
     isYAxis: boolean
   } | null>(null)
 
-  // 触摸开始 - 支持单指拖动和双指缩放
+  // 长按检测状态 - 用于移动端十字线交互
+  const longPressTimerRef = useRef<number | null>(null)
+  const [crosshairActive, setCrosshairActive] = useState(false) // 十字线是否激活
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null)
+
+  // 清除长按计时器
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }, [])
+
+  // 触摸开始 - 支持长按激活十字线、双指缩放
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
+      // 双指缩放 - 阻止默认行为
       e.preventDefault()
+      clearLongPressTimer()
+      setCrosshairActive(false)
       const dist = getTouchDistance(e.touches)
       setPinchState({ startDist: dist, startCount: 50 })
       setTouchDragging(null)
@@ -1094,81 +1110,106 @@ export function ChartCanvas({
       const scaleX = (canvasRef.current?.width || 0) / rect.width / dpr
       const x = (touch.clientX - rect.left) * scaleX
 
+      // 记录触摸起始位置
+      touchStartPosRef.current = { x: touch.clientX, y: touch.clientY }
+
       // 检查是否在Y轴区域
       const chartW = width - layout.padding.left - layout.padding.right
       const axisX = layout.padding.left + chartW
       const isOnYAxis = x >= axisX - 20 && x <= width // 扩大Y轴触摸区域
 
-      setTouchDragging({
-        startX: touch.clientX,
-        startY: touch.clientY,
-        startPanX: panOffset.x,
-        startPanY: panOffset.y,
-        startScale: priceScale,
-        isYAxis: isOnYAxis
-      })
-    }
-  }, [getTouchDistance, width, layout, panOffset, priceScale])
+      // 如果在Y轴区域，立即开始拖动（调整价格缩放）
+      if (isOnYAxis) {
+        e.preventDefault()
+        setTouchDragging({
+          startX: touch.clientX,
+          startY: touch.clientY,
+          startPanX: panOffset.x,
+          startPanY: panOffset.y,
+          startScale: priceScale,
+          isYAxis: true
+        })
+        return
+      }
 
-  // 触摸移动 - 支持单指拖动平移/缩放
+      // 非Y轴区域：启动长按检测（500ms后激活十字线）
+      clearLongPressTimer()
+      longPressTimerRef.current = window.setTimeout(() => {
+        // 长按成功，激活十字线模式
+        setCrosshairActive(true)
+        // 震动反馈
+        if (navigator.vibrate) navigator.vibrate(30)
+        // 显示十字线
+        updateCrosshairFromTouch(touch)
+        longPressTimerRef.current = null
+      }, 500)
+    }
+  }, [getTouchDistance, width, layout, panOffset, priceScale, clearLongPressTimer, updateCrosshairFromTouch])
+
+  // 触摸移动 - 支持双指缩放、十字线交互
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2 && pinchState && !isIntraday) {
+      // 双指缩放
       e.preventDefault()
       const dist = getTouchDistance(e.touches)
       const scale = dist / pinchState.startDist
       const newCount = Math.round(pinchState.startCount / scale)
       const delta = (newCount - pinchState.startCount) * 5
       onWheel(delta)
-    } else if (e.touches.length === 1 && touchDragging) {
-      e.preventDefault()
+    } else if (e.touches.length === 1) {
       const touch = e.touches[0]
-      const deltaX = touch.clientX - touchDragging.startX
-      const deltaY = touch.clientY - touchDragging.startY
 
-      if (touchDragging.isYAxis) {
-        // Y轴拖动：调整价格缩放
+      // 检查是否移动超过阈值（10px），如果是则取消长按检测
+      if (touchStartPosRef.current && longPressTimerRef.current) {
+        const dx = Math.abs(touch.clientX - touchStartPosRef.current.x)
+        const dy = Math.abs(touch.clientY - touchStartPosRef.current.y)
+        if (dx > 10 || dy > 10) {
+          // 移动超过阈值，取消长按，允许页面滚动
+          clearLongPressTimer()
+          return // 不阻止默认行为，允许滚动
+        }
+      }
+
+      // Y轴拖动模式
+      if (touchDragging?.isYAxis) {
+        e.preventDefault()
+        const deltaY = touch.clientY - touchDragging.startY
         const scaleDelta = -deltaY / 100
         const newScale = touchDragging.startScale * Math.pow(2, scaleDelta)
         const clampedScale = Math.max(0.3, Math.min(5.0, newScale))
         setPriceScale(clampedScale)
-      } else {
-        // 图表区域拖动：平移
-        const newPanX = touchDragging.startPanX + deltaX
-        setPanOffset({
-          x: newPanX,
-          y: touchDragging.startPanY + deltaY
-        })
-
-        // 检测是否拖动到左边界，触发加载更多
-        if (!isIntraday && newPanX > 50 && onPanToEdge) {
-          onPanToEdge()
-          setPanOffset({ x: 0, y: touchDragging.startPanY + deltaY })
-          setTouchDragging({
-            ...touchDragging,
-            startX: touch.clientX,
-            startPanX: 0
-          })
-        }
+        return
       }
-    } else if (e.touches.length === 1 && !touchDragging) {
-      // 没有拖动状态时显示十字线
-      updateCrosshairFromTouch(e.touches[0])
+
+      // 十字线激活模式 - 跟随手指移动
+      if (crosshairActive) {
+        e.preventDefault()
+        updateCrosshairFromTouch(touch)
+      }
+      // 否则不阻止默认行为，允许页面滚动
     }
-  }, [pinchState, isIntraday, getTouchDistance, onWheel, touchDragging, onPanToEdge, updateCrosshairFromTouch])
+  }, [pinchState, isIntraday, getTouchDistance, onWheel, touchDragging, crosshairActive, clearLongPressTimer, updateCrosshairFromTouch])
 
   // 触摸结束
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    clearLongPressTimer()
+    
     if (e.touches.length === 0) {
       setPinchState(null)
       setTouchDragging(null)
-      // 延迟清除十字光标
-      setTimeout(() => {
-        onCrosshairChange(null)
-      }, 1500)
+      touchStartPosRef.current = null
+      
+      // 如果十字线激活，延迟清除
+      if (crosshairActive) {
+        setTimeout(() => {
+          onCrosshairChange(null)
+          setCrosshairActive(false)
+        }, 1500)
+      }
     } else if (e.touches.length === 1) {
       setPinchState(null)
     }
-  }, [onCrosshairChange])
+  }, [onCrosshairChange, crosshairActive, clearLongPressTimer])
 
   // 全局鼠标抬起事件 - 确保拖拽结束
   useEffect(() => {
@@ -1182,10 +1223,22 @@ export function ChartCanvas({
     }
   }, [])
 
+  // 清理长按计时器
+  useEffect(() => {
+    return () => {
+      clearLongPressTimer()
+    }
+  }, [clearLongPressTimer])
+
   return (
     <canvas
       ref={canvasRef}
-      style={{ display: 'block', touchAction: 'none', cursor: 'crosshair' }}
+      style={{ 
+        display: 'block', 
+        // 十字线激活时禁止滚动，否则允许垂直滚动
+        touchAction: crosshairActive || pinchState ? 'none' : 'pan-y',
+        cursor: 'crosshair' 
+      }}
       onMouseMove={handleMouseMove}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
