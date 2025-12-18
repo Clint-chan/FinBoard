@@ -22,12 +22,13 @@
   padding: 16px;
 }
 
-/* 股票名称 */
+/* 股票名称 - 有质感的字体 */
 .msd-stock-name {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
 }
 
 /* 价格 */
