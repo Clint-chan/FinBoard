@@ -1,25 +1,51 @@
-/* Fintell 全屏对话 Modal */
+/**
+ * FintellChat - 移动端全屏 AI 对话
+ * 移植自电脑端 AnalysisDrawer 的 Fintell 界面
+ */
+
+/* ============================================
+   全屏 Modal 容器
+   ============================================ */
 .fintell-modal {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  height: 100dvh; /* 动态视口高度，适配移动端 */
+  height: 100dvh;
   background: var(--bg-surface);
   z-index: 200;
   display: flex;
   flex-direction: column;
+  
+  /* 丝滑的弹出动画 */
   transform: translateY(100%);
-  transition: transform 0.3s ease-out;
-  will-change: transform;
+  opacity: 0;
+  transition: 
+    transform 0.35s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.25s ease;
+  will-change: transform, opacity;
 }
 
 .fintell-modal.open {
   transform: translateY(0);
+  opacity: 1;
 }
 
-/* 头部 */
+/* 深色模式 */
+.fintell-modal.dark {
+  --bg-body: #0f172a;
+  --bg-surface: #1e293b;
+  --bg-hover: #334155;
+  --border-light: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+}
+
+/* ============================================
+   头部
+   ============================================ */
 .fintell-header {
   display: flex;
   align-items: center;
@@ -30,37 +56,106 @@
 }
 
 .fintell-close {
-  font-size: 20px;
-  padding: 4px 10px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: color 0.15s;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.fintell-close:hover {
-  color: var(--text-primary);
+.fintell-close:active {
+  transform: scale(0.92);
+  background: var(--bg-hover);
 }
 
-.fintell-title {
+.fintell-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* AI 身份信息 - 与电脑端一致 */
+.fintell-identity {
   flex: 1;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.fintell-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.fintell-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.fintell-name {
   font-weight: 600;
-  font-size: 16px;
+  font-size: 15px;
   color: var(--text-primary);
 }
 
+.fintell-status {
+  font-size: 11px;
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fintell-status::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  background: currentColor;
+  border-radius: 50%;
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* 配额显示 */
 .fintell-action {
-  width: 44px;
+  width: 50px;
   display: flex;
   justify-content: flex-end;
 }
 
 .quota-badge {
   font-size: 11px;
-  padding: 2px 8px;
+  padding: 4px 10px;
   background: var(--bg-hover);
-  border-radius: 10px;
+  border-radius: 12px;
   color: var(--text-secondary);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.quota-badge svg {
+  width: 12px;
+  height: 12px;
 }
 
 .quota-badge.low {
@@ -68,17 +163,47 @@
   color: #ef4444;
 }
 
-/* 聊天内容区域 */
+.quota-badge.exhausted {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+
+/* ============================================
+   聊天内容区域
+   ============================================ */
 .fintell-content {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
   background: var(--bg-body);
+  -webkit-overflow-scrolling: touch;
 }
 
+.fintell-content::-webkit-scrollbar {
+  width: 3px;
+}
+
+.fintell-content::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 2px;
+}
+
+/* 消息行 */
 .fintell-modal .chat-row {
   display: flex;
   margin-bottom: 16px;
+  animation: msg-fade-in 0.3s ease;
+}
+
+@keyframes msg-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .fintell-modal .chat-row.ai {
@@ -89,188 +214,554 @@
   justify-content: flex-end;
 }
 
+/* AI 头像 */
 .fintell-modal .chat-avatar {
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, #4F6AF5 0%, #7B4FF5 100%);
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
   color: white;
-  border-radius: 50%;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   margin-right: 10px;
   flex-shrink: 0;
 }
 
-/* 覆盖 ChatMessage 组件样式 */
-.fintell-modal .chat-row.ai .chat-message {
-  background: var(--bg-surface);
+/* ============================================
+   消息气泡样式 - 与电脑端保持一致
+   ============================================ */
+.fintell-modal .chat-message {
+  max-width: 88%;
+}
+
+.fintell-modal .chat-message.ai .bubble {
+  background: transparent;
   color: var(--text-primary);
-  border-radius: 12px;
-  border-bottom-left-radius: 2px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  max-width: 85%;
+  padding: 0;
+  font-size: 0.9rem;
+  line-height: 1.65;
 }
 
-.fintell-modal .chat-row.user .chat-message {
-  background: linear-gradient(135deg, #4F6AF5 0%, #7B4FF5 100%);
-  color: #fff;
-  border-radius: 12px;
-  border-bottom-right-radius: 2px;
-  max-width: 85%;
+.fintell-modal .chat-message.user .bubble {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-radius: 18px;
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
-/* 输入区域 */
+.fintell-modal.dark .chat-message.user .bubble {
+  background: #334155;
+}
+
+/* ============================================
+   Markdown 渲染样式
+   ============================================ */
+.fintell-modal .bubble h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: var(--text-primary);
+}
+
+.fintell-modal .bubble h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 14px 0 6px 0;
+  color: var(--text-primary);
+}
+
+.fintell-modal .bubble h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 12px 0 4px 0;
+  color: var(--text-primary);
+}
+
+.fintell-modal .bubble p {
+  margin: 0 0 8px 0;
+}
+
+.fintell-modal .bubble p:last-child {
+  margin-bottom: 0;
+}
+
+.fintell-modal .bubble strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fintell-modal .bubble em {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.fintell-modal .bubble ul,
+.fintell-modal .bubble ol {
+  margin: 4px 0 8px 0;
+  padding-left: 18px;
+}
+
+.fintell-modal .bubble li {
+  margin: 3px 0;
+}
+
+.fintell-modal .bubble li::marker {
+  color: var(--text-tertiary);
+}
+
+.fintell-modal .bubble code {
+  background: var(--bg-hover);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'SF Mono', Monaco, monospace;
+  font-size: 0.85em;
+}
+
+.fintell-modal .bubble pre {
+  background: var(--bg-body);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+  overflow-x: auto;
+}
+
+.fintell-modal .bubble pre code {
+  background: none;
+  padding: 0;
+}
+
+.fintell-modal .bubble blockquote {
+  border-left: 3px solid #6366f1;
+  margin: 8px 0;
+  padding: 4px 0 4px 12px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* 表格 */
+.fintell-modal .bubble table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 0.85rem;
+}
+
+.fintell-modal .bubble th,
+.fintell-modal .bubble td {
+  padding: 8px 10px;
+  text-align: left;
+  border: 1px solid var(--border-light);
+}
+
+.fintell-modal .bubble th {
+  background: var(--bg-hover);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fintell-modal .bubble td {
+  color: var(--text-secondary);
+}
+
+/* ============================================
+   思考过程样式 - 与电脑端 Reasoning 一致
+   ============================================ */
+.fintell-modal .reasoning {
+  margin: 8px 0 14px;
+}
+
+.fintell-modal .reasoning-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: #9ca3af;
+  transition: color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fintell-modal .reasoning-trigger:active {
+  color: #6b7280;
+}
+
+.fintell-modal .reasoning-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.fintell-modal .reasoning.streaming .reasoning-icon {
+  animation: reasoning-spin 2s linear infinite;
+}
+
+@keyframes reasoning-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.fintell-modal .reasoning-status {
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.fintell-modal .reasoning-arrow {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  transition: transform 0.25s ease;
+}
+
+.fintell-modal .reasoning.closed .reasoning-arrow {
+  transform: rotate(-90deg);
+}
+
+.fintell-modal .reasoning-content-wrapper {
+  overflow: hidden;
+  transition: height 0.25s ease;
+}
+
+.fintell-modal .reasoning-content {
+  padding: 12px 0 4px 22px;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: #6b7280;
+}
+
+.fintell-modal.dark .reasoning-content {
+  color: #9ca3af;
+}
+
+/* ============================================
+   加载动画
+   ============================================ */
+.fintell-modal .loading-dots {
+  display: flex;
+  gap: 5px;
+  padding: 8px 0;
+}
+
+.fintell-modal .loading-dots span {
+  width: 7px;
+  height: 7px;
+  background: #9ca3af;
+  border-radius: 50%;
+  animation: loading-bounce 1.4s ease-in-out infinite both;
+}
+
+.fintell-modal .loading-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.fintell-modal .loading-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes loading-bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+/* ============================================
+   输入区域 - ChatGPT 风格
+   ============================================ */
 .fintell-input-area {
   background: var(--bg-surface);
   padding: 10px 16px;
   border-top: 1px solid var(--border-light);
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
   flex-shrink: 0;
 }
 
-/* 工具栏 */
-.fintell-toolbar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.toolbar-chip {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  background: var(--bg-hover);
-  border-radius: 16px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  white-space: nowrap;
-  position: relative;
-  transition: background 0.15s, color 0.15s;
-}
-
-.toolbar-chip:hover,
-.toolbar-chip.active {
-  background: var(--border-light);
-  color: var(--text-primary);
-}
-
-.toolbar-chip svg {
-  transition: transform 0.2s;
-}
-
-.toolbar-chip.active svg {
-  transform: rotate(180deg);
-}
-
-/* 下拉菜单 */
-.chip-dropdown {
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  margin-bottom: 8px;
+/* 输入框容器 */
+.fintell-input-wrapper {
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  min-width: 140px;
-  max-height: 200px;
-  overflow-y: auto;
-  z-index: 10;
+  border-radius: 20px;
+  overflow: visible;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.chip-option {
-  padding: 10px 14px;
-  font-size: 14px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+.fintell-input-wrapper:focus-within {
+  border-color: #a5b4fc;
+  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.1);
 }
 
-.chip-option:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+.fintell-modal.dark .fintell-input-wrapper:focus-within {
+  border-color: #6366f1;
 }
 
-.chip-option.active {
-  color: #4F6AF5;
-  font-weight: 500;
-}
-
-.chip-option:first-child {
-  border-radius: 12px 12px 0 0;
-}
-
-.chip-option:last-child {
-  border-radius: 0 0 12px 12px;
-}
-
-/* 输入行 */
-.fintell-input-row {
+/* 输入主区域 */
+.fintell-input-main {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
+  padding: 12px 10px 8px 16px;
+  min-height: 48px;
 }
 
 .fintell-input {
   flex: 1;
-  background: var(--bg-hover);
   border: none;
-  padding: 12px 16px;
-  border-radius: 20px;
+  background: transparent;
+  padding: 0;
+  resize: none;
+  min-height: 24px;
+  max-height: 120px;
+  font-family: inherit;
   font-size: 15px;
   color: var(--text-primary);
+  line-height: 1.5;
+  overflow-y: auto;
+}
+
+.fintell-input:focus {
   outline: none;
-  resize: none;
-  max-height: 120px;
-  line-height: 1.4;
 }
 
 .fintell-input::placeholder {
   color: var(--text-tertiary);
 }
 
+/* 发送按钮 */
 .fintell-send {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, #4F6AF5 0%, #7B4FF5 100%);
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   border: none;
-  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
   cursor: pointer;
   flex-shrink: 0;
-  transition: transform 0.1s, opacity 0.15s;
-  box-shadow: 0 2px 8px rgba(79, 106, 245, 0.3);
+  margin-left: 8px;
+  transition: all 0.15s;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fintell-send svg {
+  width: 16px;
+  height: 16px;
+  stroke: white;
+  stroke-width: 2.5;
 }
 
 .fintell-send:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .fintell-send:not(:disabled):active {
-  transform: scale(0.95);
+  transform: scale(0.92);
 }
 
-/* 深色模式 */
-[data-theme="dark"] .fintell-modal,
-.fintell-modal.dark {
-  --bg-body: #0f172a;
-  --bg-surface: #1e293b;
-  --bg-hover: #334155;
-  --border-light: #334155;
+/* ============================================
+   工具栏 - 与电脑端一致的选择器
+   ============================================ */
+.fintell-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 10px;
+  position: relative;
+  overflow: visible;
 }
 
-[data-theme="dark"] .chip-dropdown,
-.fintell-modal.dark .chip-dropdown {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+/* 工具栏选择器 */
+.toolbar-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 8px;
+  background: var(--bg-hover);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s;
+  border: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.toolbar-select:active {
+  background: var(--border-light);
+}
+
+.toolbar-select svg.select-icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+  flex-shrink: 0;
+  fill: none;
+}
+
+.toolbar-select svg.select-icon.ai {
+  stroke: #8b5cf6;
+}
+
+.toolbar-select svg.select-icon.stock {
+  stroke: #6366f1;
+}
+
+.toolbar-select .select-text {
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar-select svg.arrow {
+  width: 12px;
+  height: 12px;
+  stroke: #9ca3af;
+  stroke-width: 2;
+  margin-left: 2px;
+  transition: transform 0.2s;
+  fill: none;
+}
+
+.toolbar-select.open svg.arrow {
+  transform: rotate(180deg);
+}
+
+/* 下拉菜单 */
+.select-dropdown {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  min-width: max-content;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  max-height: 220px;
+  overflow-y: auto;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
+  white-space: nowrap;
+}
+
+.toolbar-select.open .select-dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.fintell-modal.dark .select-dropdown {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.select-dropdown::-webkit-scrollbar {
+  width: 4px;
+}
+
+.select-dropdown::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 2px;
+}
+
+.select-option {
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.select-option:active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.select-option.active {
+  color: #6366f1;
+  font-weight: 500;
+}
+
+.select-option:first-child {
+  border-radius: 12px 12px 0 0;
+}
+
+.select-option:last-child {
+  border-radius: 0 0 12px 12px;
+}
+
+/* ============================================
+   交易信号卡片适配
+   ============================================ */
+.fintell-modal .trading-signals-card {
+  margin: 14px 0;
+  border-radius: 14px;
+}
+
+.fintell-modal .signals-card-header {
+  padding: 14px;
+}
+
+.fintell-modal .header-title h2 {
+  font-size: 1rem;
+}
+
+.fintell-modal .signals-card-body {
+  padding: 14px;
+  gap: 10px;
+}
+
+.fintell-modal .signal-row {
+  padding: 10px;
+  padding-left: 16px;
+  border-radius: 10px;
+}
+
+.fintell-modal .signal-label {
+  font-size: 0.85rem;
+}
+
+.fintell-modal .signal-reason {
+  font-size: 0.72rem;
+}
+
+.fintell-modal .price-input-wrapper {
+  padding: 6px 10px;
+}
+
+.fintell-modal .price-input {
+  font-size: 0.9rem;
+  width: 70px;
+}
+
+.fintell-modal .signals-card-footer {
+  padding: 14px;
+}
+
+.fintell-modal .submit-btn {
+  padding: 11px 14px;
+  font-size: 0.85rem;
+  border-radius: 10px;
+}
+
+/* ============================================
+   回复内容区域
+   ============================================ */
+.fintell-modal .reply-content {
+  margin-top: 4px;
 }

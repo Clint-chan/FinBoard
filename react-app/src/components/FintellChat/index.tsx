@@ -1,6 +1,7 @@
 /**
- * FintellChat - 全屏 AI 对话组件
- * 对照 2.html 设计的 Fintell Modal
+ * FintellChat - 移动端全屏 AI 对话组件
+ * 移植自电脑端 AnalysisDrawer 的 Fintell 界面
+ * 保持所有交互细节一致：动画、气泡、markdown、思考过程、交易信号
  */
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { ChatMessage as ChatMessageComponent } from '@/components/AnalysisDrawer/ChatMessage'
@@ -32,8 +33,8 @@ export function FintellChat({
   const [chatHistory, setChatHistory] = useState<Record<string, ChatMessage[]>>({})
   const [inputValue, setInputValue] = useState('')
   const [aiQuota, setAiQuota] = useState<{ quota: number; used: number; remaining: number } | null>(null)
-  const [showStockSelect, setShowStockSelect] = useState(false)
-  const [showModeSelect, setShowModeSelect] = useState(false)
+  const [aiModeOpen, setAiModeOpen] = useState(false)
+  const [stockSelectOpen, setStockSelectOpen] = useState(false)
   
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesRef = useRef<HTMLDivElement>(null)
@@ -45,7 +46,7 @@ export function FintellChat({
     }
   }, [open, stockCode])
 
-  // 初始化聊天历史
+  // 初始化聊天历史 - 与电脑端一致的欢迎语
   useEffect(() => {
     if (currentCode && !chatHistory[currentCode]) {
       const stockName = stockData[currentCode]?.name || currentCode
@@ -53,7 +54,7 @@ export function FintellChat({
         ...prev,
         [currentCode]: [{
           role: 'ai',
-          content: `你好！我是 Fintell。当前正在分析 **${stockName}**。\n\n你想了解它的基本面数据，还是技术面分析？`
+          content: `我是 Fintell，你的智能投资助手。当前分析标的：**${stockName}**`
         }]
       }))
     }
@@ -68,7 +69,13 @@ export function FintellChat({
     }
   }, [open])
 
-  // 发送消息
+  // 切换股票
+  const switchStock = useCallback((code: string) => {
+    setCurrentCode(code)
+    setStockSelectOpen(false)
+  }, [])
+
+  // 发送消息 - 与电脑端完全一致的逻辑
   const sendMessage = useCallback(async () => {
     const text = inputValue.trim()
     if (!text || !currentCode) return
@@ -149,6 +156,8 @@ export function FintellChat({
           errorMsg = '请先登录后使用 AI 功能'
         } else if (error.message.includes('429') || error.message.includes('用完')) {
           errorMsg = '今日 AI 使用次数已用完'
+        } else if (error.message.includes('503') || error.message.includes('不可用')) {
+          errorMsg = 'AI 服务暂时不可用，请稍后重试'
         }
       }
       
@@ -184,18 +193,48 @@ export function FintellChat({
     }
   }, [chatHistory, currentCode])
 
+  // 点击外部关闭下拉菜单
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setAiModeOpen(false)
+      setStockSelectOpen(false)
+    }
+    if (aiModeOpen || stockSelectOpen) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [aiModeOpen, stockSelectOpen])
+
   const currentStock = stockData[currentCode]
   const messages = chatHistory[currentCode] || []
 
   return (
     <div className={`fintell-modal ${open ? 'open' : ''} ${isDark ? 'dark' : ''}`}>
-      {/* 头部 */}
+      {/* 头部 - 与电脑端一致的 AI 身份展示 */}
       <div className="fintell-header">
-        <div className="fintell-close" onClick={onClose}>✕</div>
-        <div className="fintell-title">Fintell 智能助手</div>
+        <div className="fintell-close" onClick={onClose}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </div>
+        
+        <div className="fintell-identity">
+          <div className="fintell-avatar">F</div>
+          <div className="fintell-info">
+            <span className="fintell-name">Fintell</span>
+            <span className="fintell-status">在线</span>
+          </div>
+        </div>
+
         <div className="fintell-action">
           {aiQuota && (
-            <span className={`quota-badge ${aiQuota.remaining <= 1 ? 'low' : ''}`}>
+            <span className={`quota-badge ${aiQuota.remaining <= 1 ? (aiQuota.remaining === 0 ? 'exhausted' : 'low') : ''}`}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                <path d="M2 17l10 5 10-5"></path>
+                <path d="M2 12l10 5 10-5"></path>
+              </svg>
               {aiQuota.remaining}/{aiQuota.quota}
             </span>
           )}
@@ -219,83 +258,91 @@ export function FintellChat({
         ))}
       </div>
 
-      {/* 输入区域 */}
+      {/* 输入区域 - ChatGPT 风格 */}
       <div className="fintell-input-area">
-        {/* 快捷选择栏 */}
-        <div className="fintell-toolbar">
-          {/* 股票选择 */}
-          <div 
-            className={`toolbar-chip ${showStockSelect ? 'active' : ''}`}
-            onClick={() => { setShowStockSelect(!showStockSelect); setShowModeSelect(false) }}
-          >
-            <span>{currentStock?.name || currentCode || '选择股票'}</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-            {showStockSelect && (
-              <div className="chip-dropdown">
+        <div className="fintell-input-wrapper">
+          <div className="fintell-input-main">
+            <textarea
+              ref={textareaRef}
+              className="fintell-input"
+              placeholder="想了解什么..."
+              rows={1}
+              value={inputValue}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+            />
+            <button
+              className="fintell-send"
+              disabled={!inputValue.trim()}
+              onClick={sendMessage}
+            >
+              <svg viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 10l-5 5 5 5"/>
+                <path d="M20 4v7a4 4 0 0 1-4 4H4"/>
+              </svg>
+            </button>
+          </div>
+
+          {/* 工具栏 - 与电脑端一致的选择器 */}
+          <div className="fintell-toolbar">
+            {/* AI 模式选择 */}
+            <div 
+              className={`toolbar-select ${aiModeOpen ? 'open' : ''}`}
+              onClick={(e) => { e.stopPropagation(); setAiModeOpen(!aiModeOpen); setStockSelectOpen(false) }}
+            >
+              <svg className="select-icon ai" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+                <circle cx="8.5" cy="16" r="1"></circle>
+                <circle cx="15.5" cy="16" r="1"></circle>
+                <path d="M12 11V6"></path>
+                <path d="M8 6h8"></path>
+              </svg>
+              <span className="select-text">{AI_MODES[aiMode].replace('分析', '')}</span>
+              <svg className="arrow" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+              <div className="select-dropdown">
+                {(Object.keys(AI_MODES) as AIMode[]).map(mode => (
+                  <div
+                    key={mode}
+                    className={`select-option ${aiMode === mode ? 'active' : ''}`}
+                    onClick={(e) => { e.stopPropagation(); setAiMode(mode); setAiModeOpen(false) }}
+                  >
+                    {AI_MODES[mode]}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 股票选择 */}
+            <div 
+              className={`toolbar-select ${stockSelectOpen ? 'open' : ''}`}
+              onClick={(e) => { e.stopPropagation(); setStockSelectOpen(!stockSelectOpen); setAiModeOpen(false) }}
+            >
+              <svg className="select-icon stock" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+                <polyline points="16 7 22 7 22 13"></polyline>
+              </svg>
+              <span className="select-text">{currentStock?.name || currentCode}</span>
+              <svg className="arrow" viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+              <div className="select-dropdown">
                 {stockList.map(code => {
                   const d = stockData[code]
                   return (
                     <div
                       key={code}
-                      className={`chip-option ${code === currentCode ? 'active' : ''}`}
-                      onClick={(e) => { e.stopPropagation(); setCurrentCode(code); setShowStockSelect(false) }}
+                      className={`select-option ${code === currentCode ? 'active' : ''}`}
+                      onClick={(e) => { e.stopPropagation(); switchStock(code) }}
                     >
                       {d?.name || code}
                     </div>
                   )
                 })}
               </div>
-            )}
+            </div>
           </div>
-
-          {/* AI 模式选择 */}
-          <div 
-            className={`toolbar-chip ${showModeSelect ? 'active' : ''}`}
-            onClick={() => { setShowModeSelect(!showModeSelect); setShowStockSelect(false) }}
-          >
-            <span>{AI_MODES[aiMode].replace('分析', '')}</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="6 9 12 15 18 9"></polyline>
-            </svg>
-            {showModeSelect && (
-              <div className="chip-dropdown">
-                {(Object.keys(AI_MODES) as AIMode[]).map(mode => (
-                  <div
-                    key={mode}
-                    className={`chip-option ${aiMode === mode ? 'active' : ''}`}
-                    onClick={(e) => { e.stopPropagation(); setAiMode(mode); setShowModeSelect(false) }}
-                  >
-                    {AI_MODES[mode]}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 输入框 */}
-        <div className="fintell-input-row">
-          <textarea
-            ref={textareaRef}
-            className="fintell-input"
-            placeholder="输入你想问的问题..."
-            rows={1}
-            value={inputValue}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-          />
-          <button
-            className="fintell-send"
-            disabled={!inputValue.trim()}
-            onClick={sendMessage}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"></line>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-            </svg>
-          </button>
         </div>
       </div>
     </div>
