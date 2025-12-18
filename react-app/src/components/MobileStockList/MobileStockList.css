@@ -1,5 +1,5 @@
 /**
- * 移动端自选股列表
+ * 移动端自选股列表 - 高级感设计
  */
 
 .mobile-stock-list {
@@ -7,43 +7,45 @@
   flex-direction: column;
   height: 100%;
   background: var(--bg-surface);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
 }
 
 /* 表头 */
 .msl-header {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  background: var(--bg-hover);
+  padding: 10px 16px;
+  background: var(--bg-body);
   border-bottom: 1px solid var(--border-light);
   font-size: 12px;
+  font-weight: 500;
   color: var(--text-tertiary);
   flex-shrink: 0;
+  letter-spacing: 0.02em;
 }
 
-/* 列定义 - 名称列弹性，其他列固定宽度 */
+/* 列定义 - 均分宽度 */
 .msl-col {
   flex-shrink: 0;
 }
 
 .msl-col-name {
-  flex: 1;
+  flex: 1.2;
   min-width: 0;
-  padding-right: 8px;
 }
 
 .msl-col-price {
-  width: 70px;
+  flex: 1;
   text-align: right;
 }
 
 .msl-col-change {
-  width: 60px;
+  flex: 1;
   text-align: right;
 }
 
 .msl-col-pct {
-  width: 70px;
+  flex: 1;
   text-align: right;
 }
 
@@ -72,7 +74,7 @@
   bottom: 0;
   left: 16px;
   right: 0;
-  height: 1px;
+  height: 0.5px;
   background: var(--border-light);
 }
 
@@ -84,80 +86,78 @@
   background: var(--bg-hover);
 }
 
-/* 名称 */
-.msl-name {
+/* 名称列 */
+.msl-col-name .msl-name {
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 2px;
+  margin-bottom: 3px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 
 .msl-alert-dot {
   color: #f59e0b;
-  font-size: 8px;
+  font-size: 6px;
   flex-shrink: 0;
 }
 
 .msl-code {
   font-size: 11px;
   color: var(--text-tertiary);
-  letter-spacing: 0.02em;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
-/* 价格 - 纯文字无背景 */
-.mobile-stock-list .msl-price {
+/* 统一数据列字体 - 15px 等宽数字 */
+.mobile-stock-list .msl-price,
+.mobile-stock-list .msl-change,
+.mobile-stock-list .msl-pct {
   font-size: 15px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  display: block;
+  letter-spacing: -0.02em;
   background: none !important;
+}
+
+/* 价格 */
+.mobile-stock-list .msl-price {
+  display: block;
 }
 
 .mobile-stock-list .msl-price.is-up { color: var(--color-up); }
 .mobile-stock-list .msl-price.is-down { color: var(--color-down); }
-.mobile-stock-list .msl-price.is-flat { color: var(--text-secondary); }
+.mobile-stock-list .msl-price.is-flat { color: var(--text-primary); }
 
-/* 盈亏 - 纯文字无背景 */
+/* 盈亏 */
 .mobile-stock-list .msl-profit {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 500;
   margin-top: 2px;
   font-variant-numeric: tabular-nums;
   background: none !important;
+  opacity: 0.85;
 }
 
 .mobile-stock-list .msl-profit.is-up { color: var(--color-up); }
 .mobile-stock-list .msl-profit.is-down { color: var(--color-down); }
 
-/* 涨跌额 - 纯文字无背景 */
-.mobile-stock-list .msl-change {
-  font-size: 14px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  background: none !important;
-}
-
+/* 涨跌额 */
 .mobile-stock-list .msl-change.is-up { color: var(--color-up); }
 .mobile-stock-list .msl-change.is-down { color: var(--color-down); }
-.mobile-stock-list .msl-change.is-flat { color: var(--text-secondary); }
+.mobile-stock-list .msl-change.is-flat { color: var(--text-primary); }
 
-/* 涨跌幅 - 纯文字无背景 */
-.mobile-stock-list .msl-pct {
-  font-size: 14px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  background: none !important;
-}
-
+/* 涨跌幅 */
 .mobile-stock-list .msl-pct.is-up { color: var(--color-up); }
 .mobile-stock-list .msl-pct.is-down { color: var(--color-down); }
-.mobile-stock-list .msl-pct.is-flat { color: var(--text-secondary); }
+.mobile-stock-list .msl-pct.is-flat { color: var(--text-primary); }
 
 /* 空状态 */
 .msl-empty {
@@ -165,37 +165,40 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
+  padding: 80px 20px;
   color: var(--text-tertiary);
   cursor: pointer;
 }
 
 .msl-empty svg {
   margin-bottom: 16px;
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
 .msl-empty p {
-  font-size: 15px;
-  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0 0 6px 0;
   color: var(--text-secondary);
 }
 
 .msl-empty span {
   font-size: 13px;
+  opacity: 0.8;
 }
 
-/* 添加自选股行 - 与电脑端一致 */
+/* 添加自选股行 */
 .msl-add-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 16px;
+  gap: 6px;
+  padding: 18px 16px;
   color: var(--text-tertiary);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   -webkit-tap-highlight-color: transparent;
+  border-top: 0.5px solid var(--border-light);
 }
 
 .msl-add-row:active {
@@ -204,11 +207,12 @@
 }
 
 .msl-add-row svg {
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .msl-add-row span {
   font-size: 14px;
+  font-weight: 500;
 }
 
 /* 深色模式 */
