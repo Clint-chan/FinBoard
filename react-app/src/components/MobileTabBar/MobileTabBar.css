@@ -1,10 +1,5 @@
 /**
- * 底部导航栏 - 扁平化设计
- * 
- * 设计原则：
- * 1. 毛玻璃效果 backdrop-filter
- * 2. AI 按钮扁平化，用异色图标代替物理突起
- * 3. 更精致的视觉层级
+ * 底部导航栏 - 中间突出圆形 AI 按钮
  */
 
 .mobile-tab-bar {
@@ -14,15 +9,14 @@
   width: 100%;
   height: calc(55px + env(safe-area-inset-bottom));
   /* 毛玻璃效果 */
-  background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.85);
+  background: rgba(var(--bg-surface-rgb, 255, 255, 255), 0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  /* 更柔和的阴影 */
   box-shadow: 0 -1px 0 rgba(0, 0, 0, 0.06);
   display: none;
   justify-content: space-around;
   align-items: flex-start;
-  padding-top: 8px;
+  padding-top: 6px;
   z-index: 90;
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -40,7 +34,7 @@
 }
 
 .tab-item.active {
-  color: var(--text-primary);
+  color: #3b82f6;
 }
 
 .tab-icon {
@@ -62,45 +56,44 @@
   line-height: 1.2;
 }
 
-/* AI 按钮 - 扁平化设计，异色图标 */
+/* AI 按钮 - 中间突出圆形设计 */
 .tab-item.ai-btn {
   position: relative;
 }
 
 .ai-icon-wrapper {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(79, 106, 245, 0.12) 0%, rgba(123, 79, 245, 0.12) 100%);
-  transition: transform 0.15s, background 0.15s;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  margin-top: -18px;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+  transition: transform 0.15s, box-shadow 0.15s;
 }
 
 .ai-icon-wrapper svg {
-  width: 20px;
-  height: 20px;
-  stroke: #6366f1;
+  width: 24px;
+  height: 24px;
+  stroke: #fff;
 }
 
 .tab-item.ai-btn:active .ai-icon-wrapper {
-  transform: scale(0.95);
-  background: linear-gradient(135deg, rgba(79, 106, 245, 0.2) 0%, rgba(123, 79, 245, 0.2) 100%);
+  transform: scale(0.92);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
 
 .tab-item.ai-btn .tab-label {
-  margin-top: 2px;
+  margin-top: 4px;
   font-weight: 600;
-  color: #6366f1;
+  color: #3b82f6;
 }
 
 .tab-item.ai-btn.active .ai-icon-wrapper {
-  background: linear-gradient(135deg, #4F6AF5 0%, #7B4FF5 100%);
-}
-
-.tab-item.ai-btn.active .ai-icon-wrapper svg {
-  stroke: #fff;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.5);
 }
 
 /* 移动端显示 */
@@ -112,26 +105,23 @@
 
 /* 深色模式 */
 [data-theme="dark"] .mobile-tab-bar {
-  background: rgba(var(--bg-surface-rgb, 30, 30, 30), 0.85);
+  background: rgba(var(--bg-surface-rgb, 30, 30, 30), 0.92);
   box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.06);
 }
 
-[data-theme="dark"] .ai-icon-wrapper {
-  background: linear-gradient(135deg, rgba(79, 106, 245, 0.2) 0%, rgba(123, 79, 245, 0.2) 100%);
+[data-theme="dark"] .tab-item.active {
+  color: #60a5fa;
 }
 
-[data-theme="dark"] .ai-icon-wrapper svg {
-  stroke: #818cf8;
+[data-theme="dark"] .ai-icon-wrapper {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
 }
 
 [data-theme="dark"] .tab-item.ai-btn .tab-label {
-  color: #818cf8;
+  color: #60a5fa;
 }
 
 [data-theme="dark"] .tab-item.ai-btn.active .ai-icon-wrapper {
-  background: linear-gradient(135deg, #4F6AF5 0%, #7B4FF5 100%);
-}
-
-[data-theme="dark"] .tab-item.ai-btn.active .ai-icon-wrapper svg {
-  stroke: #fff;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
 }
