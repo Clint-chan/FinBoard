@@ -21,28 +21,29 @@
   flex-shrink: 0;
 }
 
-/* 列定义 - 均分宽度 */
+/* 列定义 - 名称列弹性，其他列固定宽度 */
 .msl-col {
   flex-shrink: 0;
 }
 
 .msl-col-name {
-  width: 30%;
+  flex: 1;
   min-width: 0;
+  padding-right: 8px;
 }
 
 .msl-col-price {
-  width: 24%;
+  width: 70px;
   text-align: right;
 }
 
 .msl-col-change {
-  width: 22%;
+  width: 60px;
   text-align: right;
 }
 
 .msl-col-pct {
-  width: 24%;
+  width: 70px;
   text-align: right;
 }
 
