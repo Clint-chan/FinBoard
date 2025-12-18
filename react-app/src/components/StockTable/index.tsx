@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type { StockData, AlertConfig } from '@/types'
 import { normalizeCode } from '@/services/dataService'
-import { fmtNum, fmtVol, fmtAmt, calcPct, getPctClass } from '@/utils/format'
+import { fmtNum, fmtPrice, fmtVol, fmtAmt, calcPct, getPctClass } from '@/utils/format'
 import { Sparkline } from '@/components/Sparkline'
 import { useDragSort } from '@/hooks/useDragSort'
 import './StockTable.css'
@@ -138,7 +138,7 @@ function StockRow({ code, data, cost, hasAlert, onContextMenu, onChartShow, onCh
         </div>
       </td>
       <td className="price-cell" style={{ color: pct >= 0 ? 'var(--color-up)' : 'var(--color-down)' }}>
-        {fmtNum(data?.price)}
+        {fmtPrice(data?.price, code)}
       </td>
       <td>
         <span className={`change-badge ${pctClass}`}>

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useSuperChart } from './useSuperChart'
 import { ChartCanvas, type CrosshairData } from './ChartCanvas'
 import { StockInfoCard } from '@/components/StockInfoCard'
+import { isETF } from '@/utils/format'
 import { PERIODS, DEFAULT_LAYOUT, type ChartPeriod, type SubIndicator, type SuperChartProps, type ChartConfig } from './types'
 import './SuperChart.css'
 
@@ -137,6 +138,9 @@ export function SuperChart({
     : 0
   const change = displayPreClose && displayPrice ? displayPrice - displayPreClose : 0
   const isUp = displayPrice != null && displayPreClose != null ? displayPrice >= displayPreClose : pct >= 0
+  
+  // ETF 价格显示 3 位小数
+  const priceDigits = isETF(code) ? 3 : 2
 
   // 周期分组
   const isMinute = PERIODS[currentTab]?.group === 'minute'
@@ -308,9 +312,9 @@ export function SuperChart({
           {renderOhlcInfo()}
         </div>
         <div className="sc-header-right" style={{ color: isUp ? 'var(--color-up)' : 'var(--color-down)' }}>
-          <div className="sc-price">{displayPrice != null ? displayPrice.toFixed(2) : '--'}</div>
+          <div className="sc-price">{displayPrice != null ? displayPrice.toFixed(priceDigits) : '--'}</div>
           <div className="sc-change">
-            {isUp ? '+' : ''}{(change || 0).toFixed(2)} ({isUp ? '+' : ''}{(pct || 0).toFixed(2)}%)
+            {isUp ? '+' : ''}{(change || 0).toFixed(priceDigits)} ({isUp ? '+' : ''}{(pct || 0).toFixed(2)}%)
           </div>
         </div>
       </div>
@@ -422,6 +426,7 @@ export function SuperChart({
             crosshair={crosshair}
             alertLines={alertLines}
             hoveredAlertIndex={hoveredAlertIndex}
+            code={code}
             onCrosshairChange={(pos) => {
               setCrosshair(pos)
               

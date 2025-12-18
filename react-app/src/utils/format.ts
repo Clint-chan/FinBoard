@@ -1,6 +1,21 @@
-// 格式化数字
+// 判断是否为 ETF（上海51开头，深圳15/16开头）
+export function isETF(code: string): boolean {
+  const symbol = code.replace(/^(sh|sz)/, '')
+  if (code.startsWith('sh') && symbol.startsWith('51')) return true
+  if (code.startsWith('sz') && (symbol.startsWith('15') || symbol.startsWith('16'))) return true
+  return false
+}
+
+// 格式化数字（默认2位小数）
 export function fmtNum(n: number | undefined | null): string {
   return (n || n === 0) ? Number(n).toFixed(2) : '--'
+}
+
+// 格式化价格（ETF 3位小数，其他2位）
+export function fmtPrice(n: number | undefined | null, code?: string): string {
+  if (n == null) return '--'
+  const digits = code && isETF(code) ? 3 : 2
+  return Number(n).toFixed(digits)
 }
 
 // 格式化成交量

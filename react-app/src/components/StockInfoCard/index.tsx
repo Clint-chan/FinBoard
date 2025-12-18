@@ -5,6 +5,7 @@
  */
 import { useState, useEffect } from 'react'
 import { fetchStockDetailInfoCached, type StockDetailInfo } from '@/services/stockInfoService'
+import { isETF } from '@/utils/format'
 import './StockInfoCard.css'
 
 interface StockInfoCardProps {
@@ -72,6 +73,8 @@ export function StockInfoCard({ code, visible, onLoad }: StockInfoCardProps) {
     if (val == null || typeof val !== 'number' || isNaN(val)) return '--'
     return val.toFixed(digits)
   }
+  // ETF 价格显示 3 位小数
+  const priceDigits = isETF(code) ? 3 : 2
   const fmtBigNum = (val?: number) => {
     if (val == null || typeof val !== 'number' || isNaN(val)) return '--'
     if (val >= 10000) return (val / 10000).toFixed(2) + '万'
@@ -92,7 +95,7 @@ export function StockInfoCard({ code, visible, onLoad }: StockInfoCardProps) {
         </div>
         <div className="info-price-section">
           <div className={`info-price ${isUp ? 'up' : 'down'}`}>
-            ¥{fmtNum(info.price)}
+            ¥{fmtNum(info.price, priceDigits)}
           </div>
         </div>
       </div>

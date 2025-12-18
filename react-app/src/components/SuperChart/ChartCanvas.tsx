@@ -6,6 +6,7 @@ import { useRef, useEffect, useCallback, useState } from 'react'
 import type { ChartData } from '@/services/chartService'
 import type { SubIndicator, ProcessedKlineData } from './types'
 import { LIGHT_THEME, DARK_THEME, DEFAULT_LAYOUT } from './types'
+import { isETF } from '@/utils/format'
 
 interface AlertLine {
   price: number
@@ -29,6 +30,7 @@ interface ChartCanvasProps {
   onPanToEdge?: () => void // 拖动到左边界时触发加载更多
   alertLines?: AlertLine[] // 预警线列表
   hoveredAlertIndex?: number | null // 当前悬停的预警线索引
+  code?: string // 股票代码，用于判断 ETF 小数位数
 }
 
 // 十字线数据类型
@@ -58,8 +60,11 @@ export function ChartCanvas({
   onCrosshairData,
   onPanToEdge,
   alertLines = [],
-  hoveredAlertIndex = null
+  hoveredAlertIndex = null,
+  code = ''
 }: ChartCanvasProps) {
+  // ETF 价格显示 3 位小数
+  const priceDigits = code && isETF(code) ? 3 : 2
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const colors = isDark ? DARK_THEME : LIGHT_THEME
   const layout = DEFAULT_LAYOUT
@@ -160,7 +165,7 @@ export function ChartCanvas({
       ctx.lineTo(axisStartX + tickLen, yPos)
       ctx.stroke()
       ctx.fillStyle = color
-      ctx.fillText(val.toFixed(2), textX, yPos)
+      ctx.fillText(val.toFixed(priceDigits), textX, yPos)
     }
 
     // 绘制7个刻度：最高、最低、中间，以及它们之间的中间值
@@ -180,7 +185,7 @@ export function ChartCanvas({
       
       drawTickLabel(val, yPos, color)
     }
-  }, [colors])
+  }, [colors, priceDigits])
 
   // 绘制副图坐标轴标签 - 对照原版 _drawSubAxisLabel
   const drawSubAxisLabel = useCallback((
@@ -639,7 +644,7 @@ export function ChartCanvas({
       ctx.textBaseline = 'middle'
       ctx.fillStyle = colors.textSecondary
       ctx.globalAlpha = isHovered ? 1 : 0.7
-      ctx.fillText(alertPrice.toFixed(2), axisX + 6, y)
+      ctx.fillText(alertPrice.toFixed(priceDigits), axisX + 6, y)
       ctx.globalAlpha = 1
       
       // 如果有备注，在左侧显示
@@ -693,7 +698,7 @@ export function ChartCanvas({
         ctx.fillText(displayText, noteX + 8, noteY)
       }
     })
-  }, [layout, colors])
+  }, [layout, colors, priceDigits])
 
   // 绘制十字线 - 对照原版 drawCrosshair，添加右侧价格标记
   const drawCrosshair = useCallback((
@@ -747,11 +752,11 @@ export function ChartCanvas({
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
         ctx.fillStyle = colors.bg
-        ctx.fillText(price.toFixed(2), labelX + labelW / 2, y)
+        ctx.fillText(price.toFixed(priceDigits), labelX + labelW / 2, y)
       }
     }
     ctx.setLineDash([])
-  }, [colors, layout])
+  }, [colors, layout, priceDigits])
 
   // 更新十字线数据 - 对照原版 updateCrosshairData
   const updateCrosshairData = useCallback((
