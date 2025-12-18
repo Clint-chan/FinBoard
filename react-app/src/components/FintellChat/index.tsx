@@ -210,16 +210,9 @@ export function FintellChat({
 
   return (
     <div className={`fintell-modal ${open ? 'open' : ''} ${isDark ? 'dark' : ''}`}>
-      {/* 头部 - 与电脑端一致的 AI 身份展示 */}
+      {/* 头部 - 点击头像返回 */}
       <div className="fintell-header">
-        <div className="fintell-close" onClick={onClose}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </div>
-        
-        <div className="fintell-identity">
+        <div className="fintell-identity" onClick={onClose}>
           <div className="fintell-avatar">F</div>
           <div className="fintell-info">
             <span className="fintell-name">Fintell</span>
@@ -230,11 +223,6 @@ export function FintellChat({
         <div className="fintell-action">
           {aiQuota && (
             <span className={`quota-badge ${aiQuota.remaining <= 1 ? (aiQuota.remaining === 0 ? 'exhausted' : 'low') : ''}`}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                <path d="M2 17l10 5 10-5"></path>
-                <path d="M2 12l10 5 10-5"></path>
-              </svg>
               {aiQuota.remaining}/{aiQuota.quota}
             </span>
           )}
@@ -276,6 +264,7 @@ export function FintellChat({
               disabled={!inputValue.trim()}
               onClick={sendMessage}
             >
+              {/* 与电脑端一致的回车箭头图标 */}
               <svg viewBox="0 0 24 24" fill="none" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 10l-5 5 5 5"/>
                 <path d="M20 4v7a4 4 0 0 1-4 4H4"/>
