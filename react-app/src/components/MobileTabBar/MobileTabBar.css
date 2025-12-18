@@ -62,38 +62,67 @@
 }
 
 .ai-icon-wrapper {
-  width: 48px;
-  height: 48px;
+  width: 50px;
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  margin-top: -18px;
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
-  transition: transform 0.15s, box-shadow 0.15s;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  margin-top: -20px;
+  box-shadow: 
+    0 4px 16px rgba(99, 102, 241, 0.4),
+    0 0 0 4px rgba(99, 102, 241, 0.1);
+  transition: 
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s ease;
+  will-change: transform;
 }
 
 .ai-icon-wrapper svg {
   width: 24px;
   height: 24px;
   stroke: #fff;
+  transition: transform 0.2s ease;
 }
 
+/* 点击动画 - 弹性缩放 */
 .tab-item.ai-btn:active .ai-icon-wrapper {
-  transform: scale(0.92);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  transform: scale(0.88);
+  box-shadow: 
+    0 2px 8px rgba(99, 102, 241, 0.3),
+    0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+.tab-item.ai-btn:active .ai-icon-wrapper svg {
+  transform: scale(0.95);
 }
 
 .tab-item.ai-btn .tab-label {
   margin-top: 4px;
   font-weight: 600;
-  color: #3b82f6;
+  color: #6366f1;
 }
 
 .tab-item.ai-btn.active .ai-icon-wrapper {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.5);
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  box-shadow: 
+    0 4px 20px rgba(79, 70, 229, 0.5),
+    0 0 0 4px rgba(79, 70, 229, 0.15);
+}
+
+/* 涟漪动画效果 */
+@keyframes ai-ripple {
+  0% {
+    box-shadow: 
+      0 4px 16px rgba(99, 102, 241, 0.4),
+      0 0 0 0 rgba(99, 102, 241, 0.3);
+  }
+  100% {
+    box-shadow: 
+      0 4px 16px rgba(99, 102, 241, 0.4),
+      0 0 0 12px rgba(99, 102, 241, 0);
+  }
 }
 
 /* 移动端显示 */
@@ -114,14 +143,19 @@
 }
 
 [data-theme="dark"] .ai-icon-wrapper {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  box-shadow: 
+    0 4px 16px rgba(99, 102, 241, 0.35),
+    0 0 0 4px rgba(99, 102, 241, 0.08);
 }
 
 [data-theme="dark"] .tab-item.ai-btn .tab-label {
-  color: #60a5fa;
+  color: #a5b4fc;
 }
 
 [data-theme="dark"] .tab-item.ai-btn.active .ai-icon-wrapper {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  box-shadow: 
+    0 4px 20px rgba(79, 70, 229, 0.45),
+    0 0 0 4px rgba(79, 70, 229, 0.12);
 }
