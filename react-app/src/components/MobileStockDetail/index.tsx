@@ -44,13 +44,10 @@ function fmtPct(val?: number): string {
 export function MobileStockDetail({
   code,
   stockData,
-  stockList = [],
   isDark = false,
-  onStockChange,
   onOpenAlert,
   alerts = {},
 }: MobileStockDetailProps) {
-  const [showStockPicker, setShowStockPicker] = useState(false)
   const [detailInfo, setDetailInfo] = useState<StockDetailInfo | null>(null)
   const stock = stockData[code]
 
@@ -81,38 +78,7 @@ export function MobileStockDetail({
       <div className="msd-scroll-content">
         {/* 价格信息区 - 股票名称 + 价格 */}
         <div className="msd-price-section">
-          <div
-            className="msd-stock-name"
-            onClick={() => stockList.length > 1 && setShowStockPicker(!showStockPicker)}
-          >
-            {stock.name}
-            {stockList.length > 1 && (
-              <svg className={`msd-arrow ${showStockPicker ? 'open' : ''}`} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            )}
-          </div>
-          {/* 股票切换下拉 */}
-          {showStockPicker && stockList.length > 1 && (
-            <div className="msd-stock-picker">
-              {stockList.map(c => {
-                const s = stockData[c]
-                const p = s?.preClose ? ((s.price - s.preClose) / s.preClose) * 100 : 0
-                return (
-                  <div
-                    key={c}
-                    className={`msd-stock-option ${c === code ? 'active' : ''}`}
-                    onClick={() => { onStockChange?.(c); setShowStockPicker(false) }}
-                  >
-                    <span className="option-name">{s?.name || c}</span>
-                    <span className={`option-pct ${p >= 0 ? 'is-up' : 'is-down'}`}>
-                      {p >= 0 ? '+' : ''}{p.toFixed(2)}%
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+          <div className="msd-stock-name">{stock.name}</div>
           <div className={`msd-main-price ${colorClass}`}>
             <span className="msd-price">{stock.price.toFixed(2)}</span>
             <span className="msd-change">

@@ -20,7 +20,6 @@
 .msd-price-section {
   background: var(--bg-surface);
   padding: 16px;
-  position: relative;
 }
 
 /* 股票名称 */
@@ -29,70 +28,6 @@
   font-weight: 500;
   color: var(--text-secondary);
   margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-
-.msd-arrow {
-  transition: transform 0.2s;
-  color: var(--text-tertiary);
-}
-
-.msd-arrow.open {
-  transform: rotate(180deg);
-}
-
-/* 股票切换下拉 */
-.msd-stock-picker {
-  position: absolute;
-  top: 40px;
-  left: 16px;
-  right: 16px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  max-height: 240px;
-  overflow-y: auto;
-  z-index: 100;
-}
-
-.msd-stock-option {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.msd-stock-option:active {
-  background: var(--bg-hover);
-}
-
-.msd-stock-option.active {
-  background: rgba(79, 106, 245, 0.08);
-}
-
-.msd-stock-option .option-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.msd-stock-option .option-pct {
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.msd-stock-option .option-pct.is-up {
-  color: var(--color-up);
-}
-
-.msd-stock-option .option-pct.is-down {
-  color: var(--color-down);
 }
 
 /* 价格 */
@@ -131,8 +66,6 @@
   gap: 12px 8px;
 }
 
-/* 删除了 msd-quote-ext，现在只有一个网格 */
-
 .quote-item {
   display: flex;
   justify-content: space-between;
@@ -159,11 +92,14 @@
   color: var(--color-down);
 }
 
-/* ========== K线图区域 ========== */
+/* ========== K线图区域 - 占满剩余空间 ========== */
 .msd-chart-section {
-  height: 380px;
+  /* 使用 calc 计算：视口高度 - 价格区高度(约120px) - 行情数据区高度(约100px) - 底部TabBar(55px) - 间距 */
+  min-height: calc(100vh - 240px - env(safe-area-inset-bottom));
+  height: calc(100vh - 240px - env(safe-area-inset-bottom));
   background: var(--bg-surface);
   margin-top: 10px;
+  flex-shrink: 0;
 }
 
 /* ========== 资讯区域 ========== */
@@ -201,8 +137,4 @@
   --bg-surface: #1e293b;
   --bg-hover: #334155;
   --border-light: #334155;
-}
-
-[data-theme="dark"] .msd-stock-picker {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }

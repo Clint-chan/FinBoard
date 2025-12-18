@@ -113,7 +113,8 @@ export async function fetchStockDetailInfo(code: string): Promise<StockDetailInf
     bvps: undefined,
     
     // 交易数据
-    turnoverRate: safeNum(d.f168, 100),
+    // 换手率：东方财富返回的是百分比值（如 2.35 表示 2.35%），不需要除以 100
+    turnoverRate: safeNum(d.f168),
     amplitude: amplitude,
     volume: safeNum(d.f47),
     amount: safeNum(d.f48),
