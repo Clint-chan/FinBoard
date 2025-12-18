@@ -1,14 +1,10 @@
 /**
  * MobileStockList - 移动端自选股列表
- * 采用胶囊设计 (Pill Design)，优化信息层级
- * - 价格纯数字无背景，涨跌幅胶囊色块
- * - 中间迷你走势图 Sparkline
- * - 缩进分割线，更透气的布局
+ * 胶囊设计 (Pill Design)
  */
 import { useCallback, useRef, useEffect } from 'react'
 import type { StockData, AlertConfig } from '@/types'
 import { calcPct, getPctClass } from '@/utils/format'
-import { Sparkline } from '@/components/Sparkline'
 import './MobileStockList.css'
 
 interface MobileStockItemProps {
@@ -23,7 +19,7 @@ interface MobileStockItemProps {
 function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: MobileStockItemProps) {
   const longPressTimer = useRef<number | null>(null)
   const touchStartPos = useRef<{ x: number; y: number } | null>(null)
-  
+
   const pct = calcPct(data?.price, data?.preClose)
   const pctClass = getPctClass(pct)
   const sign = pct > 0 ? '+' : ''
@@ -31,12 +27,12 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
   // 盈亏信息
   let profitInfo = null
   if (cost && data?.price) {
-    const profitPct = ((data.price - cost) / cost * 100)
+    const profitPct = (data.price - cost) / cost * 100
     const profitClass = profitPct >= 0 ? 'up' : 'down'
     const profitSign = profitPct >= 0 ? '+' : ''
     profitInfo = (
       <span className={`msl-profit ${profitClass}`}>
-        成本{cost.toFixed(2)} {profitSign}{profitPct.toFixed(2)}%
+        {profitSign}{profitPct.toFixed(2)}%
       </span>
     )
   }
@@ -45,7 +41,7 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0]
     touchStartPos.current = { x: touch.clientX, y: touch.clientY }
-    
+
     longPressTimer.current = window.setTimeout(() => {
       onLongPress(code, { clientX: touch.clientX, clientY: touch.clientY })
       if (navigator.vibrate) navigator.vibrate(50)
@@ -57,19 +53,17 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current)
       longPressTimer.current = null
-      // 短按 = 点击
       onTap(code)
     }
   }, [code, onTap])
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!touchStartPos.current || !longPressTimer.current) return
-    
+
     const touch = e.touches[0]
     const dx = Math.abs(touch.clientX - touchStartPos.current.x)
     const dy = Math.abs(touch.clientY - touchStartPos.current.y)
-    
-    // 移动超过 10px 取消长按
+
     if (dx > 10 || dy > 10) {
       clearTimeout(longPressTimer.current)
       longPressTimer.current = null
@@ -83,35 +77,32 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
   }, [])
 
   return (
-    <div 
+    <div
       className="msl-item"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchMove}
       onClick={() => onTap(code)}
     >
-      {/* 左侧：名称 + 代码 */}
-      <div className="msl-left">
+      {/* 名称/代码 */}
+      <div className="msl-col msl-col-name">
         <div className="msl-name">
           {data?.name || '--'}
           {hasAlert && <span className="msl-alert-dot">●</span>}
         </div>
-        <div className="msl-code-row">
-          <span className="msl-code">{code.toUpperCase()}</span>
-          {profitInfo}
-        </div>
+        <div className="msl-code">{code.toUpperCase()}</div>
       </div>
 
-      {/* 中间：迷你走势图 */}
-      <div className="msl-center">
-        <Sparkline code={code} className="msl-sparkline" />
-      </div>
-
-      {/* 右侧：价格 + 涨跌幅胶囊 */}
-      <div className="msl-right">
-        <div className={`msl-price ${pctClass}`}>
+      {/* 最新价 */}
+      <div className="msl-col msl-col-price">
+        <span className={`msl-price ${pctClass}`}>
           {data?.price?.toFixed(2) || '--'}
-        </div>
+        </span>
+        {profitInfo}
+      </div>
+
+      {/* 涨跌幅 */}
+      <div className="msl-col msl-col-pct">
         <span className={`msl-pct-pill ${pctClass}`}>
           {sign}{(pct * 100).toFixed(2)}%
         </span>
@@ -137,19 +128,26 @@ export function MobileStockList({
   alerts,
   onStockTap,
   onStockLongPress,
-  onAddStock
+  onAddStock,
 }: MobileStockListProps) {
   return (
     <div className="mobile-stock-list">
-      {/* 列表头部 */}
-      <div className="msl-header">
-        <span className="msl-header-left">自选股 ({codes.length})</span>
+      {/* 标题栏 */}
+      <div className="msl-title-bar">
+        <span className="msl-title">自选股 ({codes.length})</span>
         <button className="msl-add-btn" onClick={onAddStock}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
         </button>
+      </div>
+
+      {/* 表头 */}
+      <div className="msl-header">
+        <div className="msl-col msl-col-name">名称/代码</div>
+        <div className="msl-col msl-col-price">最新价</div>
+        <div className="msl-col msl-col-pct">涨跌幅</div>
       </div>
 
       {/* 股票列表 */}
