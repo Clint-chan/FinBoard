@@ -62,28 +62,28 @@
   flex-shrink: 0;
 }
 
-/* 列定义 */
+/* 列定义 - 均分宽度 */
 .msl-col {
   flex-shrink: 0;
 }
 
 .msl-col-name {
-  flex: 1;
+  width: 30%;
   min-width: 0;
 }
 
 .msl-col-price {
-  width: 72px;
+  width: 24%;
   text-align: right;
 }
 
 .msl-col-change {
-  width: 64px;
+  width: 22%;
   text-align: right;
 }
 
 .msl-col-pct {
-  width: 72px;
+  width: 24%;
   text-align: right;
 }
 
@@ -150,50 +150,54 @@
   letter-spacing: 0.02em;
 }
 
-/* 价格 */
-.msl-price {
+/* 价格 - 纯文字无背景 */
+.mobile-stock-list .msl-price {
   font-size: 15px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   display: block;
+  background: none !important;
 }
 
-.msl-price.up { color: var(--color-up); }
-.msl-price.down { color: var(--color-down); }
-.msl-price.flat { color: var(--text-secondary); }
+.mobile-stock-list .msl-price.is-up { color: var(--color-up); }
+.mobile-stock-list .msl-price.is-down { color: var(--color-down); }
+.mobile-stock-list .msl-price.is-flat { color: var(--text-secondary); }
 
-/* 盈亏 */
-.msl-profit {
+/* 盈亏 - 纯文字无背景 */
+.mobile-stock-list .msl-profit {
   display: block;
   font-size: 10px;
   margin-top: 2px;
   font-variant-numeric: tabular-nums;
+  background: none !important;
 }
 
-.msl-profit.up { color: var(--color-up); }
-.msl-profit.down { color: var(--color-down); }
+.mobile-stock-list .msl-profit.is-up { color: var(--color-up); }
+.mobile-stock-list .msl-profit.is-down { color: var(--color-down); }
 
-/* 涨跌额 */
-.msl-change {
+/* 涨跌额 - 纯文字无背景 */
+.mobile-stock-list .msl-change {
   font-size: 14px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+  background: none !important;
 }
 
-.msl-change.up { color: var(--color-up); }
-.msl-change.down { color: var(--color-down); }
-.msl-change.flat { color: var(--text-secondary); }
+.mobile-stock-list .msl-change.is-up { color: var(--color-up); }
+.mobile-stock-list .msl-change.is-down { color: var(--color-down); }
+.mobile-stock-list .msl-change.is-flat { color: var(--text-secondary); }
 
-/* 涨跌幅 */
-.msl-pct {
+/* 涨跌幅 - 纯文字无背景 */
+.mobile-stock-list .msl-pct {
   font-size: 14px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+  background: none !important;
 }
 
-.msl-pct.up { color: var(--color-up); }
-.msl-pct.down { color: var(--color-down); }
-.msl-pct.flat { color: var(--text-secondary); }
+.mobile-stock-list .msl-pct.is-up { color: var(--color-up); }
+.mobile-stock-list .msl-pct.is-down { color: var(--color-down); }
+.mobile-stock-list .msl-pct.is-flat { color: var(--text-secondary); }
 
 /* 空状态 */
 .msl-empty {

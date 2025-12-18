@@ -1,11 +1,17 @@
 /**
  * MobileStockList - 移动端自选股列表
- * 胶囊设计 (Pill Design)
  */
 import { useCallback, useRef, useEffect } from 'react'
 import type { StockData, AlertConfig } from '@/types'
-import { calcPct, getPctClass } from '@/utils/format'
+import { calcPct } from '@/utils/format'
 import './MobileStockList.css'
+
+// 获取涨跌样式类 (使用 is- 前缀避免全局样式冲突)
+function getColorClass(pct: number): string {
+  if (pct > 0) return 'is-up'
+  if (pct < 0) return 'is-down'
+  return 'is-flat'
+}
 
 interface MobileStockItemProps {
   code: string
@@ -21,14 +27,14 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
   const touchStartPos = useRef<{ x: number; y: number } | null>(null)
 
   const pct = calcPct(data?.price, data?.preClose)
-  const pctClass = getPctClass(pct)
+  const colorClass = getColorClass(pct)
   const sign = pct > 0 ? '+' : ''
 
   // 盈亏信息
   let profitInfo = null
   if (cost && data?.price) {
     const profitPct = (data.price - cost) / cost * 100
-    const profitClass = profitPct >= 0 ? 'up' : 'down'
+    const profitClass = profitPct >= 0 ? 'is-up' : 'is-down'
     const profitSign = profitPct >= 0 ? '+' : ''
     profitInfo = (
       <span className={`msl-profit ${profitClass}`}>
@@ -99,7 +105,7 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
 
       {/* 最新价 */}
       <div className="msl-col msl-col-price">
-        <span className={`msl-price ${pctClass}`}>
+        <span className={`msl-price ${colorClass}`}>
           {data?.price?.toFixed(2) || '--'}
         </span>
         {profitInfo}
@@ -107,14 +113,14 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
 
       {/* 涨跌额 */}
       <div className="msl-col msl-col-change">
-        <span className={`msl-change ${pctClass}`}>
+        <span className={`msl-change ${colorClass}`}>
           {changeSign}{change.toFixed(2)}
         </span>
       </div>
 
       {/* 涨跌幅 */}
       <div className="msl-col msl-col-pct">
-        <span className={`msl-pct ${pctClass}`}>
+        <span className={`msl-pct ${colorClass}`}>
           {sign}{(pct * 100).toFixed(2)}%
         </span>
       </div>
