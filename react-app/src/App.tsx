@@ -523,8 +523,8 @@ function App() {
         </div>
       )}
       
-      {/* 桌面端主内容 */}
-      <main className={`main-content ${isMobile ? 'mobile-hidden' : ''}`}>
+      {/* 主内容区域 - 移动端仅在预警/我的页面显示 */}
+      <main className={`main-content ${isMobile && (mobileTab === 'watchlist' || mobileTab === 'market') ? 'mobile-hidden' : ''}`}>
         {activePage === 'watchlist' && (
           <div className="page">
             {/* 对照原版：header 只有标题，设置按钮是隐藏的 */}
