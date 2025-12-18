@@ -39,6 +39,46 @@ export function FintellChat({
   
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesRef = useRef<HTMLDivElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+
+  // 键盘弹出时精确定位输入框
+  useEffect(() => {
+    if (!open) return
+    
+    const viewport = window.visualViewport
+    if (!viewport) return
+
+    const handleResize = () => {
+      if (!modalRef.current) return
+      
+      // 直接使用 visualViewport 的高度作为 modal 高度
+      // 这样输入框会紧贴键盘顶部
+      const viewportHeight = viewport.height
+      modalRef.current.style.height = `${viewportHeight}px`
+      
+      // 滚动到底部
+      requestAnimationFrame(() => {
+        if (messagesRef.current) {
+          messagesRef.current.scrollTop = messagesRef.current.scrollHeight
+        }
+      })
+    }
+
+    // 初始化
+    handleResize()
+    
+    viewport.addEventListener('resize', handleResize)
+    viewport.addEventListener('scroll', handleResize)
+    
+    return () => {
+      viewport.removeEventListener('resize', handleResize)
+      viewport.removeEventListener('scroll', handleResize)
+      // 恢复默认高度
+      if (modalRef.current) {
+        modalRef.current.style.height = ''
+      }
+    }
+  }, [open])
 
   // 同步初始代码
   useEffect(() => {
@@ -213,7 +253,7 @@ export function FintellChat({
   const messages = chatHistory[currentCode] || []
 
   return (
-    <div className={`fintell-modal ${open ? 'open' : ''} ${isDark ? 'dark' : ''}`}>
+    <div ref={modalRef} className={`fintell-modal ${open ? 'open' : ''} ${isDark ? 'dark' : ''}`}>
       {/* 头部 - 点击头像返回 */}
       <div className="fintell-header">
         <div className="fintell-identity" onClick={onClose}>
