@@ -140,7 +140,28 @@ export function ChartCanvas({
     ctx.setLineDash([])
   }, [colors])
 
-  // 绘制价格轴 - 增加刻度数量到7个
+  // 计算漂亮的刻度间隔
+  const niceNumber = useCallback((range: number, round: boolean): number => {
+    const exponent = Math.floor(Math.log10(range))
+    const fraction = range / Math.pow(10, exponent)
+    let niceFraction: number
+
+    if (round) {
+      if (fraction < 1.5) niceFraction = 1
+      else if (fraction < 3) niceFraction = 2
+      else if (fraction < 7) niceFraction = 5
+      else niceFraction = 10
+    } else {
+      if (fraction <= 1) niceFraction = 1
+      else if (fraction <= 2) niceFraction = 2
+      else if (fraction <= 5) niceFraction = 5
+      else niceFraction = 10
+    }
+
+    return niceFraction * Math.pow(10, exponent)
+  }, [])
+
+  // 绘制价格轴 - 使用漂亮数字算法自适应刻度
   const drawPriceAxis = useCallback((
     ctx: CanvasRenderingContext2D,
     axisStartX: number, y: number, h: number,
@@ -150,15 +171,14 @@ export function ChartCanvas({
     ctx.font = '10px Inter, -apple-system, sans-serif'
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
-    
+
     const tickLen = 4
     const textGap = 8
     const textX = axisStartX + textGap
 
     const drawTickLabel = (val: number, yPos: number, color: string) => {
-      // 确保val是有效数字
       if (typeof val !== 'number' || isNaN(val)) return
-      
+
       ctx.strokeStyle = colors.border
       ctx.beginPath()
       ctx.moveTo(axisStartX, yPos)
@@ -168,24 +188,33 @@ export function ChartCanvas({
       ctx.fillText(val.toFixed(priceDigits), textX, yPos)
     }
 
-    // 绘制7个刻度：最高、最低、中间，以及它们之间的中间值
-    const tickCount = 7
-    for (let i = 0; i < tickCount; i++) {
-      const ratio = i / (tickCount - 1)
-      const val = range.max - (range.max - range.min) * ratio
+    // 计算漂亮的刻度间隔
+    const dataRange = range.max - range.min
+    const targetTickCount = 5 // 目标刻度数量
+    const roughTickInterval = dataRange / targetTickCount
+    const tickInterval = niceNumber(roughTickInterval, true)
+
+    // 计算起始刻度值（向下取整到刻度间隔的倍数）
+    const tickMin = Math.floor(range.min / tickInterval) * tickInterval
+    const tickMax = Math.ceil(range.max / tickInterval) * tickInterval
+
+    // 绘制刻度
+    for (let val = tickMin; val <= tickMax; val += tickInterval) {
+      if (val < range.min || val > range.max) continue
+
+      const ratio = (range.max - val) / dataRange
       const yPos = y + h * ratio
-      
+
       let color = colors.textSecondary
-      if (i === 0) color = colors.up // 最高价
-      else if (i === tickCount - 1) color = colors.down // 最低价
-      else if (preClose && Math.abs(val - preClose) < (range.max - range.min) * 0.02) {
-        // 如果接近昨收价，高亮显示
+      if (val >= range.max - tickInterval * 0.5) color = colors.up
+      else if (val <= range.min + tickInterval * 0.5) color = colors.down
+      else if (preClose && Math.abs(val - preClose) < tickInterval * 0.3) {
         color = colors.textSecondary
       }
-      
+
       drawTickLabel(val, yPos, color)
     }
-  }, [colors, priceDigits])
+  }, [colors, priceDigits, niceNumber])
 
   // 绘制副图坐标轴标签 - 对照原版 _drawSubAxisLabel
   const drawSubAxisLabel = useCallback((
@@ -1040,18 +1069,48 @@ export function ChartCanvas({
     onCrosshairChange({ x, y })
   }, [onCrosshairChange])
 
-  // 触摸开始 - 对照原版 handleTouchStart
+  // 单指拖动状态
+  const [touchDragging, setTouchDragging] = useState<{
+    startX: number
+    startY: number
+    startPanX: number
+    startPanY: number
+    startScale: number
+    isYAxis: boolean
+  } | null>(null)
+
+  // 触摸开始 - 支持单指拖动和双指缩放
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       e.preventDefault()
       const dist = getTouchDistance(e.touches)
-      setPinchState({ startDist: dist, startCount: 50 }) // TODO: 从外部获取 klineCount
+      setPinchState({ startDist: dist, startCount: 50 })
+      setTouchDragging(null)
     } else if (e.touches.length === 1) {
-      updateCrosshairFromTouch(e.touches[0])
-    }
-  }, [getTouchDistance, updateCrosshairFromTouch])
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const touch = e.touches[0]
+      const dpr = dprRef.current
+      const scaleX = (canvasRef.current?.width || 0) / rect.width / dpr
+      const x = (touch.clientX - rect.left) * scaleX
 
-  // 触摸移动 - 对照原版 handleTouchMove
+      // 检查是否在Y轴区域
+      const chartW = width - layout.padding.left - layout.padding.right
+      const axisX = layout.padding.left + chartW
+      const isOnYAxis = x >= axisX - 20 && x <= width // 扩大Y轴触摸区域
+
+      setTouchDragging({
+        startX: touch.clientX,
+        startY: touch.clientY,
+        startPanX: panOffset.x,
+        startPanY: panOffset.y,
+        startScale: priceScale,
+        isYAxis: isOnYAxis
+      })
+    }
+  }, [getTouchDistance, width, layout, panOffset, priceScale])
+
+  // 触摸移动 - 支持单指拖动平移/缩放
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2 && pinchState && !isIntraday) {
       e.preventDefault()
@@ -1060,16 +1119,48 @@ export function ChartCanvas({
       const newCount = Math.round(pinchState.startCount / scale)
       const delta = (newCount - pinchState.startCount) * 5
       onWheel(delta)
-    } else if (e.touches.length === 1) {
+    } else if (e.touches.length === 1 && touchDragging) {
       e.preventDefault()
+      const touch = e.touches[0]
+      const deltaX = touch.clientX - touchDragging.startX
+      const deltaY = touch.clientY - touchDragging.startY
+
+      if (touchDragging.isYAxis) {
+        // Y轴拖动：调整价格缩放
+        const scaleDelta = -deltaY / 100
+        const newScale = touchDragging.startScale * Math.pow(2, scaleDelta)
+        const clampedScale = Math.max(0.3, Math.min(5.0, newScale))
+        setPriceScale(clampedScale)
+      } else {
+        // 图表区域拖动：平移
+        const newPanX = touchDragging.startPanX + deltaX
+        setPanOffset({
+          x: newPanX,
+          y: touchDragging.startPanY + deltaY
+        })
+
+        // 检测是否拖动到左边界，触发加载更多
+        if (!isIntraday && newPanX > 50 && onPanToEdge) {
+          onPanToEdge()
+          setPanOffset({ x: 0, y: touchDragging.startPanY + deltaY })
+          setTouchDragging({
+            ...touchDragging,
+            startX: touch.clientX,
+            startPanX: 0
+          })
+        }
+      }
+    } else if (e.touches.length === 1 && !touchDragging) {
+      // 没有拖动状态时显示十字线
       updateCrosshairFromTouch(e.touches[0])
     }
-  }, [pinchState, isIntraday, getTouchDistance, updateCrosshairFromTouch, onWheel])
+  }, [pinchState, isIntraday, getTouchDistance, onWheel, touchDragging, onPanToEdge, updateCrosshairFromTouch])
 
-  // 触摸结束 - 对照原版 handleTouchEnd
+  // 触摸结束
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 0) {
       setPinchState(null)
+      setTouchDragging(null)
       // 延迟清除十字光标
       setTimeout(() => {
         onCrosshairChange(null)
