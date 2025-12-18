@@ -1,5 +1,5 @@
 /**
- * 移动端自选股列表 - 胶囊设计
+ * 移动端自选股列表
  */
 
 .mobile-stock-list {
@@ -73,12 +73,17 @@
 }
 
 .msl-col-price {
-  width: 80px;
+  width: 72px;
+  text-align: right;
+}
+
+.msl-col-change {
+  width: 64px;
   text-align: right;
 }
 
 .msl-col-pct {
-  width: 76px;
+  width: 72px;
   text-align: right;
 }
 
@@ -147,23 +152,15 @@
 
 /* 价格 */
 .msl-price {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   display: block;
 }
 
-.msl-price.up {
-  color: var(--color-up);
-}
-
-.msl-price.down {
-  color: var(--color-down);
-}
-
-.msl-price.flat {
-  color: var(--text-secondary);
-}
+.msl-price.up { color: var(--color-up); }
+.msl-price.down { color: var(--color-down); }
+.msl-price.flat { color: var(--text-secondary); }
 
 /* 盈亏 */
 .msl-profit {
@@ -173,40 +170,30 @@
   font-variant-numeric: tabular-nums;
 }
 
-.msl-profit.up {
-  color: var(--color-up);
-}
+.msl-profit.up { color: var(--color-up); }
+.msl-profit.down { color: var(--color-down); }
 
-.msl-profit.down {
-  color: var(--color-down);
-}
-
-/* 涨跌幅胶囊 */
-.msl-pct-pill {
-  display: inline-block;
-  font-size: 13px;
+/* 涨跌额 */
+.msl-change {
+  font-size: 14px;
   font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 12px;
   font-variant-numeric: tabular-nums;
-  min-width: 68px;
-  text-align: center;
 }
 
-.msl-pct-pill.up {
-  color: var(--color-up);
-  background: rgba(239, 68, 68, 0.1);
+.msl-change.up { color: var(--color-up); }
+.msl-change.down { color: var(--color-down); }
+.msl-change.flat { color: var(--text-secondary); }
+
+/* 涨跌幅 */
+.msl-pct {
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
-.msl-pct-pill.down {
-  color: var(--color-down);
-  background: rgba(16, 185, 129, 0.1);
-}
-
-.msl-pct-pill.flat {
-  color: var(--text-secondary);
-  background: var(--bg-hover);
-}
+.msl-pct.up { color: var(--color-up); }
+.msl-pct.down { color: var(--color-down); }
+.msl-pct.flat { color: var(--text-secondary); }
 
 /* 空状态 */
 .msl-empty {
@@ -237,12 +224,4 @@
 /* 深色模式 */
 [data-theme="dark"] .msl-item:active {
   background: var(--bg-hover);
-}
-
-[data-theme="dark"] .msl-pct-pill.up {
-  background: rgba(248, 113, 113, 0.15);
-}
-
-[data-theme="dark"] .msl-pct-pill.down {
-  background: rgba(52, 211, 153, 0.15);
 }

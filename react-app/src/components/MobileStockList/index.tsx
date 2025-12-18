@@ -76,6 +76,10 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
     }
   }, [])
 
+  // 涨跌额
+  const change = data?.price && data?.preClose ? data.price - data.preClose : 0
+  const changeSign = change > 0 ? '+' : ''
+
   return (
     <div
       className="msl-item"
@@ -101,9 +105,16 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
         {profitInfo}
       </div>
 
+      {/* 涨跌额 */}
+      <div className="msl-col msl-col-change">
+        <span className={`msl-change ${pctClass}`}>
+          {changeSign}{change.toFixed(2)}
+        </span>
+      </div>
+
       {/* 涨跌幅 */}
       <div className="msl-col msl-col-pct">
-        <span className={`msl-pct-pill ${pctClass}`}>
+        <span className={`msl-pct ${pctClass}`}>
           {sign}{(pct * 100).toFixed(2)}%
         </span>
       </div>
@@ -147,6 +158,7 @@ export function MobileStockList({
       <div className="msl-header">
         <div className="msl-col msl-col-name">名称/代码</div>
         <div className="msl-col msl-col-price">最新价</div>
+        <div className="msl-col msl-col-change">涨跌额</div>
         <div className="msl-col msl-col-pct">涨跌幅</div>
       </div>
 
