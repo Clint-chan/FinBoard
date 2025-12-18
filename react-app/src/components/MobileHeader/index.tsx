@@ -1,30 +1,44 @@
 /**
  * MobileHeader - 移动端顶部导航栏
+ * 简洁设计，居中标题
  */
 
 import React from 'react'
 import './MobileHeader.css'
 
 interface MobileHeaderProps {
-  onMenuClick: () => void
   title?: string
+  showBack?: boolean
+  onBack?: () => void
 }
 
 export const MobileHeader: React.FC<MobileHeaderProps> = ({ 
-  onMenuClick,
-  title = 'Fintell'
+  title = 'Fintell',
+  showBack = false,
+  onBack
 }) => {
   return (
     <div className="mobile-header">
-      <button className="mobile-menu-btn" onClick={onMenuClick} aria-label="打开菜单">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>
+      {/* 左侧：返回按钮或占位 */}
+      <div className="mobile-header-left">
+        {showBack && onBack ? (
+          <button className="mobile-back-btn" onClick={onBack} aria-label="返回">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M15 18l-6-6 6-6"/>
+            </svg>
+          </button>
+        ) : (
+          <div className="mobile-header-spacer"></div>
+        )}
+      </div>
       
+      {/* 中间：标题 */}
       <div className="mobile-header-title">{title}</div>
       
-      <div className="mobile-header-spacer"></div>
+      {/* 右侧：占位 */}
+      <div className="mobile-header-right">
+        <div className="mobile-header-spacer"></div>
+      </div>
     </div>
   )
 }

@@ -9,6 +9,7 @@ import { requestNotificationPermission } from '@/utils/format'
 import Sidebar from '@/components/Sidebar'
 import { MobileHeader } from '@/components/MobileHeader'
 import { MobileTabBar, type MobileTab } from '@/components/MobileTabBar'
+import { MobileStockList } from '@/components/MobileStockList'
 import { MobileStockDetail } from '@/components/MobileStockDetail'
 import { FintellChat } from '@/components/FintellChat'
 import StockTable from '@/components/StockTable'
@@ -455,17 +456,22 @@ function App() {
     }
   }
 
+  // 移动端长按处理（打开右键菜单）
+  const handleMobileLongPress = useCallback((code: string, pos: { clientX: number; clientY: number }) => {
+    setContextMenu({ open: true, x: pos.clientX, y: pos.clientY, code })
+  }, [])
+
   return (
     <div className={`app ${isMobile ? 'mobile-layout' : ''}`} data-theme={isDark ? 'dark' : 'light'}>
       {/* 移动端顶部导航 - 仅在非行情详情页显示 */}
       {(!isMobile || mobileTab !== 'market' || !mobileStockCode) && (
         <MobileHeader 
-          onMenuClick={() => setMobileSidebarOpen(true)}
           title={isMobile ? getMobileTitle() : (activePage === 'watchlist' ? '行情看板' : activePage === 'alerts' ? '价格预警' : activePage === 'settings' ? '设置' : '管理')}
         />
       )}
       
-      {/* 桌面端侧边栏 */}
+      {/* 桌面端侧边栏 - 移动端隐藏 */}
+      {!isMobile && (
       <Sidebar
         activePage={activePage}
         user={user}
@@ -497,8 +503,28 @@ function App() {
         }}
         token={localStorage.getItem('cloud_token')}
       />
+      )}
       
-      <main className="main-content">
+      {/* 移动端自选列表 */}
+      {isMobile && mobileTab === 'watchlist' && (
+        <div className="mobile-watchlist-container">
+          <MobileStockList
+            codes={config.codes}
+            stockData={stockData}
+            costs={config.costs}
+            alerts={config.alerts}
+            onStockTap={(code) => {
+              setMobileStockCode(code)
+              setMobileTab('market')
+            }}
+            onStockLongPress={handleMobileLongPress}
+            onAddStock={() => setAddStockOpen(true)}
+          />
+        </div>
+      )}
+      
+      {/* 桌面端主内容 */}
+      <main className={`main-content ${isMobile ? 'mobile-hidden' : ''}`}>
         {activePage === 'watchlist' && (
           <div className="page">
             {/* 对照原版：header 只有标题，设置按钮是隐藏的 */}
