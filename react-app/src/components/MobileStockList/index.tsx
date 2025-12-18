@@ -149,17 +149,6 @@ export function MobileStockList({
 }: MobileStockListProps) {
   return (
     <div className="mobile-stock-list">
-      {/* 标题栏 */}
-      <div className="msl-title-bar">
-        <span className="msl-title">自选股 ({codes.length})</span>
-        <button className="msl-add-btn" onClick={onAddStock}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>
-      </div>
-
       {/* 表头 */}
       <div className="msl-header">
         <div className="msl-col msl-col-name">名称/代码</div>
@@ -181,17 +170,27 @@ export function MobileStockList({
             <span>点击添加</span>
           </div>
         ) : (
-          codes.map(code => (
-            <MobileStockItem
-              key={code}
-              code={code}
-              data={stockData[code]}
-              cost={costs?.[code]}
-              hasAlert={(alerts?.[code]?.conditions?.length ?? 0) > 0}
-              onTap={onStockTap}
-              onLongPress={onStockLongPress}
-            />
-          ))
+          <>
+            {codes.map(code => (
+              <MobileStockItem
+                key={code}
+                code={code}
+                data={stockData[code]}
+                cost={costs?.[code]}
+                hasAlert={(alerts?.[code]?.conditions?.length ?? 0) > 0}
+                onTap={onStockTap}
+                onLongPress={onStockLongPress}
+              />
+            ))}
+            {/* 添加自选股按钮 - 放在列表最后 */}
+            <div className="msl-add-row" onClick={onAddStock}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>添加自选股</span>
+            </div>
+          </>
         )}
       </div>
     </div>

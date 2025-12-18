@@ -508,8 +508,8 @@
 
 /* 发送按钮 - 与电脑端一致的蓝色小按钮 */
 .fintell-send {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 8px;
   border: none;
   background: #0066ff;
@@ -519,11 +519,13 @@
   cursor: pointer;
   flex-shrink: 0;
   margin-left: 8px;
+  padding: 0;
   transition: all 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
 
 .fintell-send svg {
+  display: block;
   width: 16px;
   height: 16px;
   stroke: white;

@@ -9,47 +9,6 @@
   background: var(--bg-surface);
 }
 
-/* 标题栏 */
-.msl-title-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border-light);
-  flex-shrink: 0;
-}
-
-.msl-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.msl-add-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: none;
-  background: var(--bg-hover);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 0;
-  box-shadow: none;
-  transition: background 0.15s, color 0.15s;
-}
-
-.msl-add-btn:hover {
-  background: var(--border-light);
-  color: var(--text-primary);
-}
-
-.msl-add-btn:active {
-  transform: scale(0.95);
-}
-
 /* 表头 */
 .msl-header {
   display: flex;
@@ -225,7 +184,37 @@
   font-size: 13px;
 }
 
+/* 添加自选股行 - 与电脑端一致 */
+.msl-add-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.msl-add-row:active {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.msl-add-row svg {
+  opacity: 0.6;
+}
+
+.msl-add-row span {
+  font-size: 14px;
+}
+
 /* 深色模式 */
 [data-theme="dark"] .msl-item:active {
+  background: var(--bg-hover);
+}
+
+[data-theme="dark"] .msl-add-row:active {
   background: var(--bg-hover);
 }
