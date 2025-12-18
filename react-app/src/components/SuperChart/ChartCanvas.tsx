@@ -161,12 +161,13 @@ export function ChartCanvas({
     return niceFraction * Math.pow(10, exponent)
   }, [])
 
-  // 绘制价格轴 - 使用漂亮数字算法自适应刻度
+  // 绘制价格轴 - 使用漂亮数字算法自适应刻度，支持预警线防重叠
   const drawPriceAxis = useCallback((
     ctx: CanvasRenderingContext2D,
     axisStartX: number, y: number, h: number,
     range: { min: number; max: number },
-    preClose?: number
+    preClose?: number,
+    alertPrices?: number[] // 预警线价格列表，用于防重叠
   ) => {
     ctx.font = '10px Inter, -apple-system, sans-serif'
     ctx.textAlign = 'left'
@@ -198,12 +199,32 @@ export function ChartCanvas({
     const tickMin = Math.floor(range.min / tickInterval) * tickInterval
     const tickMax = Math.ceil(range.max / tickInterval) * tickInterval
 
+    // 防重叠：计算预警线的Y坐标
+    const alertYPositions: number[] = []
+    if (alertPrices && alertPrices.length > 0) {
+      alertPrices.forEach(alertPrice => {
+        if (alertPrice >= range.min && alertPrice <= range.max) {
+          const ratio = (range.max - alertPrice) / dataRange
+          alertYPositions.push(y + h * ratio)
+        }
+      })
+    }
+
+    // 检查是否与预警线太近（Y坐标差小于15px则跳过）
+    const isNearAlert = (yPos: number): boolean => {
+      const minDistance = 15 // 最小间距（像素）
+      return alertYPositions.some(alertY => Math.abs(yPos - alertY) < minDistance)
+    }
+
     // 绘制刻度
     for (let val = tickMin; val <= tickMax; val += tickInterval) {
       if (val < range.min || val > range.max) continue
 
       const ratio = (range.max - val) / dataRange
       const yPos = y + h * ratio
+
+      // 如果与预警线太近，跳过该刻度
+      if (isNearAlert(yPos)) continue
 
       let color = colors.textSecondary
       if (val >= range.max - tickInterval * 0.5) color = colors.up
@@ -325,9 +346,10 @@ export function ChartCanvas({
     ctx.lineWidth = 1
     ctx.stroke()
 
-    // Y轴
-    drawPriceAxis(ctx, x + w, y, h, priceRange, preClose)
-  }, [colors, drawGrid, timeToX, drawPriceAxis, priceScale, panOffset])
+    // Y轴 - 传入预警线价格用于防重叠
+    const alertPrices = alertLines.map(a => a.price)
+    drawPriceAxis(ctx, x + w, y, h, priceRange, preClose, alertPrices)
+  }, [colors, drawGrid, timeToX, drawPriceAxis, priceScale, panOffset, alertLines])
 
   // 绘制 K 线主图 - 对照原版 drawKlineMain，支持价格缩放和平移
   const drawKlineMain = useCallback((
@@ -413,9 +435,10 @@ export function ChartCanvas({
       ctx.fillRect(px - barW / 2, bodyTop, barW, bodyH)
     })
 
-    // Y轴
-    drawPriceAxis(ctx, x + w, y, h, priceRange)
-  }, [colors, drawGrid, showBoll, drawPriceAxis, priceScale, panOffset])
+    // Y轴 - 传入预警线价格用于防重叠
+    const alertPrices = alertLines.map(a => a.price)
+    drawPriceAxis(ctx, x + w, y, h, priceRange, undefined, alertPrices)
+  }, [colors, drawGrid, showBoll, drawPriceAxis, priceScale, panOffset, alertLines])
 
   // 计算当前数据索引 - 对照原版 _getDataIndex
   const getDataIndex = useCallback((
