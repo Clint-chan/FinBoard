@@ -103,7 +103,7 @@ export function MobileStockDetail({
             {/* 第三列：量比、换手、成交额 */}
             <div className="quote-item">
               <span className="quote-label">量比</span>
-              <span className="quote-value">--</span>
+              <span className="quote-value">{detailInfo?.volumeRatio?.toFixed(2) || '--'}</span>
             </div>
 
             <div className="quote-item">

@@ -34,6 +34,7 @@ export interface StockDetailInfo {
   amplitude?: number       // 振幅
   volume?: number          // 成交量
   amount?: number          // 成交额
+  volumeRatio?: number     // 量比
 }
 
 /**
@@ -48,8 +49,8 @@ export async function fetchStockDetailInfo(code: string): Promise<StockDetailInf
     ut: '7eea3edcaed734bea9cbfc24409ed989',
     invt: '2',
     fltt: '2',
-    // 扩展字段：包含股本、市值、行业、上市时间等
-    fields: 'f43,f44,f45,f46,f47,f48,f57,f58,f60,f84,f85,f116,f117,f127,f162,f167,f168,f169,f170,f189',
+    // 扩展字段：包含股本、市值、行业、上市时间、量比等
+    fields: 'f43,f44,f45,f46,f47,f48,f50,f57,f58,f60,f84,f85,f116,f117,f127,f162,f167,f168,f169,f170,f189',
     secid: `${marketCode}.${symbol}`,
   })
 
@@ -118,6 +119,8 @@ export async function fetchStockDetailInfo(code: string): Promise<StockDetailInf
     amplitude: amplitude,
     volume: safeNum(d.f47),
     amount: safeNum(d.f48),
+    // 量比：f50 字段
+    volumeRatio: safeNum(d.f50),
   }
 }
 
