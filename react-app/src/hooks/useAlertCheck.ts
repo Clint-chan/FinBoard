@@ -65,7 +65,7 @@ export function useAlertCheck({ stockData, alerts, pctThreshold, onAlertTriggere
         
         if (cond.type === 'price') {
           condTriggered = cond.operator === 'above' ? price >= cond.value : price <= cond.value
-          msg = `当前价 ${price}，${cond.operator === 'above' ? '已突破' : '已跌破'} ${cond.value}`
+          msg = `当前价 ${price.toFixed(2)}，${cond.operator === 'above' ? '已突破' : '已跌破'} ${cond.value}`
         } else if (cond.type === 'pct') {
           // 涨跌幅使用绝对值比较
           const pctAbs = Math.abs(pct)
@@ -73,12 +73,21 @@ export function useAlertCheck({ stockData, alerts, pctThreshold, onAlertTriggere
           msg = `当前涨跌幅 ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%，绝对值${cond.operator === 'above' ? '已超过' : '已低于'} ${cond.value}%`
         }
         
+        // 如果有备注，添加到消息中
+        if (cond.note) {
+          msg += `\n备注: ${cond.note}`
+        }
+        
         if (condTriggered) {
           triggered = true
           if (!triggeredAlerts.current[alertKey] && marketOpen) {
             triggeredAlerts.current[alertKey] = true
             persistTriggered()
-            sendNotification(`${d?.name || code} 预警`, msg)
+            // 通知标题包含备注（如果有）
+            const title = cond.note 
+              ? `${d?.name || code} - ${cond.note}`
+              : `${d?.name || code} 预警`
+            sendNotification(title, msg)
             // 通知外部条件已触发
             onAlertTriggered?.(code, idx, price)
           }
