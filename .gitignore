@@ -1,4 +1,5 @@
 /akshare
 /react-app/node_modules
+/react-app/dist
 AGENTS.md
 .kiro/steering/you_must_read.md
