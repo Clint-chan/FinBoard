@@ -30,10 +30,16 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
   const colorClass = getColorClass(pct)
   const sign = pct > 0 ? '+' : ''
 
+  // 安全数字检查
+  const safeNum = (v: unknown): number | undefined => 
+    typeof v === 'number' && !isNaN(v) ? v : undefined
+
   // 盈亏信息
   let profitInfo = null
-  if (cost && data?.price) {
-    const profitPct = (data.price - cost) / cost * 100
+  const safePrice = safeNum(data?.price)
+  const safeCost = safeNum(cost)
+  if (safeCost && safePrice) {
+    const profitPct = (safePrice - safeCost) / safeCost * 100
     const profitClass = profitPct >= 0 ? 'is-up' : 'is-down'
     const profitSign = profitPct >= 0 ? '+' : ''
     profitInfo = (
@@ -83,7 +89,8 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
   }, [])
 
   // 涨跌额
-  const change = data?.price && data?.preClose ? data.price - data.preClose : 0
+  const safePreClose = safeNum(data?.preClose)
+  const change = safePrice && safePreClose ? safePrice - safePreClose : 0
   const changeSign = change > 0 ? '+' : ''
 
   return (
@@ -106,7 +113,7 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
       {/* 最新价 */}
       <div className="msl-col msl-col-price">
         <span className={`msl-price ${colorClass}`}>
-          {data?.price?.toFixed(2) || '--'}
+          {safePrice ? safePrice.toFixed(2) : '--'}
         </span>
         {profitInfo}
       </div>
@@ -114,14 +121,14 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
       {/* 涨跌额 */}
       <div className="msl-col msl-col-change">
         <span className={`msl-change ${colorClass}`}>
-          {changeSign}{change.toFixed(2)}
+          {safePrice ? `${changeSign}${change.toFixed(2)}` : '--'}
         </span>
       </div>
 
       {/* 涨跌幅 */}
       <div className="msl-col msl-col-pct">
         <span className={`msl-pct ${colorClass}`}>
-          {sign}{(pct * 100).toFixed(2)}%
+          {safePrice ? `${sign}${(pct * 100).toFixed(2)}%` : '--'}
         </span>
       </div>
     </div>
