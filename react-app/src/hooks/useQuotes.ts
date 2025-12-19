@@ -1,28 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { fetchQuotes, normalizeCode } from '@/services/dataService'
+import { shouldAutoRefresh } from '@/utils/format'
 import type { StockData, LoadingStatus, QuoteSource } from '@/types'
 
 // 缓存 key - 仅用于首次加载时快速显示
 const CACHE_KEY = 'market_board_quotes_cache'
-
-// 判断是否为交易时间
-function isMarketOpen(): boolean {
-  const now = new Date()
-  const day = now.getDay()
-  if (day === 0 || day === 6) return false
-  
-  const hours = now.getHours()
-  const minutes = now.getMinutes()
-  const time = hours * 60 + minutes
-  
-  const morningStart = 9 * 60 + 30
-  const morningEnd = 11 * 60 + 30
-  const afternoonStart = 13 * 60
-  const afternoonEnd = 15 * 60
-  
-  return (time >= morningStart && time <= morningEnd) ||
-         (time >= afternoonStart && time <= afternoonEnd)
-}
 
 // 从 localStorage 读取缓存
 function loadCache(): Record<string, StockData> | null {
@@ -70,7 +52,8 @@ export function useQuotes(
 
   const refresh = useCallback(async (force = false) => {
     // 非交易时间且非强制刷新时，标记为休市
-    if (!force && !isMarketOpen()) {
+    // 使用 shouldAutoRefresh 判断（包含集合竞价时段）
+    if (!force && !shouldAutoRefresh()) {
       setStatus('closed')
       return
     }
@@ -110,8 +93,9 @@ export function useQuotes(
     }
     
     timerRef.current = window.setInterval(() => {
-      // 如果启用了"仅交易时间刷新"，则检查是否在交易时间
-      if (refreshOnlyInMarketHours && !isMarketOpen()) {
+      // 如果启用了"仅交易时间刷新"，则检查是否应该自动刷新
+      // shouldAutoRefresh 包含集合竞价时段（9:15开始）
+      if (refreshOnlyInMarketHours && !shouldAutoRefresh()) {
         setStatus('closed')
         return
       }
