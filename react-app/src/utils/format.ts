@@ -6,32 +6,40 @@ export function isETF(code: string): boolean {
   return false
 }
 
+// 检查是否为有效数字
+function isValidNum(n: unknown): n is number {
+  return typeof n === 'number' && !isNaN(n) && isFinite(n)
+}
+
 // 格式化数字（默认2位小数）
 export function fmtNum(n: number | undefined | null): string {
-  return (n || n === 0) ? Number(n).toFixed(2) : '--'
+  if (n === 0) return '0.00'
+  if (!isValidNum(n)) return '--'
+  return n.toFixed(2)
 }
 
 // 格式化价格（ETF 3位小数，其他2位）
 export function fmtPrice(n: number | undefined | null, code?: string): string {
-  if (n == null) return '--'
+  if (!isValidNum(n)) return '--'
   const digits = code && isETF(code) ? 3 : 2
-  return Number(n).toFixed(digits)
+  return n.toFixed(digits)
 }
 
 // 格式化成交量
 export function fmtVol(n: number | undefined | null): string {
-  if (!n) return '--'
+  if (!isValidNum(n) || n === 0) return '--'
   return n >= 1e8 ? (n / 1e8).toFixed(2) + '亿' : n >= 1e4 ? (n / 1e4).toFixed(0) + '万' : n.toLocaleString()
 }
 
 // 格式化成交额
 export function fmtAmt(n: number | undefined | null): string {
-  return !n ? '--' : n >= 1e8 ? (n / 1e8).toFixed(2) + '亿' : (n / 1e4).toFixed(0) + '万'
+  if (!isValidNum(n) || n === 0) return '--'
+  return n >= 1e8 ? (n / 1e8).toFixed(2) + '亿' : (n / 1e4).toFixed(0) + '万'
 }
 
 // 计算涨跌幅
 export function calcPct(price: number | undefined, preClose: number | undefined): number {
-  if (!preClose || !price) return 0
+  if (!isValidNum(preClose) || !isValidNum(price) || preClose === 0) return 0
   return (price - preClose) / preClose
 }
 
