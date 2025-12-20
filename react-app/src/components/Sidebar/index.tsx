@@ -17,6 +17,12 @@ const Icons = {
       <line x1="6" y1="20" x2="6" y2="14"></line>
     </svg>
   ),
+  strategies: (
+    <svg viewBox="0 0 24 24">
+      <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+      <path d="M2 17l10 5 10-5M2 12l10 5 10-5"></path>
+    </svg>
+  ),
   alerts: (
     <svg viewBox="0 0 24 24">
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -118,6 +124,7 @@ function Sidebar({
   const navItems: { id: PageType | 'insight'; label: string; icon: JSX.Element; adminOnly?: boolean }[] = [
     { id: 'watchlist', label: 'Watchlist', icon: Icons.watchlist },
     { id: 'insight', label: 'Insight', icon: Icons.analysis },
+    { id: 'strategies', label: 'Strategies', icon: Icons.strategies },
     { id: 'alerts', label: 'Alerts', icon: Icons.alerts },
     { id: 'settings', label: 'Settings', icon: Icons.settings },
     { id: 'admin', label: 'Admin', icon: Icons.admin, adminOnly: true },

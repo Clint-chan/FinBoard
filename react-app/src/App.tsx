@@ -19,6 +19,7 @@ import ChartTooltip from '@/components/ChartTooltip'
 import ContextMenu from '@/components/ContextMenu'
 import { AddStockModal, AlertModal, CostModal, AuthModal } from '@/components/modals'
 import { AdminPage } from '@/components/AdminPage'
+import { StrategyCenter } from '@/components/StrategyCenter'
 import { AnalysisDrawer } from '@/components/AnalysisDrawer'
 import { BossScreen } from '@/components/BossScreen'
 import { DEFAULT_CONFIG } from '@/services/config'
@@ -838,6 +839,8 @@ function App() {
         )}
         
         {activePage === 'admin' && isAdmin && <AdminPage />}
+        
+        {activePage === 'strategies' && <StrategyCenter />}
       </main>
 
       {/* 移动端行情详情页 */}

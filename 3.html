@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fintell 策略监控中心</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8f9fa; }
+        
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* A股配色辅助类 */
+        .text-up { color: #ef4444; }
+        .bg-up-light { background-color: #fef2f2; }
+        .text-down { color: #22c55e; }
+        .bg-down-light { background-color: #f0fdf4; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <div class="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col p-6">
+        <h1 class="text-2xl font-bold text-gray-900 mb-10">Fintell</h1>
+        <div class="space-y-4 text-gray-500 font-medium">
+            <div class="cursor-pointer hover:text-gray-900">行情看板</div>
+            <div class="text-gray-900 bg-gray-100 -mx-4 px-4 py-2 rounded-lg">策略监控</div>
+            <div class="cursor-pointer hover:text-gray-900">选股器</div>
+        </div>
+    </div>
+
+    <div class="flex-1 flex flex-col h-full overflow-hidden relative">
+        
+        <header class="h-16 bg-white border-b border-gray-200 flex justify-between items-center px-8 shrink-0">
+            <div class="flex items-center gap-4">
+                <h2 class="text-xl font-bold text-gray-900">策略监控中心</h2>
+                <div class="flex gap-2">
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-600 flex items-center gap-1">
+                        <span class="relative flex h-2 w-2">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                        </span>
+                        3个策略触发中
+                    </span>
+                    <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">运行中: 12</span>
+                </div>
+            </div>
+            <button class="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                新建策略
+            </button>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-8">
+            
+            <div class="flex gap-6 border-b border-gray-200 mb-8 pb-1">
+                <button class="pb-3 border-b-2 border-gray-900 font-semibold text-gray-900">全部策略</button>
+                <button class="pb-3 border-b-2 border-transparent hover:border-gray-300 font-medium text-gray-500">行业套利</button>
+                <button class="pb-3 border-b-2 border-transparent hover:border-gray-300 font-medium text-gray-500">AH溢价</button>
+                <button class="pb-3 border-b-2 border-transparent hover:border-gray-300 font-medium text-gray-500">假突破/异动</button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-20">
+
+                <div class="bg-white rounded-xl border border-red-200 shadow-[0_0_15px_rgba(239,68,68,0.1)] relative overflow-hidden group">
+                    <div class="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
+                    <div class="p-5">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="bg-blue-50 text-blue-700 border border-blue-100 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">行业套利</span>
+                                    <h3 class="font-bold text-gray-800 text-lg">机器人板块强弱配对</h3>
+                                </div>
+                                <p class="text-xs text-gray-500">基准：机器人ETF (SZ159770)</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="block text-xs font-bold text-red-500 animate-pulse">● 已触发</span>
+                                <span class="text-xs text-gray-400">14:32:05</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between bg-gray-50 rounded-lg p-3 border border-gray-100 mb-4">
+                            <div class="text-center">
+                                <div class="text-sm font-bold text-gray-900">拓普集团</div>
+                                <div class="text-up font-bold text-base">+5.23%</div>
+                                <div class="text-[10px] text-gray-400 bg-white px-1 rounded border border-gray-200 mt-1">超指数 3%</div>
+                            </div>
+                            <div class="flex-1 px-4 flex flex-col items-center">
+                                <div class="text-[10px] text-gray-400 mb-1 flex justify-between w-full px-1">
+                                    <span>偏离度</span>
+                                    <span class="text-red-600 font-bold">7.8% (阈值5%)</span>
+                                </div>
+                                <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                                    <div class="h-full bg-red-500 w-[85%] rounded-full"></div>
+                                </div>
+                                <div class="text-[10px] text-gray-400 mt-1">VS</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-sm font-bold text-gray-900">三花智控</div>
+                                <div class="text-down font-bold text-base">-2.41%</div>
+                                <div class="text-[10px] text-gray-400 bg-white px-1 rounded border border-gray-200 mt-1">弱指数 4%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center pt-2 border-t border-gray-100">
+                            <span class="text-xs text-gray-400">策略逻辑: 多头超额收益 > 5% 且 空头跑输行业</span>
+                            <button class="text-gray-400 hover:text-gray-900"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg></button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition">
+                    <div class="p-5">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="bg-purple-50 text-purple-700 border border-purple-100 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">AH 溢价</span>
+                                    <h3 class="font-bold text-gray-800 text-lg">招商银行溢价监控</h3>
+                                </div>
+                                <p class="text-xs text-gray-500">比较对象：600036.SH / 03968.HK</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                                <span class="text-xs text-gray-500">监控中</span>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-4 mb-4">
+                            <div class="flex-1 bg-gray-50 rounded-lg p-3 border border-gray-100">
+                                <div class="text-xs text-gray-400 mb-1">当前溢价率 (Premium)</div>
+                                <div class="text-xl font-bold text-gray-900 flex items-end gap-1">
+                                    +32.5%
+                                    <span class="text-xs font-normal text-gray-400 mb-1">/ 历史均值 30%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 h-1.5 rounded-full mt-2 relative">
+                                    <div class="absolute left-[30%] w-0.5 h-3 bg-black -top-0.5 z-10" title="均值"></div>
+                                    <div class="bg-purple-500 h-1.5 rounded-full w-[35%]"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1">
+                             <div class="flex items-center gap-2 text-xs text-gray-600">
+                                <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
+                                <span>溢价率 < 25% (做多A股)</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs text-gray-600">
+                                <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
+                                <span>溢价率 > 40% (做空A股)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition">
+                    <div class="p-5">
+                         <div class="flex justify-between items-start mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-orange-50 text-orange-700 border border-orange-100 text-[10px] font-bold px-1.5 py-0.5 rounded uppercase">假突破预警</span>
+                                <h3 class="font-bold text-gray-800 text-lg">半导体板块 · 诱多监控</h3>
+                            </div>
+                             <div class="relative inline-block w-8 align-middle select-none">
+                                <div class="w-8 h-4 bg-green-500 rounded-full shadow-inner"></div>
+                                <div class="absolute w-4 h-4 bg-white rounded-full shadow inset-y-0 left-0 border border-gray-200 translate-x-full"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-xs text-gray-500 mb-4 leading-relaxed">
+                            监控逻辑：个股高开 > 3% 且 竞价量比 < 1，同时板块指数低开或走弱。
+                        </div>
+
+                        <div class="bg-orange-50/50 rounded-lg border border-orange-100 p-3">
+                            <div class="text-[10px] font-bold text-orange-800 mb-2 uppercase tracking-wide">今日疑似诱多标的</div>
+                            
+                            <div class="flex justify-between items-center py-1 border-b border-orange-100 border-dashed last:border-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-gray-800 text-sm">韦尔股份</span>
+                                    <span class="text-[10px] text-gray-400">603501</span>
+                                </div>
+                                <div class="flex items-center gap-3 text-xs">
+                                    <span class="text-up font-medium">开 +3.2%</span>
+                                    <span class="text-gray-400">板块 -0.5%</span>
+                                    <span class="text-orange-600 font-bold">⚠️背离</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                    <div class="p-5">
+                         <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h3 class="font-bold text-gray-800 text-lg">福达股份</h3>
+                                <span class="text-xs text-gray-400">SH603166</span>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-up font-bold text-lg">14.60</div>
+                                <div class="text-xs text-up">+0.83%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-2 mt-4">
+                            <div class="flex justify-between items-center text-xs p-2 bg-gray-50 rounded border border-gray-100">
+                                <span class="text-gray-600">价格突破 15.00</span>
+                                <span class="text-gray-400">距离 2.7%</span>
+                            </div>
+                            <div class="flex justify-between items-center text-xs p-2 bg-gray-50 rounded border border-gray-100">
+                                <span class="text-gray-600">日线 MACD 金叉</span>
+                                <span class="text-green-600">已满足</span>
+                            </div>
+                        </div>
+                    </div>
+                     <button class="w-full py-2 bg-gray-50 hover:bg-gray-100 text-xs text-gray-500 font-medium border-t border-gray-100 transition">
+                        + 添加新条件
+                    </button>
+                </div>
+
+            </div>
+        </div>
+        
+        <div class="absolute bottom-6 right-8">
+            <button class="shadow-lg bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-full text-sm font-medium hover:bg-gray-50 flex items-center gap-2">
+                <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                历史预警记录
+            </button>
+        </div>
+
+    </div>
+
+</body>
+</html>
