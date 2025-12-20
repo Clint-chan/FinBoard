@@ -9,8 +9,10 @@ import type {
   SectorArbStrategy,
   AHPremiumStrategy,
   FakeBreakoutStrategy,
-  PriceAlertStrategy
+  PriceAlertStrategy,
+  PriceCondition
 } from '@/types/strategy'
+import type { StockData } from '@/types'
 import {
   loadStrategies,
   saveStrategies,
@@ -21,6 +23,11 @@ import {
 import { StrategyModal } from './StrategyModal'
 import { initSampleStrategies } from './sampleStrategies'
 import './StrategyCenter.css'
+
+// Props 类型
+interface StrategyCenterProps {
+  stockData?: Record<string, StockData>
+}
 
 // 策略类型 Tab
 const STRATEGY_TABS: { id: StrategyType | 'all'; label: string }[] = [
@@ -88,7 +95,7 @@ const Icons = {
   )
 }
 
-export function StrategyCenter() {
+export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
   const [strategies, setStrategies] = useState<Strategy[]>([])
   const [activeTab, setActiveTab] = useState<StrategyType | 'all'>('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -281,6 +288,7 @@ export function StrategyCenter() {
               <StrategyCard
                 key={strategy.id}
                 strategy={strategy}
+                stockData={stockData}
                 onEdit={() => handleEditStrategy(strategy)}
                 onDelete={() => handleDeleteStrategy(strategy.id)}
                 onToggle={() => handleToggleStrategy(strategy.id)}
@@ -313,12 +321,13 @@ export function StrategyCenter() {
 // 策略卡片组件
 interface StrategyCardProps {
   strategy: Strategy
+  stockData?: Record<string, StockData>
   onEdit: () => void
   onDelete: () => void
   onToggle: () => void
 }
 
-function StrategyCard({ strategy, onEdit, onDelete, onToggle }: StrategyCardProps) {
+function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: StrategyCardProps) {
   const typeColorClass = getStrategyTypeColor(strategy.type)
   const isTriggered = strategy.status === 'triggered'
 
@@ -388,7 +397,7 @@ function StrategyCard({ strategy, onEdit, onDelete, onToggle }: StrategyCardProp
             <FakeBreakoutContent strategy={strategy as FakeBreakoutStrategy} />
           )}
           {strategy.type === 'price' && (
-            <PriceAlertContent strategy={strategy as PriceAlertStrategy} />
+            <PriceAlertContent strategy={strategy as PriceAlertStrategy} stockData={stockData} />
           )}
         </div>
 
@@ -530,34 +539,134 @@ function FakeBreakoutContent({ strategy }: { strategy: FakeBreakoutStrategy }) {
 }
 
 // 价格预警内容
-function PriceAlertContent({ strategy }: { strategy: PriceAlertStrategy }) {
+interface PriceAlertContentProps {
+  strategy: PriceAlertStrategy
+  stockData?: Record<string, StockData>
+}
+
+function PriceAlertContent({ strategy, stockData = {} }: PriceAlertContentProps) {
+  const [expanded, setExpanded] = useState(false)
   const conditions = strategy.conditions || []
-  const currentPrice = 14.60 // TODO: 从实时数据获取
+  
+  // 从实时数据获取当前价格
+  const stock = stockData[strategy.code]
+  const currentPrice = stock?.price || 0
+  const preClose = stock?.preClose || 0
+  const pctChange = preClose ? ((currentPrice - preClose) / preClose * 100) : 0
+  const isUp = pctChange >= 0
+
+  // 最多显示3个，超过则折叠
+  const MAX_VISIBLE = 3
+  const visibleConditions = expanded ? conditions : conditions.slice(0, MAX_VISIBLE)
+  const hasMore = conditions.length > MAX_VISIBLE
+
+  // 计算距离目标价的百分比
+  const calcDistance = (targetPrice: number, _operator: 'above' | 'below') => {
+    if (!currentPrice) return '--'
+    const diff = ((targetPrice - currentPrice) / currentPrice * 100)
+    // 对于突破，正数表示还需上涨；对于跌破，负数表示还需下跌
+    return diff.toFixed(1)
+  }
 
   return (
     <div className="price-alert-box">
-      <div className="price-alert-current">
-        <span className="price-value">{currentPrice.toFixed(2)}</span>
-        <span className="price-change up">+0.63%</span>
+      {/* 当前价格区域 */}
+      <div className="price-alert-header">
+        <div className="price-current">
+          <span className="price-value">{currentPrice ? currentPrice.toFixed(2) : '--'}</span>
+          <span className={`price-change ${isUp ? 'up' : 'down'}`}>
+            {currentPrice ? `${isUp ? '+' : ''}${pctChange.toFixed(2)}%` : '--'}
+          </span>
+        </div>
       </div>
+
+      {/* 预警条件列表 */}
       <div className="price-alert-conditions">
-        {conditions.map((cond, idx) => (
-          <div key={idx} className={`price-condition ${cond.triggered ? 'triggered' : ''}`}>
-            <span className="condition-label">
-              {cond.type === 'price' ? '价格' : '涨跌幅'}
-              {cond.operator === 'above' ? '突破' : '跌破'} {cond.value}
-              {cond.type === 'pct' ? '%' : ''}
-            </span>
-            <span className={`condition-status ${cond.triggered ? 'triggered' : ''}`}>
-              {cond.triggered ? '已触发' : `距离 ${((cond.value - currentPrice) / currentPrice * 100).toFixed(1)}%`}
-            </span>
-          </div>
+        {visibleConditions.map((cond, idx) => (
+          <PriceConditionItem
+            key={idx}
+            condition={cond}
+            currentPrice={currentPrice}
+            distance={calcDistance(cond.value, cond.operator)}
+          />
         ))}
+        
         {conditions.length === 0 && (
           <div className="price-condition-empty">
             <span>暂无预警条件</span>
-            <button className="add-condition-btn">+ 添加新条件</button>
           </div>
+        )}
+      </div>
+
+      {/* 展开/收起按钮 */}
+      {hasMore && (
+        <button 
+          className="price-alert-expand"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? '收起' : `查看全部 ${conditions.length} 个条件`}
+          <svg 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="2"
+            style={{ transform: expanded ? 'rotate(180deg)' : 'none' }}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+      )}
+    </div>
+  )
+}
+
+// 单个预警条件项
+interface PriceConditionItemProps {
+  condition: PriceCondition
+  currentPrice: number
+  distance: string
+  onEdit?: () => void
+  onDelete?: () => void
+  onConfirm?: () => void
+}
+
+function PriceConditionItem({ condition, distance }: PriceConditionItemProps) {
+  const isTriggered = condition.triggered
+  const isAbove = condition.operator === 'above'
+  const isPct = condition.type === 'pct'
+  
+  // 判断是否接近目标（5%以内）
+  const distanceNum = parseFloat(distance)
+  const isNear = !isNaN(distanceNum) && Math.abs(distanceNum) < 5
+
+  return (
+    <div className={`price-condition-item ${isTriggered ? 'triggered' : ''} ${isNear ? 'near' : ''}`}>
+      <div className="condition-main">
+        <span className={`condition-icon ${isAbove ? 'above' : 'below'}`}>
+          {isAbove ? '↑' : '↓'}
+        </span>
+        <div className="condition-info">
+          <span className="condition-target">
+            {isPct ? '涨跌幅' : ''}{isAbove ? '突破' : '跌破'} 
+            <strong>{condition.value}{isPct ? '%' : ''}</strong>
+          </span>
+          {condition.note && (
+            <span className="condition-note">{condition.note}</span>
+          )}
+        </div>
+      </div>
+      <div className="condition-status">
+        {isTriggered ? (
+          <span className="status-badge triggered">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            已触发
+          </span>
+        ) : (
+          <span className={`status-distance ${isNear ? 'near' : ''}`}>
+            距离 {distance}%
+          </span>
         )}
       </div>
     </div>

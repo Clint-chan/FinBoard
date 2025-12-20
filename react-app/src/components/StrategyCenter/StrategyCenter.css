@@ -614,100 +614,212 @@
 .suspect-data .down { color: var(--down-color); }
 .suspect-data .warn { color: #ea580c; font-weight: 600; }
 
-/* 价格预警卡片 */
+/* 价格预警卡片 - 重新设计 */
 .price-alert-box {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.price-alert-current {
+.price-alert-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.price-current {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: 10px;
 }
 
-.price-alert-current .price-value {
-  font-size: 28px;
+.price-current .price-value {
+  font-size: 26px;
   font-weight: 700;
   color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
 }
 
-.price-alert-current .price-change {
+.price-current .price-change {
   font-size: 14px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
-.price-alert-current .price-change.up {
+.price-current .price-change.up {
   color: var(--up-color);
 }
 
-.price-alert-current .price-change.down {
+.price-current .price-change.down {
   color: var(--down-color);
 }
 
 .price-alert-conditions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
-.price-condition {
+/* 单个预警条件项 */
+.price-condition-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  padding: 10px 12px;
   background: var(--bg-secondary);
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  transition: all 0.2s;
 }
 
-.price-condition .condition-label {
+.price-condition-item:hover {
+  border-color: var(--border-color);
+}
+
+.price-condition-item.triggered {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.price-condition-item.near {
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+.condition-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.condition-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.condition-icon.above {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.condition-icon.below {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.condition-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.condition-target {
+  font-size: 13px;
   color: var(--text-secondary);
 }
 
-.price-condition .condition-status {
-  color: var(--text-tertiary);
-  font-size: 12px;
+.condition-target strong {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-left: 4px;
 }
 
-.price-condition .condition-status.triggered {
+.condition-note {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.condition-status {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.status-distance {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  min-width: 70px;
+  text-align: right;
+}
+
+.status-distance.near {
+  color: #f59e0b;
+  font-weight: 500;
+}
+
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.status-badge.triggered {
+  background: rgba(34, 197, 94, 0.1);
   color: #22c55e;
   font-weight: 500;
 }
 
-.price-condition.triggered {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
+.status-badge svg {
+  width: 12px;
+  height: 12px;
 }
 
-.price-condition-empty {
+/* 展开按钮 */
+.price-alert-expand {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  color: var(--text-tertiary);
-  font-size: 13px;
-}
-
-.add-condition-btn {
-  padding: 4px 12px;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  margin-top: 4px;
   background: none;
   border: 1px dashed var(--border-color);
-  border-radius: 4px;
-  color: var(--primary-color);
+  border-radius: 6px;
+  color: var(--text-tertiary);
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
-.add-condition-btn:hover {
+.price-alert-expand:hover {
   border-color: var(--primary-color);
-  background: rgba(79, 106, 245, 0.05);
+  color: var(--primary-color);
 }
 
+.price-alert-expand svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s;
+}
+
+.price-condition-empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
 /* 卡片底部 */
 .strategy-card-footer {
   display: flex;

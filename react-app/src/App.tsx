@@ -652,7 +652,7 @@ function App() {
         
         {activePage === 'admin' && isAdmin && <AdminPage />}
         
-        {activePage === 'strategies' && <StrategyCenter />}
+        {activePage === 'strategies' && <StrategyCenter stockData={stockData} />}
       </main>
 
       {/* 移动端行情详情页 */}
