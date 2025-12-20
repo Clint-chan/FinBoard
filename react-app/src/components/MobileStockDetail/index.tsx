@@ -67,8 +67,12 @@ export function MobileStockDetail({
     )
   }
 
-  const pct = stock.preClose ? ((stock.price - stock.preClose) / stock.preClose) * 100 : 0
-  const change = stock.preClose ? stock.price - stock.preClose : 0
+  // 安全获取数值，防止开盘前数据为空导致 toFixed 报错
+  const safeNum = (v: unknown): number => (typeof v === 'number' && !isNaN(v) ? v : 0)
+  const price = safeNum(stock.price)
+  const preClose = safeNum(stock.preClose)
+  const pct = preClose ? ((price - preClose) / preClose) * 100 : 0
+  const change = preClose ? price - preClose : 0
   const isUp = pct >= 0
   const colorClass = isUp ? 'is-up' : 'is-down'
 
@@ -80,9 +84,9 @@ export function MobileStockDetail({
         <div className="msd-price-section">
           <div className="msd-stock-name">{stock.name}</div>
           <div className={`msd-main-price ${colorClass}`}>
-            <span className="msd-price">{stock.price.toFixed(2)}</span>
+            <span className="msd-price">{price ? price.toFixed(2) : '--'}</span>
             <span className="msd-change">
-              {isUp ? '+' : ''}{change.toFixed(2)} ({isUp ? '+' : ''}{pct.toFixed(2)}%)
+              {price ? `${isUp ? '+' : ''}${change.toFixed(2)} (${isUp ? '+' : ''}${pct.toFixed(2)}%)` : '--'}
             </span>
           </div>
         </div>
@@ -93,7 +97,7 @@ export function MobileStockDetail({
             {/* 第一列：高、低、开 */}
             <div className="quote-item">
               <span className="quote-label">高</span>
-              <span className="quote-value is-up">{stock.high?.toFixed(2) || '--'}</span>
+              <span className="quote-value is-up">{safeNum(stock.high) ? safeNum(stock.high).toFixed(2) : '--'}</span>
             </div>
             {/* 第二列：市值、流通、市盈 */}
             <div className="quote-item">
@@ -108,7 +112,7 @@ export function MobileStockDetail({
 
             <div className="quote-item">
               <span className="quote-label">低</span>
-              <span className="quote-value is-down">{stock.low?.toFixed(2) || '--'}</span>
+              <span className="quote-value is-down">{safeNum(stock.low) ? safeNum(stock.low).toFixed(2) : '--'}</span>
             </div>
             <div className="quote-item">
               <span className="quote-label">流通</span>
@@ -121,7 +125,7 @@ export function MobileStockDetail({
 
             <div className="quote-item">
               <span className="quote-label">开</span>
-              <span className="quote-value">{stock.open?.toFixed(2) || '--'}</span>
+              <span className="quote-value">{safeNum(stock.open) ? safeNum(stock.open).toFixed(2) : '--'}</span>
             </div>
             <div className="quote-item">
               <span className="quote-label">市盈</span>

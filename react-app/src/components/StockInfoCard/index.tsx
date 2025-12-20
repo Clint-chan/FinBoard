@@ -167,7 +167,7 @@ export function StockInfoCard({ code, visible, onLoad }: StockInfoCardProps) {
                   <span className="item-value">{fmtBigNum(info.volume / 100)}手</span>
                 </div>
               )}
-              {info.amount != null && (
+              {info.amount != null && typeof info.amount === 'number' && !isNaN(info.amount) && (
                 <div className="info-item full-width">
                   <span className="item-label">成交额</span>
                   <span className="item-value">{(info.amount / 100000000).toFixed(2)}亿</span>

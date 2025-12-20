@@ -133,11 +133,18 @@ export function SuperChart({
     displayPreClose = basePreClose
   }
   
-  const pct = displayPreClose && displayPrice 
-    ? ((displayPrice - displayPreClose) / displayPreClose * 100) 
+  // 安全数字检查，防止 NaN 导致 toFixed 报错
+  const safeNum = (v: unknown): number | undefined => 
+    typeof v === 'number' && !isNaN(v) ? v : undefined
+  
+  const safeDisplayPrice = safeNum(displayPrice)
+  const safeDisplayPreClose = safeNum(displayPreClose)
+  
+  const pct = safeDisplayPreClose && safeDisplayPrice 
+    ? ((safeDisplayPrice - safeDisplayPreClose) / safeDisplayPreClose * 100) 
     : 0
-  const change = displayPreClose && displayPrice ? displayPrice - displayPreClose : 0
-  const isUp = displayPrice != null && displayPreClose != null ? displayPrice >= displayPreClose : pct >= 0
+  const change = safeDisplayPreClose && safeDisplayPrice ? safeDisplayPrice - safeDisplayPreClose : 0
+  const isUp = safeDisplayPrice != null && safeDisplayPreClose != null ? safeDisplayPrice >= safeDisplayPreClose : pct >= 0
   
   // ETF 价格显示 3 位小数
   const priceDigits = isETF(code) ? 3 : 2
@@ -221,18 +228,18 @@ export function SuperChart({
       return (
         <div className="sc-ohlc" style={{ color: kColor }}>
           <span className="sc-ohlc-time">{crosshairData.time}</span>
-          {crosshairData.open != null && <span>开 {crosshairData.open.toFixed(2)}</span>}
-          {crosshairData.high != null && <span>高 {crosshairData.high.toFixed(2)}</span>}
-          {crosshairData.low != null && <span>低 {crosshairData.low.toFixed(2)}</span>}
-          {crosshairData.close != null && <span>收 {crosshairData.close.toFixed(2)}</span>}
+          {safeNum(crosshairData.open) != null && <span>开 {safeNum(crosshairData.open)!.toFixed(2)}</span>}
+          {safeNum(crosshairData.high) != null && <span>高 {safeNum(crosshairData.high)!.toFixed(2)}</span>}
+          {safeNum(crosshairData.low) != null && <span>低 {safeNum(crosshairData.low)!.toFixed(2)}</span>}
+          {safeNum(crosshairData.close) != null && <span>收 {safeNum(crosshairData.close)!.toFixed(2)}</span>}
           {toNowPct != null && !isNaN(toNowPct) && (
             <span>至今 {toNowPct >= 0 ? '+' : ''}{toNowPct.toFixed(2)}%</span>
           )}
-          {crosshairData.turnover != null && (
-            <span>换手 {crosshairData.turnover.toFixed(2)}%</span>
+          {safeNum(crosshairData.turnover) != null && (
+            <span>换手 {safeNum(crosshairData.turnover)!.toFixed(2)}%</span>
           )}
-          {currentTab === 'daily' && pe != null && !isNaN(pe) && (
-            <span>市盈率 {pe.toFixed(2)}</span>
+          {currentTab === 'daily' && safeNum(pe) != null && (
+            <span>市盈率 {safeNum(pe)!.toFixed(2)}</span>
           )}
         </div>
       )
@@ -314,9 +321,9 @@ export function SuperChart({
           {renderOhlcInfo()}
         </div>
         <div className="sc-header-right" style={{ color: isUp ? 'var(--color-up)' : 'var(--color-down)' }}>
-          <div className="sc-price">{displayPrice != null ? displayPrice.toFixed(priceDigits) : '--'}</div>
+          <div className="sc-price">{safeDisplayPrice != null ? safeDisplayPrice.toFixed(priceDigits) : '--'}</div>
           <div className="sc-change">
-            {isUp ? '+' : ''}{(change || 0).toFixed(priceDigits)} ({isUp ? '+' : ''}{(pct || 0).toFixed(2)}%)
+            {safeDisplayPrice != null ? `${isUp ? '+' : ''}${change.toFixed(priceDigits)} (${isUp ? '+' : ''}${pct.toFixed(2)}%)` : '--'}
           </div>
         </div>
       </div>

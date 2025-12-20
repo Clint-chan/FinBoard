@@ -308,7 +308,9 @@ export function AnalysisDrawer({
             {stockList.map(code => {
               const d = stockData[code]
               if (!d) return null
-              const pct = d.preClose ? ((d.price - d.preClose) / d.preClose * 100) : 0
+              const price = typeof d.price === 'number' && !isNaN(d.price) ? d.price : 0
+              const preClose = typeof d.preClose === 'number' && !isNaN(d.preClose) ? d.preClose : 0
+              const pct = preClose ? ((price - preClose) / preClose * 100) : 0
               const isUp = pct >= 0
               const isActive = code === currentCode
 
@@ -323,10 +325,10 @@ export function AnalysisDrawer({
                   </div>
                   <div className="item-right">
                     <span className={`item-price ${isUp ? 'up' : 'down'}`}>
-                      {d.price?.toFixed(2) || '--'}
+                      {price ? price.toFixed(2) : '--'}
                     </span>
                     <span className={`item-pct ${isUp ? 'up' : 'down'}`}>
-                      {isUp ? '+' : ''}{pct.toFixed(2)}%
+                      {price ? `${isUp ? '+' : ''}${pct.toFixed(2)}%` : '--'}
                     </span>
                   </div>
                 </div>
