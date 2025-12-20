@@ -3,6 +3,7 @@
  * 负责将旧版数据格式迁移到新版
  */
 import type { AlertConfig, AlertCondition } from '@/types'
+import type { PriceAlertStrategy, Strategy, StrategyConfig, PriceCondition } from '@/types/strategy'
 
 // 旧版预警格式（简单的 above/below 数值）
 interface LegacyAlertConfig {
@@ -21,7 +22,9 @@ interface LegacyUserConfig {
 }
 
 const CONFIG_KEY = 'market_board_config'
+const STRATEGY_KEY = 'fintell_strategies'
 const MIGRATION_FLAG_KEY = 'market_board_migration_v2'
+const ALERTS_TO_STRATEGY_FLAG = 'market_board_alerts_to_strategy_migrated'
 
 /**
  * 检查是否是旧版预警格式
@@ -187,9 +190,129 @@ export function getMigrationStatus(): 'pending' | 'done' | 'error' {
   return 'pending'
 }
 
+/**
+ * 将 config.alerts 迁移到策略中心
+ * 把旧的预警数据转换为 PriceAlertStrategy 格式
+ */
+export function migrateAlertsToStrategies(
+  alerts: Record<string, AlertConfig>,
+  stockNames?: Record<string, string>
+): number {
+  // 检查是否已经迁移过
+  const migrated = localStorage.getItem(ALERTS_TO_STRATEGY_FLAG)
+  if (migrated === 'done') {
+    console.log('[Migration] alerts 已迁移到策略中心，跳过')
+    return 0
+  }
+
+  if (!alerts || Object.keys(alerts).length === 0) {
+    console.log('[Migration] 没有预警数据需要迁移')
+    localStorage.setItem(ALERTS_TO_STRATEGY_FLAG, 'done')
+    return 0
+  }
+
+  // 加载现有策略
+  let existingStrategies: Strategy[] = []
+  try {
+    const raw = localStorage.getItem(STRATEGY_KEY)
+    if (raw) {
+      const config: StrategyConfig = JSON.parse(raw)
+      existingStrategies = config.strategies || []
+    }
+  } catch (e) {
+    console.warn('[Migration] 加载现有策略失败:', e)
+  }
+
+  // 获取现有价格预警策略的股票代码，避免重复
+  const existingCodes = new Set(
+    existingStrategies
+      .filter((s): s is PriceAlertStrategy => s.type === 'price')
+      .map(s => s.code)
+  )
+
+  // 转换 alerts 为 PriceAlertStrategy
+  const newStrategies: PriceAlertStrategy[] = []
+  const now = Date.now()
+
+  for (const [code, alert] of Object.entries(alerts)) {
+    // 跳过已存在的
+    if (existingCodes.has(code)) {
+      console.log(`[Migration] 跳过已存在的策略: ${code}`)
+      continue
+    }
+
+    // 跳过没有条件的
+    if (!alert.conditions || alert.conditions.length === 0) {
+      continue
+    }
+
+    // 转换条件格式
+    const conditions: PriceCondition[] = alert.conditions.map(c => ({
+      type: c.type,
+      operator: c.operator,
+      value: c.value,
+      note: c.note,
+      triggered: c.triggered,
+      triggeredAt: c.triggeredAt
+    }))
+
+    // 检查是否有已触发的条件
+    const hasTriggered = conditions.some(c => c.triggered)
+
+    const strategy: PriceAlertStrategy = {
+      id: `migrated_${code}_${now}`,
+      name: stockNames?.[code] || code.toUpperCase(),
+      type: 'price',
+      status: hasTriggered ? 'triggered' : 'running',
+      enabled: true,
+      createdAt: now,
+      updatedAt: now,
+      triggeredAt: hasTriggered ? now : undefined,
+      note: '从预警配置迁移',
+      code,
+      stockName: stockNames?.[code],
+      conditions
+    }
+
+    newStrategies.push(strategy)
+    console.log(`[Migration] 迁移预警到策略: ${code}`, strategy)
+  }
+
+  if (newStrategies.length === 0) {
+    console.log('[Migration] 没有新的预警需要迁移')
+    localStorage.setItem(ALERTS_TO_STRATEGY_FLAG, 'done')
+    return 0
+  }
+
+  // 合并并保存
+  const allStrategies = [...existingStrategies, ...newStrategies]
+  const strategyConfig: StrategyConfig = {
+    strategies: allStrategies,
+    lastUpdated: now
+  }
+
+  try {
+    localStorage.setItem(STRATEGY_KEY, JSON.stringify(strategyConfig))
+    localStorage.setItem(ALERTS_TO_STRATEGY_FLAG, 'done')
+    console.log(`[Migration] 成功迁移 ${newStrategies.length} 个预警到策略中心`)
+    return newStrategies.length
+  } catch (e) {
+    console.error('[Migration] 保存策略失败:', e)
+    return 0
+  }
+}
+
+/**
+ * 重置 alerts 到策略的迁移标记（用于测试）
+ */
+export function resetAlertsToStrategyFlag(): void {
+  localStorage.removeItem(ALERTS_TO_STRATEGY_FLAG)
+}
+
 export default {
   runMigration,
   migrateConfig,
+  migrateAlertsToStrategies,
   resetMigrationFlag,
   getMigrationStatus
 }

@@ -44,9 +44,17 @@
     
     function showLocalAuth() {
       const auth = localStorage.getItem('market_board_auth')
-      document.getElementById('local-data').textContent = auth 
-        ? JSON.stringify(JSON.parse(auth), null, 2)
-        : '未登录'
+      const config = localStorage.getItem('market_board_config')
+      let result = '=== 登录信息 ===\n'
+      result += auth ? JSON.stringify(JSON.parse(auth), null, 2) : '未登录'
+      result += '\n\n=== 本地配置中的 alerts ===\n'
+      if (config) {
+        const cfg = JSON.parse(config)
+        result += JSON.stringify(cfg.alerts, null, 2)
+      } else {
+        result += '无配置'
+      }
+      document.getElementById('local-data').textContent = result
     }
     
     async function fetchCloudData() {

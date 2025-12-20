@@ -82,6 +82,9 @@ export async function cloudLoadConfig(token: string): Promise<Partial<UserConfig
   if (!res.ok) return null
   
   const data = await res.json()
+  console.log('[CloudService] 云端返回数据:', data)
+  console.log('[CloudService] 云端 config:', data.config)
+  console.log('[CloudService] 云端 alerts:', data.config?.alerts)
   return data.config || null
 }
 
