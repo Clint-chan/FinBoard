@@ -326,6 +326,13 @@
   margin: 0;
 }
 
+/* 标题行 - 名称和状态徽章 */
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .strategy-card-desc {
   font-size: 12px;
   color: var(--text-tertiary);
@@ -614,199 +621,289 @@
 .suspect-data .down { color: var(--down-color); }
 .suspect-data .warn { color: #ea580c; font-weight: 600; }
 
-/* 价格预警卡片 - 简洁风格 */
-.price-alert-box {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+/* 价格预警卡片 - 参考4.html简洁风格 */
+.price-alert-card .strategy-card-body {
+  padding: 0;
 }
 
+/* 价格预警头部 */
 .price-alert-header {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 2px;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.price-current {
+.price-alert-header .header-left {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.price-current .price-value {
-  font-size: 20px;
+.price-alert-header .strategy-card-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.price-alert-header .strategy-card-desc {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+/* 状态徽章 */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 3px 8px;
+  border-radius: 20px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  animation: statusPulse 2s infinite;
+}
+
+@keyframes statusPulse {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* 价格显示区域 - 右对齐，无背景 */
+.price-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.price-box .current-price {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.price-box .current-price.up { color: var(--up-color); }
+.price-box .current-price.down { color: var(--down-color); }
+
+.price-box .price-change {
+  font-size: 13px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-.price-current .price-value.up {
-  color: var(--up-color);
+.price-box .price-change.up { color: var(--up-color); }
+.price-box .price-change.down { color: var(--down-color); }
+
+/* 价格预警内容区域 */
+.price-alert-card .strategy-card-content {
+  margin-bottom: 0;
 }
 
-.price-current .price-value.down {
-  color: var(--down-color);
-}
-
-.price-current .price-change {
-  font-size: 13px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-
-.price-current .price-change.up {
-  color: var(--up-color);
-}
-
-.price-current .price-change.down {
-  color: var(--down-color);
-}
-
-.price-alert-conditions {
+/* 预警条件列表 */
+.price-alert-list {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  background: var(--border-color);
-  border-radius: 6px;
-  overflow: hidden;
 }
 
-/* 单个预警条件 - 紧凑行样式 */
-.price-condition-row {
+.price-alert-list .alert-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 10px;
-  background: var(--bg-secondary);
-  font-size: 13px;
-  min-height: 32px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.2s ease;
+  cursor: pointer;
 }
 
-.price-condition-row .condition-left {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  overflow: hidden;
+.price-alert-list .alert-item:last-of-type {
+  border-bottom: none;
 }
 
-.price-condition-row .condition-label {
-  color: var(--text-secondary);
-  white-space: nowrap;
+.price-alert-list .alert-item:hover {
+  background-color: var(--bg-secondary);
 }
 
-/* 备注默认隐藏，hover 时展开 */
-.price-condition-row .condition-note {
-  font-size: 11px;
+.price-alert-list .alert-item.triggered {
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.price-alert-list .alert-item.empty {
+  justify-content: center;
   color: var(--text-tertiary);
-  max-height: 0;
-  overflow: hidden;
-  opacity: 0;
-  transition: max-height 0.2s ease, opacity 0.2s ease, margin-top 0.2s ease;
-  margin-top: 0;
+  font-size: 13px;
+  padding: 24px 20px;
 }
 
-.price-condition-row:hover .condition-note {
-  max-height: 40px;
-  opacity: 1;
-  margin-top: 2px;
+/* 条件信息 */
+.price-alert-list .condition-info {
+  flex: 1;
+  min-width: 0;
 }
 
-.price-condition-row .condition-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.price-condition-row .condition-status {
-  color: var(--up-color);
-  font-size: 12px;
+.price-alert-list .condition-title {
+  font-size: 15px;
+  color: var(--text-primary);
   font-weight: 500;
 }
 
-/* 操作按钮组 - 默认隐藏，hover 显示 */
-.price-condition-row .condition-actions {
-  display: flex;
-  gap: 2px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.price-condition-row:hover .condition-actions {
-  opacity: 1;
-}
-
-.cond-action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.15s ease;
-}
-
-.cond-action-btn:hover {
-  background: var(--bg-primary);
+.price-alert-list .condition-val {
+  font-family: "SF Mono", "Roboto Mono", monospace;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
-.cond-action-btn.confirm {
-  color: var(--up-color);
+/* 备注标签 - 默认隐藏，hover时下拉展开 */
+.price-alert-list .remark-wrapper {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.25s ease, opacity 0.2s ease, margin-top 0.25s ease;
+  margin-top: 0;
 }
 
-.cond-action-btn.confirm:hover {
-  background: rgba(34, 197, 94, 0.1);
+.price-alert-list .remark-wrapper.show {
+  max-height: 50px;
+  opacity: 1;
+  margin-top: 6px;
 }
 
-.cond-action-btn svg {
+.price-alert-list .remark-tag {
+  display: inline-block;
+  font-size: 12px;
+  color: #92400e;
+  background: #fffbeb;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border-left: 3px solid #fbbf24;
+  max-width: 280px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 操作按钮组 - 默认隐藏，hover显示 */
+.price-alert-list .item-actions {
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transform: translateX(10px);
+  transition: all 0.2s ease;
+}
+
+.price-alert-list .alert-item:hover .item-actions {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.price-alert-list .action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-tertiary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.price-alert-list .action-btn:hover {
+  background-color: var(--text-primary);
+  color: var(--bg-primary);
+  border-color: var(--text-primary);
+}
+
+.price-alert-list .action-btn.confirm {
+  color: #10b981;
+}
+
+.price-alert-list .action-btn.confirm:hover {
+  background-color: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.price-alert-list .action-btn svg {
   width: 14px;
   height: 14px;
 }
 
-/* 已触发状态 */
-.price-condition-row.triggered {
-  background: rgba(34, 197, 94, 0.05);
-}
-
 /* 展开按钮 */
-.price-alert-expand {
+.price-alert-list .expand-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 6px;
+  padding: 10px 20px;
   background: none;
   border: none;
+  border-top: 1px solid var(--border-color);
   color: var(--text-tertiary);
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
   transition: color 0.2s;
 }
 
-.price-alert-expand:hover {
-  color: var(--primary-color);
+.price-alert-list .expand-btn:hover {
+  color: var(--text-primary);
 }
 
-.price-alert-expand svg {
-  width: 12px;
-  height: 12px;
-  transition: transform 0.2s;
+.price-alert-list .expand-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
-.price-condition-empty {
+/* 底部操作栏 */
+.price-alert-footer {
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   align-items: center;
-  padding: 16px;
+  padding: 12px 20px;
   background: var(--bg-secondary);
-  border-radius: 6px;
+  border-top: 1px solid var(--border-color);
+}
+
+.price-alert-footer .footer-actions {
+  display: flex;
+  gap: 16px;
+}
+
+.price-alert-footer .footer-action {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  background: none;
+  border: none;
   color: var(--text-tertiary);
   font-size: 13px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.price-alert-footer .footer-action:hover {
+  color: var(--text-primary);
 }
 /* 卡片底部 */
 .strategy-card-footer {

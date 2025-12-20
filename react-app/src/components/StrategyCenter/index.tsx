@@ -16,8 +16,7 @@ import {
   loadStrategies,
   saveStrategies,
   checkAllStrategies,
-  getStrategyTypeLabel,
-  getStrategyTypeColor
+  getStrategyTypeLabel
 } from '@/services/strategyService'
 import { StrategyModal } from './StrategyModal'
 import { initSampleStrategies } from './sampleStrategies'
@@ -327,62 +326,64 @@ interface StrategyCardProps {
 }
 
 function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: StrategyCardProps) {
-  const typeColorClass = getStrategyTypeColor(strategy.type)
   const isTriggered = strategy.status === 'triggered'
+  const isPriceAlert = strategy.type === 'price'
 
-  const formatTime = (ts?: number) => {
-    if (!ts) return ''
-    const d = new Date(ts)
-    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`
-  }
+  // 价格预警特殊处理：从实时数据获取价格
+  const priceStrategy = isPriceAlert ? strategy as PriceAlertStrategy : null
+  const stock = priceStrategy ? stockData[priceStrategy.code] : null
+  const currentPrice = stock?.price || 0
+  const preClose = stock?.preClose || 0
+  const pctChange = preClose ? ((currentPrice - preClose) / preClose * 100) : 0
+  const isUp = pctChange >= 0
 
   return (
-    <div className={`strategy-card ${isTriggered ? 'triggered' : ''}`}>
+    <div className={`strategy-card ${isTriggered ? 'triggered' : ''} ${isPriceAlert ? 'price-alert-card' : ''}`}>
       <div className="strategy-card-body">
-        {/* 头部 */}
-        <div className="strategy-card-header">
-          <div className="strategy-card-title">
-            <span className={`strategy-type-badge ${typeColorClass}`}>
-              {getStrategyTypeLabel(strategy.type)}
-            </span>
-            <h3 className="strategy-card-name">{strategy.name}</h3>
-            {strategy.type === 'sector_arb' && (
-              <p className="strategy-card-desc">
-                基准：{(strategy as SectorArbStrategy).benchmarkName || (strategy as SectorArbStrategy).benchmarkCode}
-              </p>
-            )}
-            {strategy.type === 'ah_premium' && (
-              <p className="strategy-card-desc">
-                比较对象：{(strategy as AHPremiumStrategy).aCode} / {(strategy as AHPremiumStrategy).hCode}
-              </p>
-            )}
-            {strategy.type === 'price' && (
-              <p className="strategy-card-desc">
-                {(strategy as PriceAlertStrategy).stockName || (strategy as PriceAlertStrategy).code}
-              </p>
-            )}
+        {/* 头部 - 价格预警使用特殊布局 */}
+        {isPriceAlert ? (
+          <div className="price-alert-header">
+            <div className="header-left">
+              <h3 className="strategy-card-name">
+                {strategy.name}
+                <span className="status-badge">
+                  <span className="status-dot" />
+                  {isTriggered ? '已触发' : strategy.enabled ? '监控中' : '已暂停'}
+                </span>
+              </h3>
+              <p className="strategy-card-desc">{priceStrategy?.code?.toUpperCase()} • 价格预警</p>
+            </div>
+            <div className="price-box">
+              <span className={`current-price ${isUp ? 'up' : 'down'}`}>
+                {currentPrice ? currentPrice.toFixed(3) : '--'}
+              </span>
+              <span className={`price-change ${isUp ? 'up' : 'down'}`}>
+                {currentPrice ? `${isUp ? '+' : ''}${pctChange.toFixed(2)}%` : '--'}
+              </span>
+            </div>
           </div>
-          <div className="strategy-card-status">
-            {isTriggered ? (
-              <span className="status-triggered">
-                <span className="dot" />
-                已触发
-              </span>
-            ) : strategy.enabled ? (
-              <span className="status-running">
-                <span className="dot" />
-                监控中
-              </span>
-            ) : (
-              <span className="status-running" style={{ color: 'var(--text-tertiary)' }}>
-                已暂停
-              </span>
-            )}
-            {strategy.triggeredAt && (
-              <span className="strategy-time">{formatTime(strategy.triggeredAt)}</span>
-            )}
+        ) : (
+          <div className="strategy-card-header">
+            <div className="strategy-card-title">
+              <div className="title-row">
+                <h3 className="strategy-card-name">{strategy.name}</h3>
+                <span className="status-badge">
+                  <span className="status-dot" />
+                  {isTriggered ? '已触发' : strategy.enabled ? '监控中' : '已暂停'}
+                </span>
+              </div>
+              {strategy.type === 'sector_arb' ? (
+                <p className="strategy-card-desc">
+                  基准：{(strategy as SectorArbStrategy).benchmarkName || (strategy as SectorArbStrategy).benchmarkCode}
+                </p>
+              ) : strategy.type === 'ah_premium' ? (
+                <p className="strategy-card-desc">
+                  比较对象：{(strategy as AHPremiumStrategy).aCode} / {(strategy as AHPremiumStrategy).hCode}
+                </p>
+              ) : null}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* 内容区域 */}
         <div className="strategy-card-content">
@@ -396,27 +397,35 @@ function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: 
             <FakeBreakoutContent strategy={strategy as FakeBreakoutStrategy} />
           )}
           {strategy.type === 'price' && (
-            <PriceAlertContent strategy={strategy as PriceAlertStrategy} stockData={stockData} />
+            <PriceAlertContent 
+              strategy={strategy as PriceAlertStrategy} 
+              stockData={stockData}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onToggle={onToggle}
+            />
           )}
         </div>
 
-        {/* 底部 */}
-        <div className="strategy-card-footer">
-          <span className="strategy-logic">
-            {strategy.note || getStrategyLogic(strategy)}
-          </span>
-          <div className="strategy-actions">
-            <button className="strategy-action-btn" onClick={onToggle} title={strategy.enabled ? '暂停' : '启动'}>
-              {strategy.enabled ? Icons.pause : Icons.play}
-            </button>
-            <button className="strategy-action-btn" onClick={onEdit} title="编辑">
-              {Icons.edit}
-            </button>
-            <button className="strategy-action-btn" onClick={onDelete} title="删除">
-              {Icons.trash}
-            </button>
+        {/* 底部 - 价格预警不显示 */}
+        {!isPriceAlert && (
+          <div className="strategy-card-footer">
+            <span className="strategy-logic">
+              {strategy.note || getStrategyLogic(strategy)}
+            </span>
+            <div className="strategy-actions">
+              <button className="strategy-action-btn" onClick={onToggle} title={strategy.enabled ? '暂停' : '启动'}>
+                {strategy.enabled ? Icons.pause : Icons.play}
+              </button>
+              <button className="strategy-action-btn" onClick={onEdit} title="编辑">
+                {Icons.edit}
+              </button>
+              <button className="strategy-action-btn" onClick={onDelete} title="删除">
+                {Icons.trash}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
@@ -537,25 +546,19 @@ function FakeBreakoutContent({ strategy }: { strategy: FakeBreakoutStrategy }) {
   )
 }
 
-// 价格预警内容
+// 价格预警内容 - 只显示条件列表，头部信息在卡片头部显示
 interface PriceAlertContentProps {
   strategy: PriceAlertStrategy
   stockData?: Record<string, StockData>
-  onEditCondition?: (idx: number) => void
-  onDeleteCondition?: (idx: number) => void
-  onConfirmCondition?: (idx: number) => void
+  onEdit?: () => void
+  onDelete?: () => void
+  onToggle?: () => void
 }
 
-function PriceAlertContent({ strategy, stockData = {} }: PriceAlertContentProps) {
+function PriceAlertContent({ strategy, onDelete, onToggle }: PriceAlertContentProps) {
   const [expanded, setExpanded] = useState(false)
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
   const conditions = strategy.conditions || []
-  
-  // 从实时数据获取当前价格
-  const stock = stockData[strategy.code]
-  const currentPrice = stock?.price || 0
-  const preClose = stock?.preClose || 0
-  const pctChange = preClose ? ((currentPrice - preClose) / preClose * 100) : 0
-  const isUp = pctChange >= 0
 
   // 最多显示3个，超过则折叠
   const MAX_VISIBLE = 3
@@ -563,13 +566,13 @@ function PriceAlertContent({ strategy, stockData = {} }: PriceAlertContentProps)
   const hasMore = conditions.length > MAX_VISIBLE
 
   // 操作处理
-  const handleEdit = (idx: number, e: React.MouseEvent) => {
+  const handleEditCondition = (idx: number, e: React.MouseEvent) => {
     e.stopPropagation()
     console.log('编辑条件', idx)
     // TODO: 打开编辑弹窗
   }
 
-  const handleDelete = (idx: number, e: React.MouseEvent) => {
+  const handleDeleteCondition = (idx: number, e: React.MouseEvent) => {
     e.stopPropagation()
     if (confirm('确定删除这个预警条件吗？')) {
       console.log('删除条件', idx)
@@ -584,69 +587,60 @@ function PriceAlertContent({ strategy, stockData = {} }: PriceAlertContentProps)
   }
 
   return (
-    <div className="price-alert-box">
-      {/* 头部：当前价格（右对齐） */}
-      <div className="price-alert-header">
-        <div className="price-current">
-          <span className={`price-value ${isUp ? 'up' : 'down'}`}>
-            {currentPrice ? currentPrice.toFixed(2) : '--'}
-          </span>
-          <span className={`price-change ${isUp ? 'up' : 'down'}`}>
-            {currentPrice ? `${isUp ? '+' : ''}${pctChange.toFixed(2)}%` : '--'}
-          </span>
-        </div>
-      </div>
-
+    <div className="price-alert-list">
       {/* 预警条件列表 */}
-      <div className="price-alert-conditions">
-        {visibleConditions.map((cond, idx) => (
-          <div key={idx} className={`price-condition-row ${cond.triggered ? 'triggered' : ''}`}>
-            <div className="condition-left">
-              <span className="condition-label">
-                {cond.type === 'price' ? '价格' : '涨跌幅'}
-                {cond.operator === 'above' ? '突破' : '跌破'} {cond.value}
-                {cond.type === 'pct' ? '%' : ''}
-              </span>
-              {cond.note && <span className="condition-note">{cond.note}</span>}
+      {visibleConditions.map((cond, idx) => (
+        <div 
+          key={idx} 
+          className={`alert-item ${cond.triggered ? 'triggered' : ''}`}
+          onMouseEnter={() => setHoveredIdx(idx)}
+          onMouseLeave={() => setHoveredIdx(null)}
+        >
+          <div className="condition-info">
+            <div className="condition-title">
+              {cond.type === 'price' ? '价格' : '涨跌幅'}
+              {cond.operator === 'above' ? '突破' : '跌破'}{' '}
+              <span className="condition-val">{cond.value}{cond.type === 'pct' ? '%' : ''}</span>
             </div>
-            <div className="condition-right">
-              {cond.triggered && <span className="condition-status">已触发</span>}
-              <div className="condition-actions">
-                <button className="cond-action-btn" onClick={(e) => handleEdit(idx, e)} title="编辑">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                </button>
-                <button className="cond-action-btn" onClick={(e) => handleDelete(idx, e)} title="删除">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  </svg>
-                </button>
-                {cond.triggered && (
-                  <button className="cond-action-btn confirm" onClick={(e) => handleConfirm(idx, e)} title="确认">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </button>
-                )}
-              </div>
+            {/* 备注 - 只在hover时显示，带动画 */}
+            <div className={`remark-wrapper ${hoveredIdx === idx && cond.note ? 'show' : ''}`}>
+              {cond.note && <div className="remark-tag">{cond.note}</div>}
             </div>
           </div>
-        ))}
-        
-        {conditions.length === 0 && (
-          <div className="price-condition-empty">
-            <span>暂无预警条件</span>
+          <div className="item-actions">
+            <button className="action-btn" onClick={(e) => handleEditCondition(idx, e)} title="编辑">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+            <button className="action-btn" onClick={(e) => handleDeleteCondition(idx, e)} title="删除">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+            </button>
+            {cond.triggered && (
+              <button className="action-btn confirm" onClick={(e) => handleConfirm(idx, e)} title="确认">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </button>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      ))}
+      
+      {conditions.length === 0 && (
+        <div className="alert-item empty">
+          <span>暂无预警条件</span>
+        </div>
+      )}
 
       {/* 展开/收起按钮 */}
       {hasMore && (
         <button 
-          className="price-alert-expand"
+          className="expand-btn"
           onClick={() => setExpanded(!expanded)}
         >
           {expanded ? '收起' : `查看全部 ${conditions.length} 个`}
@@ -655,12 +649,32 @@ function PriceAlertContent({ strategy, stockData = {} }: PriceAlertContentProps)
             fill="none" 
             stroke="currentColor" 
             strokeWidth="2"
-            style={{ transform: expanded ? 'rotate(180deg)' : 'none' }}
+            style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }}
           >
             <polyline points="6 9 12 15 18 9" />
           </svg>
         </button>
       )}
+
+      {/* 底部操作栏 */}
+      <div className="price-alert-footer">
+        <div className="footer-actions">
+          <button className="footer-action" onClick={onToggle}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width: 14, height: 14}}>
+              <rect x="6" y="4" width="4" height="16" />
+              <rect x="14" y="4" width="4" height="16" />
+            </svg>
+            全部暂停
+          </button>
+          <button className="footer-action" onClick={onDelete}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{width: 14, height: 14}}>
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+            清空
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
