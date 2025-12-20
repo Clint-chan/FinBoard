@@ -117,14 +117,16 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
     try {
       // 1. 先从云端加载最新配置
       const cloudConfig = await cloudLoadConfig(auth.token)
+      console.log('[CloudSync] 云端配置:', cloudConfig)
+      
       if (cloudConfig) {
         // 迁移旧版数据格式
         const migratedConfig = migrateConfig(cloudConfig)
+        console.log('[CloudSync] 迁移后配置:', migratedConfig)
+        console.log('[CloudSync] 迁移后 alerts:', migratedConfig.alerts)
         onConfigLoaded(migratedConfig)
       }
       
-      // 2. 然后保存本地配置到云端
-      await cloudSaveConfig(auth.token, config)
       setLastSyncTime(new Date())
     } catch (err) {
       console.error('Sync failed:', err)
@@ -132,7 +134,7 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
     } finally {
       setSyncing(false)
     }
-  }, [auth?.token, config, onConfigLoaded])
+  }, [auth?.token, onConfigLoaded])
 
   // 验证 Token 有效性
   useEffect(() => {

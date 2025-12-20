@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>测试云端数据</title>
+  <style>
+    body { font-family: monospace; padding: 20px; }
+    pre { background: #f5f5f5; padding: 15px; overflow: auto; }
+    button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    .section { margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <h1>云端数据测试</h1>
+  
+  <div class="section">
+    <h2>1. 本地存储数据</h2>
+    <button onclick="showLocalData()">查看本地配置</button>
+    <button onclick="showLocalAuth()">查看登录信息</button>
+    <pre id="local-data"></pre>
+  </div>
+  
+  <div class="section">
+    <h2>2. 云端数据</h2>
+    <button onclick="fetchCloudData()">获取云端配置</button>
+    <pre id="cloud-data"></pre>
+  </div>
+  
+  <div class="section">
+    <h2>3. 迁移测试</h2>
+    <button onclick="testMigration()">测试迁移逻辑</button>
+    <pre id="migration-result"></pre>
+  </div>
+
+  <script>
+    const SYNC_API = 'https://market-api.newestgpt.com'
+    
+    function showLocalData() {
+      const config = localStorage.getItem('market_board_config')
+      document.getElementById('local-data').textContent = config 
+        ? JSON.stringify(JSON.parse(config), null, 2)
+        : '无本地配置'
+    }
+    
+    function showLocalAuth() {
+      const auth = localStorage.getItem('market_board_auth')
+      document.getElementById('local-data').textContent = auth 
+        ? JSON.stringify(JSON.parse(auth), null, 2)
+        : '未登录'
+    }
+    
+    async function fetchCloudData() {
+      const auth = localStorage.getItem('market_board_auth')
+      if (!auth) {
+        document.getElementById('cloud-data').textContent = '未登录，无法获取云端数据'
+        return
+      }
+      
+      const { token } = JSON.parse(auth)
+      try {
+        const res = await fetch(`${SYNC_API}/api/config`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        const data = await res.json()
+        document.getElementById('cloud-data').textContent = JSON.stringify(data, null, 2)
+        
+        // 特别显示 alerts 结构
+        if (data.config?.alerts) {
+          console.log('云端 alerts 结构:', data.config.alerts)
+          console.log('alerts 的 keys:', Object.keys(data.config.alerts))
+          for (const [code, alert] of Object.entries(data.config.alerts)) {
+            console.log(`${code}:`, alert)
+          }
+        }
+      } catch (err) {
+        document.getElementById('cloud-data').textContent = '获取失败: ' + err.message
+      }
+    }
+    
+    function testMigration() {
+      // 测试各种格式
+      const testCases = [
+        { name: '旧版格式', data: { above: 10.5, below: 9.0 } },
+        { name: '新版格式', data: { conditions: [{ type: 'price', operator: 'above', value: 10.5 }] } },
+        { name: '空对象', data: {} },
+        { name: 'null', data: null }
+      ]
+      
+      function isLegacyAlert(alert) {
+        if (!alert || typeof alert !== 'object') return false
+        return !('conditions' in alert) && (typeof alert.above === 'number' || typeof alert.below === 'number')
+      }
+      
+      let result = ''
+      for (const tc of testCases) {
+        result += `${tc.name}: isLegacy=${isLegacyAlert(tc.data)}\n`
+        result += `  数据: ${JSON.stringify(tc.data)}\n\n`
+      }
+      
+      document.getElementById('migration-result').textContent = result
+    }
+  </script>
+</body>
+</html>

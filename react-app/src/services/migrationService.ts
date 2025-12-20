@@ -96,12 +96,22 @@ function migrateAlerts(
  * 返回迁移后的配置，如果没有需要迁移的内容则返回原配置
  */
 export function migrateConfig<T extends { alerts?: Record<string, unknown> }>(config: T): T {
+  console.log('[Migration] 输入配置:', config)
+  console.log('[Migration] alerts 字段:', config.alerts)
+  
   if (!config.alerts || Object.keys(config.alerts).length === 0) {
+    console.log('[Migration] alerts 为空，跳过迁移')
     return config
+  }
+  
+  // 检查每个 alert 的格式
+  for (const [code, alert] of Object.entries(config.alerts)) {
+    console.log(`[Migration] ${code}:`, alert, '是旧版格式:', isLegacyAlert(alert))
   }
   
   const hasLegacy = Object.values(config.alerts).some(isLegacyAlert)
   if (!hasLegacy) {
+    console.log('[Migration] 没有旧版格式，跳过迁移')
     return config
   }
   
