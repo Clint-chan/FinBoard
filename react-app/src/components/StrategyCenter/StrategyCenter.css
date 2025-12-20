@@ -618,7 +618,7 @@
 .price-alert-box {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .price-alert-header {
@@ -675,36 +675,102 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 10px;
+  padding: 6px 10px;
   background: var(--bg-secondary);
   font-size: 13px;
+  min-height: 32px;
 }
 
 .price-condition-row .condition-left {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
+  overflow: hidden;
 }
 
 .price-condition-row .condition-label {
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 
+/* 备注默认隐藏，hover 时展开 */
 .price-condition-row .condition-note {
   font-size: 11px;
   color: var(--text-tertiary);
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.2s ease, opacity 0.2s ease, margin-top 0.2s ease;
+  margin-top: 0;
 }
 
-.price-condition-row .condition-distance {
-  color: var(--text-tertiary);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
+.price-condition-row:hover .condition-note {
+  max-height: 40px;
+  opacity: 1;
+  margin-top: 2px;
+}
+
+.price-condition-row .condition-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .price-condition-row .condition-status {
   color: var(--up-color);
   font-size: 12px;
   font-weight: 500;
+}
+
+/* 操作按钮组 - 默认隐藏，hover 显示 */
+.price-condition-row .condition-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.price-condition-row:hover .condition-actions {
+  opacity: 1;
+}
+
+.cond-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.cond-action-btn:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.cond-action-btn.confirm {
+  color: var(--up-color);
+}
+
+.cond-action-btn.confirm:hover {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.cond-action-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 已触发状态 */
+.price-condition-row.triggered {
+  background: rgba(34, 197, 94, 0.05);
 }
 
 /* 展开按钮 */
