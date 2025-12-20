@@ -432,6 +432,13 @@ function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: 
   
   // 获取策略类型对应的 CSS class
   const typeClass = `type-${strategy.type.replace('_', '-')}`
+  
+  // 格式化触发时间
+  const formatTriggerTime = (timestamp?: number) => {
+    if (!timestamp) return ''
+    const date = new Date(timestamp)
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  }
 
   return (
     <div className={`strategy-card ${isTriggered ? 'triggered' : ''} ${isPriceAlert ? 'price-alert-card' : ''}`}>
@@ -443,20 +450,18 @@ function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: 
               <div className="title-row">
                 <span className={`strategy-type-tag ${typeClass}`}>{tagLabel}</span>
                 <h3 className="strategy-card-name">{displayName}</h3>
-                <span className={`status-badge ${isTriggered ? 'triggered' : strategy.enabled ? '' : 'paused'}`}>
-                  <span className="status-dot" />
-                  {isTriggered ? '已触发' : strategy.enabled ? '监控中' : '已暂停'}
-                </span>
               </div>
               <p className="strategy-card-desc">{priceStrategy?.code?.toUpperCase()}</p>
             </div>
-            <div className="price-box">
-              <span className={`current-price ${isUp ? 'up' : 'down'}`}>
-                {currentPrice ? currentPrice.toFixed(3) : '--'}
-              </span>
-              <span className={`price-change ${isUp ? 'up' : 'down'}`}>
-                {currentPrice ? `${isUp ? '+' : ''}${pctChange.toFixed(2)}%` : '--'}
-              </span>
+            <div className="header-right">
+              <div className="price-box">
+                <span className={`current-price ${isUp ? 'up' : 'down'}`}>
+                  {currentPrice ? currentPrice.toFixed(3) : '--'}
+                </span>
+                <span className={`price-change ${isUp ? 'up' : 'down'}`}>
+                  {currentPrice ? `${isUp ? '+' : ''}${pctChange.toFixed(2)}%` : '--'}
+                </span>
+              </div>
             </div>
           </div>
         ) : (
@@ -465,10 +470,6 @@ function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: 
               <div className="title-row">
                 <span className={`strategy-type-tag ${typeClass}`}>{tagLabel}</span>
                 <h3 className="strategy-card-name">{displayName}</h3>
-                <span className={`status-badge ${isTriggered ? 'triggered' : strategy.enabled ? '' : 'paused'}`}>
-                  <span className="status-dot" />
-                  {isTriggered ? '已触发' : strategy.enabled ? '监控中' : '已暂停'}
-                </span>
               </div>
               {strategy.type === 'sector_arb' ? (
                 <p className="strategy-card-desc">
@@ -479,6 +480,25 @@ function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: 
                   比较对象：{(strategy as AHPremiumStrategy).aCode} / {(strategy as AHPremiumStrategy).hCode}
                 </p>
               ) : null}
+            </div>
+            {/* 右侧状态区域 */}
+            <div className="strategy-card-status">
+              {isTriggered ? (
+                <>
+                  <span className="status-triggered">
+                    <span className="pulse-dot" />
+                    已触发
+                  </span>
+                  {strategy.triggeredAt && (
+                    <span className="trigger-time">{formatTriggerTime(strategy.triggeredAt)}</span>
+                  )}
+                </>
+              ) : (
+                <span className={`status-running ${!strategy.enabled ? 'paused' : ''}`}>
+                  <span className="status-dot" />
+                  {strategy.enabled ? '监控中' : '已暂停'}
+                </span>
+              )}
             </div>
           </div>
         )}
