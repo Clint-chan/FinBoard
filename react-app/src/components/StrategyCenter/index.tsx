@@ -9,8 +9,7 @@ import type {
   SectorArbStrategy,
   AHPremiumStrategy,
   FakeBreakoutStrategy,
-  PriceAlertStrategy,
-  PriceCondition
+  PriceAlertStrategy
 } from '@/types/strategy'
 import type { StockData } from '@/types'
 import {
@@ -561,34 +560,45 @@ function PriceAlertContent({ strategy, stockData = {} }: PriceAlertContentProps)
   const hasMore = conditions.length > MAX_VISIBLE
 
   // 计算距离目标价的百分比
-  const calcDistance = (targetPrice: number, _operator: 'above' | 'below') => {
+  const calcDistance = (targetPrice: number) => {
     if (!currentPrice) return '--'
     const diff = ((targetPrice - currentPrice) / currentPrice * 100)
-    // 对于突破，正数表示还需上涨；对于跌破，负数表示还需下跌
     return diff.toFixed(1)
   }
 
   return (
     <div className="price-alert-box">
-      {/* 当前价格区域 */}
+      {/* 头部：股票名称 + 当前价格 */}
       <div className="price-alert-header">
+        <div className="price-alert-stock">
+          <span className="stock-name">{strategy.stockName || strategy.name}</span>
+          <span className="stock-code">{strategy.code}</span>
+        </div>
         <div className="price-current">
-          <span className="price-value">{currentPrice ? currentPrice.toFixed(2) : '--'}</span>
+          <span className={`price-value ${isUp ? 'up' : 'down'}`}>
+            {currentPrice ? currentPrice.toFixed(2) : '--'}
+          </span>
           <span className={`price-change ${isUp ? 'up' : 'down'}`}>
             {currentPrice ? `${isUp ? '+' : ''}${pctChange.toFixed(2)}%` : '--'}
           </span>
         </div>
       </div>
 
-      {/* 预警条件列表 */}
+      {/* 预警条件列表 - 简洁行样式 */}
       <div className="price-alert-conditions">
         {visibleConditions.map((cond, idx) => (
-          <PriceConditionItem
-            key={idx}
-            condition={cond}
-            currentPrice={currentPrice}
-            distance={calcDistance(cond.value, cond.operator)}
-          />
+          <div key={idx} className="price-condition-row">
+            <span className="condition-label">
+              {cond.type === 'price' ? '价格' : '涨跌幅'}
+              {cond.operator === 'above' ? '突破' : '跌破'} {cond.value}
+              {cond.type === 'pct' ? '%' : ''}
+            </span>
+            {cond.triggered ? (
+              <span className="condition-status">已满足</span>
+            ) : (
+              <span className="condition-distance">距离 {calcDistance(cond.value)}%</span>
+            )}
+          </div>
         ))}
         
         {conditions.length === 0 && (
@@ -604,7 +614,7 @@ function PriceAlertContent({ strategy, stockData = {} }: PriceAlertContentProps)
           className="price-alert-expand"
           onClick={() => setExpanded(!expanded)}
         >
-          {expanded ? '收起' : `查看全部 ${conditions.length} 个条件`}
+          {expanded ? '收起' : `查看全部 ${conditions.length} 个`}
           <svg 
             viewBox="0 0 24 24" 
             fill="none" 
@@ -616,59 +626,6 @@ function PriceAlertContent({ strategy, stockData = {} }: PriceAlertContentProps)
           </svg>
         </button>
       )}
-    </div>
-  )
-}
-
-// 单个预警条件项
-interface PriceConditionItemProps {
-  condition: PriceCondition
-  currentPrice: number
-  distance: string
-  onEdit?: () => void
-  onDelete?: () => void
-  onConfirm?: () => void
-}
-
-function PriceConditionItem({ condition, distance }: PriceConditionItemProps) {
-  const isTriggered = condition.triggered
-  const isAbove = condition.operator === 'above'
-  const isPct = condition.type === 'pct'
-  
-  // 判断是否接近目标（5%以内）
-  const distanceNum = parseFloat(distance)
-  const isNear = !isNaN(distanceNum) && Math.abs(distanceNum) < 5
-
-  return (
-    <div className={`price-condition-item ${isTriggered ? 'triggered' : ''} ${isNear ? 'near' : ''}`}>
-      <div className="condition-main">
-        <span className={`condition-icon ${isAbove ? 'above' : 'below'}`}>
-          {isAbove ? '↑' : '↓'}
-        </span>
-        <div className="condition-info">
-          <span className="condition-target">
-            {isPct ? '涨跌幅' : ''}{isAbove ? '突破' : '跌破'} 
-            <strong>{condition.value}{isPct ? '%' : ''}</strong>
-          </span>
-          {condition.note && (
-            <span className="condition-note">{condition.note}</span>
-          )}
-        </div>
-      </div>
-      <div className="condition-status">
-        {isTriggered ? (
-          <span className="status-badge triggered">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            已触发
-          </span>
-        ) : (
-          <span className={`status-distance ${isNear ? 'near' : ''}`}>
-            距离 {distance}%
-          </span>
-        )}
-      </div>
     </div>
   )
 }

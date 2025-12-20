@@ -614,35 +614,55 @@
 .suspect-data .down { color: var(--down-color); }
 .suspect-data .warn { color: #ea580c; font-weight: 600; }
 
-/* 价格预警卡片 - 重新设计 */
+/* 价格预警卡片 - 简洁风格 */
 .price-alert-box {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .price-alert-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.price-alert-stock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.price-alert-stock .stock-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.price-alert-stock .stock-code {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
 }
 
 .price-current {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
 }
 
 .price-current .price-value {
-  font-size: 26px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 600;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
 .price-current .price-change {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -657,129 +677,47 @@
 .price-alert-conditions {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0;
 }
 
-/* 单个预警条件项 */
-.price-condition-item {
+/* 单个预警条件 - 简洁行样式 */
+.price-condition-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
   background: var(--bg-secondary);
-  border-radius: 8px;
-  border: 1px solid transparent;
-  transition: all 0.2s;
-}
-
-.price-condition-item:hover {
-  border-color: var(--border-color);
-}
-
-.price-condition-item.triggered {
-  background: rgba(34, 197, 94, 0.08);
-  border-color: rgba(34, 197, 94, 0.2);
-}
-
-.price-condition-item.near {
-  background: rgba(251, 191, 36, 0.08);
-  border-color: rgba(251, 191, 36, 0.2);
-}
-
-.condition-main {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
-
-.condition-icon {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-
-.condition-icon.above {
-  background: rgba(34, 197, 94, 0.1);
-  color: #22c55e;
-}
-
-.condition-icon.below {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-}
-
-.condition-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.condition-target {
+  border-bottom: 1px solid var(--bg-primary);
   font-size: 13px;
+}
+
+.price-condition-row:first-child {
+  border-radius: 6px 6px 0 0;
+}
+
+.price-condition-row:last-child {
+  border-radius: 0 0 6px 6px;
+  border-bottom: none;
+}
+
+.price-condition-row:only-child {
+  border-radius: 6px;
+}
+
+.price-condition-row .condition-label {
   color: var(--text-secondary);
 }
 
-.condition-target strong {
-  color: var(--text-primary);
-  font-weight: 600;
-  margin-left: 4px;
-}
-
-.condition-note {
-  font-size: 11px;
+.price-condition-row .condition-distance {
   color: var(--text-tertiary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.condition-status {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  margin-left: 12px;
-}
-
-.status-distance {
   font-size: 12px;
-  color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
-  min-width: 70px;
-  text-align: right;
 }
 
-.status-distance.near {
-  color: #f59e0b;
+.price-condition-row .condition-status {
+  color: var(--up-color);
+  font-size: 12px;
   font-weight: 500;
-}
-
-.status-badge {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 4px;
-}
-
-.status-badge.triggered {
-  background: rgba(34, 197, 94, 0.1);
-  color: #22c55e;
-  font-weight: 500;
-}
-
-.status-badge svg {
-  width: 12px;
-  height: 12px;
 }
 
 /* 展开按钮 */
@@ -787,26 +725,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   padding: 8px;
   margin-top: 4px;
   background: none;
-  border: 1px dashed var(--border-color);
-  border-radius: 6px;
+  border: none;
   color: var(--text-tertiary);
   font-size: 12px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color 0.2s;
 }
 
 .price-alert-expand:hover {
-  border-color: var(--primary-color);
   color: var(--primary-color);
 }
 
 .price-alert-expand svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   transition: transform 0.2s;
 }
 
@@ -814,9 +750,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 20px;
+  padding: 16px;
   background: var(--bg-secondary);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--text-tertiary);
   font-size: 13px;
 }
