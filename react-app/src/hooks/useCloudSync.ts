@@ -4,6 +4,7 @@
  */
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { cloudSaveConfig, cloudLoadConfig, verifyToken } from '@/services/cloudService'
+import { migrateConfig } from '@/services/migrationService'
 import type { UserConfig } from '@/types'
 
 interface CloudAuth {
@@ -44,7 +45,9 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
     try {
       const cloudConfig = await cloudLoadConfig(token)
       if (cloudConfig) {
-        onConfigLoaded(cloudConfig)
+        // 迁移旧版数据格式
+        const migratedConfig = migrateConfig(cloudConfig)
+        onConfigLoaded(migratedConfig)
       }
       setLastSyncTime(new Date())
     } catch (err) {
@@ -61,7 +64,9 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
       const timer = setTimeout(() => {
         cloudLoadConfig(auth.token).then(cloudConfig => {
           if (cloudConfig) {
-            onConfigLoaded(cloudConfig)
+            // 迁移旧版数据格式
+            const migratedConfig = migrateConfig(cloudConfig)
+            onConfigLoaded(migratedConfig)
           }
         }).catch(err => {
           console.error('Auto sync failed:', err)
@@ -113,7 +118,9 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
       // 1. 先从云端加载最新配置
       const cloudConfig = await cloudLoadConfig(auth.token)
       if (cloudConfig) {
-        onConfigLoaded(cloudConfig)
+        // 迁移旧版数据格式
+        const migratedConfig = migrateConfig(cloudConfig)
+        onConfigLoaded(migratedConfig)
       }
       
       // 2. 然后保存本地配置到云端

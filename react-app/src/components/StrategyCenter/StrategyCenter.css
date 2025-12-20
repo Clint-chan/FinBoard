@@ -12,9 +12,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
-  background: var(--bg-primary);
-  border-bottom: 1px solid var(--border-color);
+  padding: 20px 24px 16px;
+  background: var(--bg-secondary);
 }
 
 .strategy-header-left {
@@ -51,7 +50,7 @@
 }
 
 .strategy-badge.running {
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
   color: var(--text-secondary);
 }
 
@@ -90,19 +89,30 @@
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: var(--text-primary);
-  color: var(--bg-primary);
+  background: #111827;
+  color: #ffffff;
   border: none;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  box-shadow: none;
 }
 
 .btn-new-strategy:hover {
-  opacity: 0.9;
+  background: #000000;
+  opacity: 1;
   transform: translateY(-1px);
+}
+
+[data-theme="dark"] .btn-new-strategy {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .btn-new-strategy:hover {
+  background: #2563eb;
 }
 
 .btn-new-strategy svg {
@@ -110,36 +120,36 @@
   height: 16px;
 }
 
-/* Tab 导航 */
+/* Tab 导航 - 紧贴头部 */
 .strategy-tabs {
   display: flex;
-  gap: 24px;
-  padding: 0 24px;
-  background: var(--bg-primary);
-  border-bottom: 1px solid var(--border-color);
+  gap: 8px;
+  padding: 0 24px 16px;
+  background: var(--bg-secondary);
 }
 
 .strategy-tab {
-  padding: 16px 0;
-  font-size: 14px;
+  padding: 8px 16px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
   border: none;
   background: none;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
+  border-radius: 20px;
   transition: all 0.2s;
 }
 
 .strategy-tab:hover {
   color: var(--text-primary);
-  border-bottom-color: var(--border-color);
+  background: var(--bg-primary);
 }
 
 .strategy-tab.active {
   color: var(--text-primary);
   font-weight: 600;
-  border-bottom-color: var(--text-primary);
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 /* 搜索和筛选 */
@@ -217,7 +227,7 @@
 
 .strategy-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
 }
 
@@ -267,6 +277,7 @@
   gap: 6px;
 }
 
+/* 策略类型 Badge 颜色 */
 .strategy-type-badge {
   display: inline-flex;
   align-items: center;
@@ -275,8 +286,37 @@
   border-radius: 4px;
   font-size: 10px;
   font-weight: 600;
-  text-transform: uppercase;
   width: fit-content;
+}
+
+.strategy-type-badge.type-sector-arb {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.strategy-type-badge.type-ah-premium {
+  background: #f3e8ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
+}
+
+.strategy-type-badge.type-fake-breakout {
+  background: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+
+.strategy-type-badge.type-price {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.strategy-type-badge.type-default {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
 }
 
 .strategy-card-name {
@@ -349,16 +389,12 @@
 /* 行业套利卡片 */
 .arb-comparison {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  padding: 12px;
-  border: 1px solid var(--border-color);
+  gap: 16px;
 }
 
 .arb-stock {
-  text-align: center;
   flex: 1;
 }
 
@@ -370,8 +406,13 @@
 }
 
 .arb-stock-pct {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
+  margin-bottom: 4px;
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
 }
 
 .arb-stock-pct.up { color: var(--up-color); }
@@ -379,55 +420,57 @@
 
 .arb-stock-tag {
   display: inline-block;
-  margin-top: 6px;
-  padding: 2px 6px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-tertiary);
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
 }
 
 .arb-divider {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0 16px;
+  justify-content: center;
+  padding: 0 12px;
+  min-width: 120px;
 }
 
 .arb-deviation-label {
   display: flex;
-  justify-content: space-between;
-  width: 100%;
+  flex-direction: column;
+  align-items: center;
   font-size: 10px;
   color: var(--text-tertiary);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .arb-deviation-value {
+  font-size: 12px;
   font-weight: 600;
   color: #ef4444;
 }
 
 .arb-progress {
-  width: 100px;
-  height: 6px;
+  width: 100%;
+  height: 4px;
   background: var(--border-color);
-  border-radius: 3px;
+  border-radius: 2px;
   overflow: hidden;
 }
 
 .arb-progress-bar {
   height: 100%;
-  background: #ef4444;
-  border-radius: 3px;
+  background: linear-gradient(90deg, #ef4444, #f87171);
+  border-radius: 2px;
   transition: width 0.3s;
 }
 
 .arb-vs {
   font-size: 10px;
   color: var(--text-tertiary);
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 /* AH溢价卡片 */
@@ -571,6 +614,100 @@
 .suspect-data .down { color: var(--down-color); }
 .suspect-data .warn { color: #ea580c; font-weight: 600; }
 
+/* 价格预警卡片 */
+.price-alert-box {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.price-alert-current {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.price-alert-current .price-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.price-alert-current .price-change {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.price-alert-current .price-change.up {
+  color: var(--up-color);
+}
+
+.price-alert-current .price-change.down {
+  color: var(--down-color);
+}
+
+.price-alert-conditions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.price-condition {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.price-condition .condition-label {
+  color: var(--text-secondary);
+}
+
+.price-condition .condition-status {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.price-condition .condition-status.triggered {
+  color: #22c55e;
+  font-weight: 500;
+}
+
+.price-condition.triggered {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+
+.price-condition-empty {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.add-condition-btn {
+  padding: 4px 12px;
+  background: none;
+  border: 1px dashed var(--border-color);
+  border-radius: 4px;
+  color: var(--primary-color);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-condition-btn:hover {
+  border-color: var(--primary-color);
+  background: rgba(79, 106, 245, 0.05);
+}
+
 /* 卡片底部 */
 .strategy-card-footer {
   display: flex;
@@ -678,6 +815,12 @@
 }
 
 /* 响应式 */
+@media (max-width: 1024px) {
+  .strategy-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .strategy-header {
     flex-direction: column;
@@ -687,7 +830,8 @@
   
   .strategy-tabs {
     overflow-x: auto;
-    gap: 16px;
+    gap: 8px;
+    padding-bottom: 12px;
   }
   
   .strategy-toolbar {
@@ -710,6 +854,7 @@
   
   .arb-divider {
     padding: 12px 0;
+    width: 100%;
   }
   
   .arb-progress {

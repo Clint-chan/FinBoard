@@ -125,7 +125,6 @@ function Sidebar({
     { id: 'watchlist', label: 'Watchlist', icon: Icons.watchlist },
     { id: 'insight', label: 'Insight', icon: Icons.analysis },
     { id: 'strategies', label: 'Strategies', icon: Icons.strategies },
-    { id: 'alerts', label: 'Alerts', icon: Icons.alerts },
     { id: 'settings', label: 'Settings', icon: Icons.settings },
     { id: 'admin', label: 'Admin', icon: Icons.admin, adminOnly: true },
   ]

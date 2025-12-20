@@ -8,7 +8,8 @@ import type {
   StrategyType,
   SectorArbStrategy,
   AHPremiumStrategy,
-  FakeBreakoutStrategy
+  FakeBreakoutStrategy,
+  PriceAlertStrategy
 } from '@/types/strategy'
 import {
   loadStrategies,
@@ -318,7 +319,7 @@ interface StrategyCardProps {
 }
 
 function StrategyCard({ strategy, onEdit, onDelete, onToggle }: StrategyCardProps) {
-  const typeColor = getStrategyTypeColor(strategy.type)
+  const typeColorClass = getStrategyTypeColor(strategy.type)
   const isTriggered = strategy.status === 'triggered'
 
   const formatTime = (ts?: number) => {
@@ -333,7 +334,7 @@ function StrategyCard({ strategy, onEdit, onDelete, onToggle }: StrategyCardProp
         {/* 头部 */}
         <div className="strategy-card-header">
           <div className="strategy-card-title">
-            <span className={`strategy-type-badge ${typeColor.bg} ${typeColor.text} ${typeColor.border}`} style={{ border: '1px solid' }}>
+            <span className={`strategy-type-badge ${typeColorClass}`}>
               {getStrategyTypeLabel(strategy.type)}
             </span>
             <h3 className="strategy-card-name">{strategy.name}</h3>
@@ -345,6 +346,11 @@ function StrategyCard({ strategy, onEdit, onDelete, onToggle }: StrategyCardProp
             {strategy.type === 'ah_premium' && (
               <p className="strategy-card-desc">
                 比较对象：{(strategy as AHPremiumStrategy).aCode} / {(strategy as AHPremiumStrategy).hCode}
+              </p>
+            )}
+            {strategy.type === 'price' && (
+              <p className="strategy-card-desc">
+                {(strategy as PriceAlertStrategy).stockName || (strategy as PriceAlertStrategy).code}
               </p>
             )}
           </div>
@@ -380,6 +386,9 @@ function StrategyCard({ strategy, onEdit, onDelete, onToggle }: StrategyCardProp
           )}
           {strategy.type === 'fake_breakout' && (
             <FakeBreakoutContent strategy={strategy as FakeBreakoutStrategy} />
+          )}
+          {strategy.type === 'price' && (
+            <PriceAlertContent strategy={strategy as PriceAlertStrategy} />
           )}
         </div>
 
@@ -520,6 +529,41 @@ function FakeBreakoutContent({ strategy }: { strategy: FakeBreakoutStrategy }) {
   )
 }
 
+// 价格预警内容
+function PriceAlertContent({ strategy }: { strategy: PriceAlertStrategy }) {
+  const conditions = strategy.conditions || []
+  const currentPrice = 14.60 // TODO: 从实时数据获取
+
+  return (
+    <div className="price-alert-box">
+      <div className="price-alert-current">
+        <span className="price-value">{currentPrice.toFixed(2)}</span>
+        <span className="price-change up">+0.63%</span>
+      </div>
+      <div className="price-alert-conditions">
+        {conditions.map((cond, idx) => (
+          <div key={idx} className={`price-condition ${cond.triggered ? 'triggered' : ''}`}>
+            <span className="condition-label">
+              {cond.type === 'price' ? '价格' : '涨跌幅'}
+              {cond.operator === 'above' ? '突破' : '跌破'} {cond.value}
+              {cond.type === 'pct' ? '%' : ''}
+            </span>
+            <span className={`condition-status ${cond.triggered ? 'triggered' : ''}`}>
+              {cond.triggered ? '已触发' : `距离 ${((cond.value - currentPrice) / currentPrice * 100).toFixed(1)}%`}
+            </span>
+          </div>
+        ))}
+        {conditions.length === 0 && (
+          <div className="price-condition-empty">
+            <span>暂无预警条件</span>
+            <button className="add-condition-btn">+ 添加新条件</button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // 获取策略逻辑描述
 function getStrategyLogic(strategy: Strategy): string {
   switch (strategy.type) {
@@ -529,6 +573,8 @@ function getStrategyLogic(strategy: Strategy): string {
       return `策略逻辑: 溢价率超出 ${(strategy as AHPremiumStrategy).lowThreshold}%-${(strategy as AHPremiumStrategy).highThreshold}% 区间`
     case 'fake_breakout':
       return `策略逻辑: 高开 > ${(strategy as FakeBreakoutStrategy).openThreshold}% 且板块走弱`
+    case 'price':
+      return `日线 MACD 金叉`
     default:
       return ''
   }

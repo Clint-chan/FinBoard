@@ -4,7 +4,7 @@
  */
 import './MobileTabBar.css'
 
-export type MobileTab = 'watchlist' | 'market' | 'ai' | 'alerts' | 'profile'
+export type MobileTab = 'watchlist' | 'market' | 'ai' | 'strategies' | 'profile'
 
 interface MobileTabBarProps {
   activeTab: MobileTab
@@ -64,7 +64,7 @@ export function MobileTabBar({ activeTab, onTabChange }: MobileTabBarProps) {
     { id: 'watchlist', label: '自选', icon: Icons.watchlist },
     { id: 'market', label: '行情', icon: Icons.market },
     { id: 'ai', label: 'AI', icon: Icons.ai },
-    { id: 'alerts', label: '预警', icon: Icons.alerts },
+    { id: 'strategies', label: '策略', icon: Icons.alerts },
     { id: 'profile', label: '我的', icon: Icons.profile }
   ]
 

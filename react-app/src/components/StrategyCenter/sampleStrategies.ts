@@ -1,7 +1,7 @@
 /**
  * 示例策略数据 - 用于演示和测试
  */
-import type { Strategy, SectorArbStrategy, AHPremiumStrategy, FakeBreakoutStrategy } from '@/types/strategy'
+import type { Strategy, SectorArbStrategy, AHPremiumStrategy, FakeBreakoutStrategy, PriceAlertStrategy } from '@/types/strategy'
 
 export const SAMPLE_STRATEGIES: Strategy[] = [
   // 行业套利策略 - 机器人板块
@@ -76,7 +76,29 @@ export const SAMPLE_STRATEGIES: Strategy[] = [
         sectorPct: -0.5
       }
     ]
-  } as FakeBreakoutStrategy
+  } as FakeBreakoutStrategy,
+
+  // 价格预警策略 - 福达股份
+  {
+    id: 'sample_price_alert_1',
+    name: '福达股份',
+    type: 'price',
+    status: 'running',
+    enabled: true,
+    createdAt: Date.now() - 345600000,
+    updatedAt: Date.now(),
+    note: '日线 MACD 金叉',
+    code: 'sh603166',
+    stockName: 'SH603166',
+    conditions: [
+      {
+        type: 'price',
+        operator: 'above',
+        value: 15.00,
+        triggered: false
+      }
+    ]
+  } as PriceAlertStrategy
 ]
 
 /**

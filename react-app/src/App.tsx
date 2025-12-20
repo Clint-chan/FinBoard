@@ -6,6 +6,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useCloudSync } from '@/hooks/useCloudSync'
 import { useAlertCheck } from '@/hooks/useAlertCheck'
 import { requestNotificationPermission } from '@/utils/format'
+import { runMigration } from '@/services/migrationService'
 import Sidebar from '@/components/Sidebar'
 import { MobileHeader } from '@/components/MobileHeader'
 import { MobileTabBar, type MobileTab } from '@/components/MobileTabBar'
@@ -26,6 +27,9 @@ import { DEFAULT_CONFIG } from '@/services/config'
 import type { UserConfig, PageType, ContextMenuState, ChartTooltipState, UserProfile, AlertCondition } from '@/types'
 import '@/styles/index.css'
 
+// 在应用启动前执行数据迁移
+runMigration()
+
 function App() {
   // 配置状态
   const [config, setConfig] = useLocalStorage<UserConfig>('market_board_config', DEFAULT_CONFIG)
@@ -40,7 +44,6 @@ function App() {
   const [analysisDrawer, setAnalysisDrawer] = useState<{ open: boolean; code: string }>({ open: false, code: '' })
   const [bossMode, setBossMode] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
-  const [expandedAlerts, setExpandedAlerts] = useState<Record<string, boolean>>({})
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   
   // 移动端状态
@@ -171,54 +174,6 @@ function App() {
     })
     setAlertModal({ open: false, code: null })
   }, [config.alerts, updateConfig])
-
-  // 确认预警（入库历史并删除）
-  const confirmAlert = useCallback((code: string, condIndex: number) => {
-    const alert = config.alerts[code]
-    if (!alert?.conditions?.[condIndex]) return
-    
-    const condition = alert.conditions[condIndex]
-    const stock = stockData[code]
-    
-    // 添加到历史记录
-    const historyItem = {
-      code,
-      stockName: stock?.name || code,
-      condition: { ...condition },
-      triggeredAt: condition.triggeredAt || Date.now(),
-      confirmedAt: Date.now(),
-      price: stock?.price || 0
-    }
-    
-    const newHistory = [...(config.alertHistory || []), historyItem]
-    
-    // 从当前预警中删除
-    const newConditions = alert.conditions.filter((_, i) => i !== condIndex)
-    const newAlerts = { ...config.alerts }
-    if (newConditions.length === 0) {
-      delete newAlerts[code]
-    } else {
-      newAlerts[code] = { conditions: newConditions }
-    }
-    
-    updateConfig({
-      alerts: newAlerts,
-      alertHistory: newHistory
-    })
-  }, [config.alerts, config.alertHistory, stockData, updateConfig])
-
-  // 删除历史记录
-  const deleteHistoryItem = useCallback((index: number) => {
-    const newHistory = (config.alertHistory || []).filter((_, i) => i !== index)
-    updateConfig({ alertHistory: newHistory })
-  }, [config.alertHistory, updateConfig])
-
-  // 清空所有历史记录
-  const clearAllHistory = useCallback(() => {
-    if (confirm('确定清空所有预警历史记录？')) {
-      updateConfig({ alertHistory: [] })
-    }
-  }, [updateConfig])
 
   // 从 AI 卡片直接保存多个预警（追加到现有条件）
   const saveAlertsFromAI = useCallback((code: string, alerts: Array<{ price: number; operator: 'above' | 'below'; note: string }>) => {
@@ -439,7 +394,7 @@ function App() {
     
     // 同步到桌面端页面
     if (tab === 'watchlist') setActivePage('watchlist')
-    else if (tab === 'alerts') setActivePage('alerts')
+    else if (tab === 'strategies') setActivePage('strategies')
     else if (tab === 'profile') setActivePage('settings')
   }, [mobileStockCode, config.codes])
 
@@ -452,7 +407,7 @@ function App() {
       case 'watchlist': return '自选'
       case 'market': return '行情'
       case 'ai': return 'AI'
-      case 'alerts': return '预警'
+      case 'strategies': return '策略'
       case 'profile': return '我的'
       default: return 'Fintell'
     }
@@ -468,7 +423,7 @@ function App() {
       {/* 移动端顶部导航 - 在行情详情页和 Fintell 对话时隐藏 */}
       {(!isMobile || (mobileTab !== 'market' || !mobileStockCode)) && !fintellOpen && (
         <MobileHeader 
-          title={isMobile ? getMobileTitle() : (activePage === 'watchlist' ? '行情看板' : activePage === 'alerts' ? '价格预警' : activePage === 'settings' ? '设置' : '管理')}
+          title={isMobile ? getMobileTitle() : (activePage === 'watchlist' ? '行情看板' : activePage === 'strategies' ? '策略中心' : activePage === 'settings' ? '设置' : '管理')}
         />
       )}
       
@@ -554,7 +509,7 @@ function App() {
         </div>
       )}
       
-      {/* 主内容区域 - 移动端仅在预警页面显示 */}
+      {/* 主内容区域 - 移动端仅在策略页面显示 */}
       <main className={`main-content ${isMobile && (mobileTab === 'watchlist' || mobileTab === 'market' || mobileTab === 'profile') ? 'mobile-hidden' : ''}`}>
         {activePage === 'watchlist' && (
           <div className="page">
@@ -587,175 +542,6 @@ function App() {
           </div>
         )}
         
-        {activePage === 'alerts' && (
-          <div className="page">
-            <header className="page-header">
-              <h1>预警中心</h1>
-              <p>管理所有股票的价格预警</p>
-            </header>
-            <div className="alert-list">
-              {Object.keys(config.alerts).length === 0 ? (
-                <div className="settings-card" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-tertiary)' }}>
-                  <p>暂无预警设置</p>
-                  <p style={{ fontSize: '0.85rem' }}>右键点击股票可添加预警条件</p>
-                </div>
-              ) : (
-                Object.entries(config.alerts).map(([code, alert]) => {
-                  const isExpanded = expandedAlerts[code] || false
-                  return (
-                    <div key={code} className={`alert-card ${isExpanded ? 'expanded' : ''}`}>
-                      <div 
-                        className="alert-card-header"
-                        onClick={() => setExpandedAlerts(prev => ({ ...prev, [code]: !prev[code] }))}
-                      >
-                        <div className="alert-card-left">
-                          <svg className="alert-card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="9 18 15 12 9 6"></polyline>
-                          </svg>
-                          <div className="alert-card-info">
-                            <span className="alert-card-name">{stockData[code]?.name || code}</span>
-                            <span className="alert-card-count">{alert.conditions.length} 个预警条件</span>
-                          </div>
-                        </div>
-                        <div className="alert-card-actions" onClick={e => e.stopPropagation()}>
-                          <button 
-                            className="alert-card-btn"
-                            onClick={() => setAlertModal({ open: true, code })}
-                          >
-                            添加
-                          </button>
-                          <button 
-                            className="alert-card-btn delete"
-                            onClick={() => {
-                              if (confirm('确定删除该股票的所有预警？')) {
-                                const newAlerts = { ...config.alerts }
-                                delete newAlerts[code]
-                                updateConfig({ alerts: newAlerts })
-                              }
-                            }}
-                          >
-                            全部删除
-                          </button>
-                        </div>
-                      </div>
-                      <div className="alert-card-body">
-                        <div className="alert-card-conditions">
-                          {alert.conditions.map((cond, idx) => (
-                            <div key={idx} className={`alert-card-cond ${cond.triggered ? 'triggered' : ''}`}>
-                              <div className="alert-card-cond-content">
-                                <div className="alert-card-cond-text">
-                                  {cond.triggered && <span className="triggered-badge">已触发</span>}
-                                  {cond.type === 'price' ? '价格' : '涨跌幅'}
-                                  {cond.operator === 'above' ? (cond.type === 'pct' ? ' ≥ ' : ' 突破 ') : (cond.type === 'pct' ? ' ≤ ' : ' 跌破 ')}
-                                  <strong>{cond.value}</strong>{cond.type === 'pct' ? '%' : ' 元'}
-                                </div>
-                                {cond.note && (
-                                  <div className="alert-card-cond-note">{cond.note}</div>
-                                )}
-                                {cond.triggeredAt && (
-                                  <div className="alert-card-cond-time">
-                                    触发于 {new Date(cond.triggeredAt).toLocaleString()}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="alert-card-cond-actions">
-                                {cond.triggered && (
-                                  <button 
-                                    className="alert-card-cond-btn confirm"
-                                    onClick={() => confirmAlert(code, idx)}
-                                    title="确认并归档"
-                                  >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <polyline points="20 6 9 17 4 12"></polyline>
-                                    </svg>
-                                  </button>
-                                )}
-                                <button 
-                                  className="alert-card-cond-btn edit"
-                                  onClick={() => setAlertModal({ open: true, code, editIndex: idx })}
-                                  title="编辑此条件"
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                  </svg>
-                                </button>
-                                <button 
-                                  className="alert-card-cond-btn del"
-                                  onClick={() => {
-                                    const newConditions = alert.conditions.filter((_, i) => i !== idx)
-                                    if (newConditions.length === 0) {
-                                      const newAlerts = { ...config.alerts }
-                                      delete newAlerts[code]
-                                      updateConfig({ alerts: newAlerts })
-                                    } else {
-                                      updateConfig({
-                                        alerts: { ...config.alerts, [code]: { conditions: newConditions } }
-                                      })
-                                    }
-                                  }}
-                                  title="删除此条件"
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
-            
-            {/* 预警历史记录 */}
-            {(config.alertHistory?.length || 0) > 0 && (
-              <div className="alert-history-section">
-                <div className="alert-history-header">
-                  <h3>预警历史</h3>
-                  <button className="clear-history-btn" onClick={clearAllHistory}>
-                    清空历史
-                  </button>
-                </div>
-                <div className="alert-history-list">
-                  {config.alertHistory?.map((item, idx) => (
-                    <div key={idx} className="alert-history-item">
-                      <div className="history-item-info">
-                        <span className="history-stock-name">{item.stockName}</span>
-                        <span className="history-condition">
-                          {item.condition.type === 'price' ? '价格' : '涨跌幅'}
-                          {item.condition.operator === 'above' ? ' 突破 ' : ' 跌破 '}
-                          {item.condition.value}{item.condition.type === 'pct' ? '%' : ''}
-                        </span>
-                        {item.condition.note && (
-                          <span className="history-note">{item.condition.note}</span>
-                        )}
-                      </div>
-                      <div className="history-item-meta">
-                        <span className="history-price">触发价: {item.price.toFixed(2)}</span>
-                        <span className="history-time">{new Date(item.confirmedAt).toLocaleDateString()}</span>
-                        <button 
-                          className="history-del-btn"
-                          onClick={() => deleteHistoryItem(idx)}
-                          title="删除此记录"
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
         
         {activePage === 'settings' && (
           <div className="page">

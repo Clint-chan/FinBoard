@@ -91,7 +91,7 @@ export interface IntradayData {
 export type LoadingStatus = 'loading' | 'success' | 'error' | 'closed'
 
 // 页面类型
-export type PageType = 'watchlist' | 'alerts' | 'strategies' | 'settings' | 'admin'
+export type PageType = 'watchlist' | 'strategies' | 'settings' | 'admin'
 
 // 右键菜单状态
 export interface ContextMenuState {

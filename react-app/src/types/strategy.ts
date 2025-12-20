@@ -34,6 +34,7 @@ export interface PriceCondition {
   type: 'price' | 'pct'
   operator: 'above' | 'below'
   value: number
+  note?: string // 备注（用于浏览器通知）
   triggered?: boolean
   triggeredAt?: number
 }
