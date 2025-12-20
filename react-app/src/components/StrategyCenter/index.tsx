@@ -568,12 +568,8 @@ function PriceAlertContent({ strategy, stockData = {} }: PriceAlertContentProps)
 
   return (
     <div className="price-alert-box">
-      {/* 头部：股票名称 + 当前价格 */}
+      {/* 头部：当前价格（右对齐） */}
       <div className="price-alert-header">
-        <div className="price-alert-stock">
-          <span className="stock-name">{strategy.stockName || strategy.name}</span>
-          <span className="stock-code">{strategy.code}</span>
-        </div>
         <div className="price-current">
           <span className={`price-value ${isUp ? 'up' : 'down'}`}>
             {currentPrice ? currentPrice.toFixed(2) : '--'}
@@ -584,15 +580,18 @@ function PriceAlertContent({ strategy, stockData = {} }: PriceAlertContentProps)
         </div>
       </div>
 
-      {/* 预警条件列表 - 简洁行样式 */}
+      {/* 预警条件列表 */}
       <div className="price-alert-conditions">
         {visibleConditions.map((cond, idx) => (
           <div key={idx} className="price-condition-row">
-            <span className="condition-label">
-              {cond.type === 'price' ? '价格' : '涨跌幅'}
-              {cond.operator === 'above' ? '突破' : '跌破'} {cond.value}
-              {cond.type === 'pct' ? '%' : ''}
-            </span>
+            <div className="condition-left">
+              <span className="condition-label">
+                {cond.type === 'price' ? '价格' : '涨跌幅'}
+                {cond.operator === 'above' ? '突破' : '跌破'} {cond.value}
+                {cond.type === 'pct' ? '%' : ''}
+              </span>
+              {cond.note && <span className="condition-note">{cond.note}</span>}
+            </div>
             {cond.triggered ? (
               <span className="condition-status">已满足</span>
             ) : (

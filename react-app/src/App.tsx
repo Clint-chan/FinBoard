@@ -6,7 +6,7 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useCloudSync } from '@/hooks/useCloudSync'
 import { useAlertCheck } from '@/hooks/useAlertCheck'
 import { requestNotificationPermission } from '@/utils/format'
-import { runMigration, migrateAlertsToStrategies } from '@/services/migrationService'
+import { runMigration } from '@/services/migrationService'
 import Sidebar from '@/components/Sidebar'
 import { MobileHeader } from '@/components/MobileHeader'
 import { MobileTabBar, type MobileTab } from '@/components/MobileTabBar'
@@ -142,32 +142,6 @@ function App() {
   // 请求通知权限
   useEffect(() => {
     requestNotificationPermission()
-  }, [])
-
-  // 迁移 config.alerts 到策略中心（只执行一次）
-  useEffect(() => {
-    if (Object.keys(stockData).length > 0 && Object.keys(config.alerts).length > 0) {
-      // 构建股票名称映射
-      const stockNames: Record<string, string> = {}
-      for (const [code, data] of Object.entries(stockData)) {
-        if (data.name) {
-          stockNames[code] = data.name
-        }
-      }
-      const migrated = migrateAlertsToStrategies(config.alerts, stockNames)
-      if (migrated > 0) {
-        console.log(`[App] 已迁移 ${migrated} 个预警到策略中心`)
-      }
-    }
-  }, [stockData, config.alerts])
-
-  // 暴露重置迁移标记的方法到 window（用于调试）
-  useEffect(() => {
-    // @ts-expect-error 调试用
-    window.resetAlertsMigration = () => {
-      localStorage.removeItem('market_board_alerts_to_strategy_migrated')
-      console.log('已重置迁移标记，刷新页面后会重新迁移')
-    }
   }, [])
 
   // 添加股票
