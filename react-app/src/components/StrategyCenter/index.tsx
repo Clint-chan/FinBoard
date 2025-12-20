@@ -104,13 +104,38 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
 
   // 加载策略
   useEffect(() => {
-    // 首次加载时初始化示例数据
-    const loaded = loadStrategies()
-    if (loaded.length === 0) {
-      const samples = initSampleStrategies()
-      setStrategies(samples)
-    } else {
-      setStrategies(loaded)
+    const loadData = () => {
+      const loaded = loadStrategies()
+      if (loaded.length === 0) {
+        const samples = initSampleStrategies()
+        setStrategies(samples)
+      } else {
+        setStrategies(loaded)
+      }
+    }
+    
+    // 首次加载
+    loadData()
+    
+    // 监听 storage 事件（其他标签页或组件修改时触发）
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'fintell_strategies') {
+        loadData()
+      }
+    }
+    window.addEventListener('storage', handleStorage)
+    
+    // 监听页面可见性变化（切换回来时刷新）
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadData()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorage)
+      document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [])
 

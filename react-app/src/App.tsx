@@ -7,6 +7,8 @@ import { useCloudSync } from '@/hooks/useCloudSync'
 import { useAlertCheck } from '@/hooks/useAlertCheck'
 import { requestNotificationPermission } from '@/utils/format'
 import { runMigration } from '@/services/migrationService'
+import { loadStrategies, saveStrategies, generateStrategyId } from '@/services/strategyService'
+import type { PriceAlertStrategy, PriceCondition } from '@/types/strategy'
 import Sidebar from '@/components/Sidebar'
 import { MobileHeader } from '@/components/MobileHeader'
 import { MobileTabBar, type MobileTab } from '@/components/MobileTabBar'
@@ -197,27 +199,77 @@ function App() {
       }
     }
     
-    const existingConditions = config.alerts[normalizedCode]?.conditions || []
-    const newConditions: AlertCondition[] = alerts.map(a => ({
+    // 获取股票名称
+    const stockName = stockData[normalizedCode]?.name || normalizedCode.toUpperCase()
+    
+    // 构建新的预警条件
+    const newConditions: PriceCondition[] = alerts.map(a => ({
       type: 'price' as const,
       operator: a.operator,
       value: a.price,
       note: a.note
     }))
-    // 合并现有条件和新条件（去重）
-    const allConditions = [...existingConditions]
+    
+    // === 保存到新的策略系统 ===
+    const existingStrategies = loadStrategies()
+    
+    // 查找该股票是否已有价格预警策略
+    const existingStrategyIndex = existingStrategies.findIndex(
+      s => s.type === 'price' && (s as PriceAlertStrategy).code === normalizedCode
+    )
+    
+    if (existingStrategyIndex >= 0) {
+      // 追加到现有策略
+      const existingStrategy = existingStrategies[existingStrategyIndex] as PriceAlertStrategy
+      const existingConditions = existingStrategy.conditions || []
+      
+      // 合并条件（去重）
+      newConditions.forEach(nc => {
+        const exists = existingConditions.some(ec => 
+          ec.type === nc.type && ec.operator === nc.operator && ec.value === nc.value
+        )
+        if (!exists) {
+          existingConditions.push(nc)
+        }
+      })
+      
+      existingStrategy.conditions = existingConditions
+      existingStrategy.updatedAt = Date.now()
+      existingStrategies[existingStrategyIndex] = existingStrategy
+    } else {
+      // 创建新策略
+      const newStrategy: PriceAlertStrategy = {
+        id: generateStrategyId(),
+        name: stockName,
+        type: 'price',
+        status: 'running',
+        enabled: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        code: normalizedCode,
+        stockName,
+        conditions: newConditions
+      }
+      existingStrategies.push(newStrategy)
+    }
+    
+    saveStrategies(existingStrategies)
+    
+    // === 同时保存到老的预警系统（保持兼容） ===
+    const existingOldConditions = config.alerts[normalizedCode]?.conditions || []
+    const allOldConditions: AlertCondition[] = [...existingOldConditions]
     newConditions.forEach(nc => {
-      const exists = allConditions.some(ec => 
+      const exists = allOldConditions.some(ec => 
         ec.type === nc.type && ec.operator === nc.operator && ec.value === nc.value
       )
       if (!exists) {
-        allConditions.push(nc)
+        allOldConditions.push(nc as AlertCondition)
       }
     })
     updateConfig({
-      alerts: { ...config.alerts, [normalizedCode]: { conditions: allConditions } }
+      alerts: { ...config.alerts, [normalizedCode]: { conditions: allOldConditions } }
     })
-  }, [config.alerts, config.codes, updateConfig])
+  }, [config.alerts, config.codes, stockData, updateConfig])
 
   // 保存成本
   const saveCost = useCallback((code: string, cost: number | null) => {
