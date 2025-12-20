@@ -527,3 +527,18 @@
   border-color: var(--primary-color);
   background: rgba(79, 106, 245, 0.05);
 }
+
+
+/* 高亮选中的条件 - 直接修改边框颜色，不使用 box-shadow 避免圆角不重合 */
+.price-condition-item.highlighted {
+  border-color: rgba(59, 130, 246, 0.6);
+  border-width: 2px;
+  background: rgba(59, 130, 246, 0.06);
+  animation: highlightBorderPulse 1.5s ease-in-out;
+}
+
+@keyframes highlightBorderPulse {
+  0% { border-color: rgba(59, 130, 246, 0.8); background: rgba(59, 130, 246, 0.1); }
+  50% { border-color: rgba(59, 130, 246, 0.5); background: rgba(59, 130, 246, 0.04); }
+  100% { border-color: rgba(59, 130, 246, 0.6); background: rgba(59, 130, 246, 0.06); }
+}

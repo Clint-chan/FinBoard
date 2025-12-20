@@ -1,338 +1,272 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ETF 监控卡片重设计</title>
-    <style>
-        :root {
-            --bg-color: #f3f4f6;
-            --card-bg: #ffffff;
-            --text-main: #1f2937;
-            --text-sub: #6b7280;
-            --accent-red: #ef4444; /* A股涨色 */
-            --accent-green: #10b981; /* 监控中状态色 */
-            --border-color: #e5e7eb;
-            --hover-bg: #f9fafb;
-            --btn-hover: #e5e7eb;
-        }
+<meta charset="UTF-8">
+<style>
+    /* --- 基础变量保持不变，新增一些 --- */
+    :root {
+        --bg-color: #f3f4f6;
+        --card-bg: #ffffff;
+        --text-main: #111827; /* 更深一点的黑 */
+        --text-sub: #6b7280;
+        --accent-red: #ef4444; 
+        --accent-red-bg: #fef2f2;
+        --accent-green: #10b981;
+        --accent-green-bg: #ecfdf5;
+        --border-color: #f3f4f6;
+        --hover-bg: #fafafa;
+    }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--bg-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-        }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: var(--bg-color);
+        display: flex;
+        justify-content: center;
+        padding-top: 50px;
+    }
 
-        /* 卡片容器 */
-        .monitor-card {
-            background: var(--card-bg);
-            width: 100%;
-            max-width: 600px;
-            border-radius: 16px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
-            overflow: hidden;
-            border: 1px solid rgba(0,0,0,0.02);
-        }
+    .monitor-card {
+        background: var(--card-bg);
+        width: 100%;
+        max-width: 640px; /*稍微宽一点*/
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        overflow: hidden;
+    }
 
-        /* 头部区域 */
-        .card-header {
-            padding: 24px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-        }
+    /* --- 头部 (保持你之前的风格，微调) --- */
+    .card-header {
+        padding: 20px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .header-info h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;}
+    .stock-code { font-size: 13px; color: #9ca3af; margin-top: 4px; display: block; font-family: monospace;}
+    .live-price { text-align: right; }
+    .price-main { font-size: 24px; font-weight: 800; color: var(--accent-red); font-family: "SF Mono", monospace; letter-spacing: -0.5px;}
+    .price-sub { font-size: 13px; color: var(--accent-red); font-weight: 600; display: block;}
+    
+    .status-tag { 
+        font-size: 12px; background: var(--accent-green-bg); color: var(--accent-green); 
+        padding: 2px 8px; border-radius: 12px; font-weight: 500;
+    }
 
-        .header-left h2 {
-            margin: 0;
-            font-size: 20px;
-            color: var(--text-main);
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+    /* --- 核心优化：子条件列表 --- */
+    .alert-list { padding: 0; margin: 0; }
 
-        .header-left .sub-text {
-            margin-top: 4px;
-            color: var(--text-sub);
-            font-size: 14px;
-        }
+    .alert-row {
+        display: flex;
+        align-items: center;
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border-color);
+        transition: background 0.2s;
+        cursor: pointer;
+        position: relative; /* 用于定位操作栏 */
+    }
 
-        .status-badge {
-            font-size: 12px;
-            font-weight: 500;
-            color: var(--accent-green);
-            background: rgba(16, 185, 129, 0.1);
-            padding: 4px 8px;
-            border-radius: 20px;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
+    .alert-row:hover {
+        background-color: var(--hover-bg);
+    }
 
-        .status-dot {
-            width: 6px;
-            height: 6px;
-            background-color: var(--accent-green);
-            border-radius: 50%;
-            display: inline-block;
-            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
-            animation: pulse 2s infinite;
-        }
+    /* 图标容器 (代替文字“突破”) */
+    .condition-icon-box {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 16px;
+        flex-shrink: 0;
+    }
 
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-            70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-        }
+    /* 红色向上样式 */
+    .condition-icon-box.up { background-color: var(--accent-red-bg); color: var(--accent-red); }
+    /* 绿色向下样式 */
+    .condition-icon-box.down { background-color: var(--accent-green-bg); color: var(--accent-green); }
 
-        .price-box {
-            text-align: right;
-        }
+    .icon-svg { width: 20px; height: 20px; stroke-width: 2.5; }
 
-        .current-price {
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--accent-red); /* 红色表示涨 */
-            line-height: 1;
-        }
+    /* 中间内容区 */
+    .condition-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column; 
+        justify-content: center;
+    }
 
-        .price-change {
-            font-size: 14px;
-            color: var(--accent-red);
-            font-weight: 600;
-            margin-top: 4px;
-            display: block;
-        }
+    /* 第一行：条件+数值 */
+    .condition-main {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 4px;
+    }
 
-        /* 列表区域 */
-        .alert-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
+    .condition-label {
+        font-size: 14px;
+        color: var(--text-sub);
+        font-weight: 500;
+    }
 
-        .alert-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 18px 24px;
-            border-bottom: 1px solid var(--border-color);
-            transition: all 0.2s ease;
-            position: relative;
-            cursor: pointer;
-        }
+    .condition-val {
+        font-family: "SF Mono", "Roboto Mono", monospace;
+        font-size: 17px;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+    
+    /* 根据涨跌改变数字颜色，增强视觉 */
+    .up .condition-val { color: var(--accent-red); } 
+    .down .condition-val { color: var(--accent-green); }
 
-        .alert-item:last-child {
-            border-bottom: none;
-        }
+    /* 备注样式 (Tag化) */
+    .remark-pill {
+        display: inline-flex;
+        align-items: center;
+        font-size: 12px;
+        color: #854d0e; /* 深黄褐色 */
+        background-color: #fef9c3; /* 浅柔和黄 */
+        padding: 2px 8px;
+        border-radius: 6px;
+        max-width: fit-content;
+        border: 1px solid rgba(234, 179, 8, 0.2); /* 微妙的边框 */
+        line-height: 1.5;
+    }
 
-        .alert-item:hover {
-            background-color: var(--hover-bg);
-        }
+    /* 右侧操作区 (悬停显示) */
+    .row-actions {
+        display: flex;
+        gap: 4px;
+        opacity: 0;
+        transform: translateX(10px);
+        transition: all 0.2s ease;
+    }
 
-        /* 左侧条件 */
-        .condition-info {
-            flex: 1;
-        }
+    .alert-row:hover .row-actions {
+        opacity: 1;
+        transform: translateX(0);
+    }
 
-        .condition-title {
-            font-size: 16px;
-            color: var(--text-main);
-            font-weight: 500;
-            margin-bottom: 6px;
-        }
+    .icon-btn {
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: transparent;
+        border-radius: 6px;
+        color: #9ca3af;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
 
-        .condition-val {
-            font-family: "SF Mono", "Roboto Mono", monospace;
-            font-weight: 700;
-        }
+    .icon-btn:hover { background-color: #e5e7eb; color: var(--text-main); }
+    
+    /* 底部折叠栏 */
+    .expand-footer {
+        text-align: center;
+        padding: 12px;
+        background: #f9fafb;
+        font-size: 12px;
+        color: #6b7280;
+        cursor: pointer;
+        border-top: 1px solid var(--border-color);
+        transition: color 0.2s;
+    }
+    .expand-footer:hover { color: var(--text-main); }
 
-        /* 备注标签 (默认显示精简版，或者作为提示) */
-        .remark-tag {
-            display: inline-block;
-            font-size: 12px;
-            color: var(--text-sub);
-            background: #f0f0f0;
-            padding: 4px 8px;
-            border-radius: 6px;
-            max-width: 280px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            border-left: 3px solid #cbd5e1;
-        }
-        
-        /* 根据你的图，备注似乎是策略说明，给它一点颜色区分 */
-        .remark-tag.sell {
-             border-left-color: #fbbf24; /* 黄色预警 */
-             background: #fffbeb;
-             color: #92400e;
-        }
-
-        /* 右侧操作按钮 (默认隐藏) */
-        .item-actions {
-            display: flex;
-            gap: 8px;
-            opacity: 0; /* 关键：默认透明 */
-            transform: translateX(10px);
-            transition: all 0.2s ease;
-        }
-
-        /* 悬停时显示按钮 */
-        .alert-item:hover .item-actions {
-            opacity: 1;
-            transform: translateX(0);
-        }
-
-        .action-btn {
-            background: white;
-            border: 1px solid var(--border-color);
-            color: var(--text-sub);
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .action-btn:hover {
-            background-color: var(--text-main);
-            color: white;
-            border-color: var(--text-main);
-        }
-
-        /* 底部 */
-        .card-footer {
-            padding: 16px 24px;
-            background: #f9fafb;
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 13px;
-            color: var(--text-sub);
-        }
-
-        .footer-action {
-            color: var(--text-sub);
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            transition: color 0.2s;
-        }
-        
-        .footer-action:hover {
-            color: var(--text-main);
-        }
-
-        /* 图标 SVG 样式 */
-        .icon {
-            width: 16px;
-            height: 16px;
-            fill: none;
-            stroke: currentColor;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-    </style>
+</style>
 </head>
 <body>
 
-    <div class="monitor-card">
-        <header class="card-header">
-            <div class="header-left">
-                <h2>
-                    影视ETF 
-                    <span class="status-badge"><span class="status-dot"></span> 监控中</span>
-                </h2>
-                <div class="sub-text">512000.SH • 价格预警</div>
-            </div>
-            <div class="price-box">
-                <div class="current-price">0.930</div>
-                <span class="price-change">+1.31%</span>
-            </div>
-        </header>
+<div class="monitor-card">
+    <div class="card-header">
+        <div class="header-info">
+            <h2>影视ETF <span class="status-tag">● 监控中</span></h2>
+            <span class="stock-code">SZ159855</span>
+        </div>
+        <div class="live-price">
+            <div class="price-main">0.930</div>
+            <span class="price-sub">+1.31%</span>
+        </div>
+    </div>
 
-        <div class="alert-list">
+    <div class="alert-list">
+        
+        <div class="alert-row">
+            <div class="condition-icon-box up">
+                <svg class="icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+            </div>
             
-            <div class="alert-item">
-                <div class="condition-info">
-                    <div class="condition-title">
-                        价格突破 <span class="condition-val">0.932</span>
-                    </div>
-                    <div class="remark-tag sell">
-                        高抛点 (卖出): 日线 MA10 压力且量能不足
-                    </div>
+            <div class="condition-content">
+                <div class="condition-main up">
+                    <span class="condition-label">价格突破</span>
+                    <span class="condition-val">0.932</span>
                 </div>
-                <div class="item-actions">
-                    <button class="action-btn" title="编辑">
-                        <svg class="icon" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                    </button>
-                    <button class="action-btn" title="删除">
-                        <svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                    </button>
+                <div class="remark-pill">
+                    高抛点 (卖出): 日线MA10压力且量能不足
                 </div>
             </div>
 
-            <div class="alert-item">
-                <div class="condition-info">
-                    <div class="condition-title">
-                        价格跌破 <span class="condition-val">0.904</span>
-                    </div>
-                </div>
-                <div class="item-actions">
-                    <button class="action-btn">
-                        <svg class="icon" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                    </button>
-                    <button class="action-btn">
-                        <svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                    </button>
-                </div>
+            <div class="row-actions">
+                <button class="icon-btn" title="编辑">
+                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                </button>
+                <button class="icon-btn" title="删除">
+                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
             </div>
-
-            <div class="alert-item">
-                <div class="condition-info">
-                    <div class="condition-title">
-                        价格跌破 <span class="condition-val">0.910</span>
-                    </div>
-                </div>
-                <div class="item-actions">
-                    <button class="action-btn">
-                        <svg class="icon" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                    </button>
-                    <button class="action-btn">
-                        <svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                    </button>
-                </div>
-            </div>
-
         </div>
 
-        <footer class="card-footer">
-            <span>从预警配置迁移</span>
-            <div style="display: flex; gap: 15px;">
-                <a href="#" class="footer-action">
-                    <svg class="icon" viewBox="0 0 24 24" style="width:14px;"><rect x="6" y="6" width="12" height="12" rx="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line></svg>
-                    全部暂停
-                </a>
-                <a href="#" class="footer-action">
-                    <svg class="icon" viewBox="0 0 24 24" style="width:14px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                    清空
-                </a>
+        <div class="alert-row">
+            <div class="condition-icon-box down">
+                <svg class="icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                </svg>
             </div>
-        </footer>
+            <div class="condition-content">
+                <div class="condition-main down">
+                    <span class="condition-label">价格跌破</span>
+                    <span class="condition-val">0.904</span>
+                </div>
+            </div>
+            <div class="row-actions">
+                <button class="icon-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                <button class="icon-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+            </div>
+        </div>
+
+        <div class="alert-row">
+            <div class="condition-icon-box down">
+                <svg class="icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                </svg>
+            </div>
+            <div class="condition-content">
+                <div class="condition-main down">
+                    <span class="condition-label">价格跌破</span>
+                    <span class="condition-val">0.910</span>
+                </div>
+            </div>
+             <div class="row-actions">
+                <button class="icon-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                <button class="icon-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+            </div>
+        </div>
+
     </div>
+
+    <div class="expand-footer">
+        查看全部 7 个监控条件 ▾
+    </div>
+
+</div>
 
 </body>
 </html>

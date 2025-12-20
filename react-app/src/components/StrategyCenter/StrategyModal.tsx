@@ -1,7 +1,7 @@
 /**
  * StrategyModal - 新建/编辑策略弹窗
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { 
   Strategy, 
   StrategyType,
@@ -19,6 +19,7 @@ import './StrategyModal.css'
 interface StrategyModalProps {
   open: boolean
   strategy: Strategy | null
+  highlightConditionIndex?: number | null  // 高亮的条件索引
   onClose: () => void
   onSave: (strategy: Strategy) => void
 }
@@ -30,7 +31,7 @@ const STRATEGY_TYPES: { id: StrategyType; label: string; desc: string }[] = [
   { id: 'price', label: '价格预警', desc: '监控股票价格突破或跌破指定价位' }
 ]
 
-export function StrategyModal({ open, strategy, onClose, onSave }: StrategyModalProps) {
+export function StrategyModal({ open, strategy, highlightConditionIndex, onClose, onSave }: StrategyModalProps) {
   const [step, setStep] = useState<'type' | 'config'>('type')
   const [selectedType, setSelectedType] = useState<StrategyType | null>(null)
   const [formData, setFormData] = useState<Partial<Strategy>>({})
@@ -42,6 +43,10 @@ export function StrategyModal({ open, strategy, onClose, onSave }: StrategyModal
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const [showSearchResults, setShowSearchResults] = useState(false)
+  
+  // 条件列表容器 ref，用于滚动
+  const conditionsListRef = useRef<HTMLDivElement>(null)
+  const highlightedConditionRef = useRef<HTMLDivElement>(null)
 
   const isEdit = !!strategy
 
@@ -68,6 +73,19 @@ export function StrategyModal({ open, strategy, onClose, onSave }: StrategyModal
       setShowSearchResults(false)
     }
   }, [open, strategy])
+
+  // 自动滚动到高亮的条件
+  useEffect(() => {
+    if (open && highlightConditionIndex !== null && highlightConditionIndex !== undefined && highlightedConditionRef.current) {
+      // 延迟一点确保 DOM 已渲染
+      setTimeout(() => {
+        highlightedConditionRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        })
+      }, 100)
+    }
+  }, [open, highlightConditionIndex, priceConditions.length])
 
   // 搜索股票
   const handleSearch = useCallback(async (query: string) => {
@@ -170,8 +188,9 @@ export function StrategyModal({ open, strategy, onClose, onSave }: StrategyModal
     if (!validate()) return
 
     const now = Date.now()
+    // 价格预警策略名称格式：价格监控 · 股票名
     const strategyName = selectedType === 'price' 
-      ? ((formData as PriceAlertStrategy).stockName || (formData as PriceAlertStrategy).code || '价格预警')
+      ? `价格监控 · ${(formData as PriceAlertStrategy).stockName || (formData as PriceAlertStrategy).code || '未知'}`
       : formData.name
 
     const newStrategy: Strategy = {
@@ -378,12 +397,16 @@ export function StrategyModal({ open, strategy, onClose, onSave }: StrategyModal
                     <label>预警条件</label>
                     {errors.conditions && <span className="error-msg">{errors.conditions}</span>}
                     
-                    <div className="price-conditions-list">
+                    <div className="price-conditions-list" ref={conditionsListRef}>
                       {priceConditions.length === 0 ? (
                         <div className="conditions-empty">暂无预警条件，点击下方按钮添加</div>
                       ) : (
                         priceConditions.map((cond, idx) => (
-                          <div key={idx} className="price-condition-item">
+                          <div 
+                            key={idx} 
+                            ref={highlightConditionIndex === idx ? highlightedConditionRef : null}
+                            className={`price-condition-item ${highlightConditionIndex === idx ? 'highlighted' : ''}`}
+                          >
                             <div className="condition-row">
                               <select value={cond.type} onChange={e => updateCondition(idx, 'type', e.target.value as 'price' | 'pct')}>
                                 <option value="price">价格</option>

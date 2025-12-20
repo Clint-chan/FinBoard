@@ -231,6 +231,13 @@
   gap: 16px;
 }
 
+/* 每列内部垂直排列，间距固定 */
+.strategy-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 /* 策略卡片 */
 .strategy-card {
   background: var(--bg-primary);
@@ -277,7 +284,43 @@
   gap: 6px;
 }
 
-/* 策略类型 Badge 颜色 */
+/* 策略类型 Tag 标签 - 名称前的小标签 */
+.strategy-type-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  height: 20px; /* 固定高度，与标题行高一致 */
+  line-height: 1;
+  position: relative;
+  top: 1px; /* 微调向下对齐 */
+}
+
+.strategy-type-tag.type-sector-arb {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.strategy-type-tag.type-ah-premium {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+
+.strategy-type-tag.type-fake-breakout {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.strategy-type-tag.type-price {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+/* 策略类型 Badge 颜色 - 保留兼容 */
 .strategy-type-badge {
   display: inline-flex;
   align-items: center;
@@ -324,13 +367,15 @@
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
+  line-height: 20px; /* 与 tag 高度一致 */
 }
 
-/* 标题行 - 名称和状态徽章 */
+/* 标题行 - tag、名称和状态徽章 */
 .title-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .strategy-card-desc {
@@ -622,8 +667,14 @@
 .suspect-data .warn { color: #ea580c; font-weight: 600; }
 
 /* 价格预警卡片 - 简洁风格 */
+.price-alert-card {
+  position: relative;
+}
+
 .price-alert-card .strategy-card-body {
   padding: 0;
+  min-height: 200px;
+  padding-bottom: 48px; /* 为底部操作栏留出空间 */
 }
 
 /* 价格预警头部 */
@@ -645,8 +696,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 600;
   color: var(--text-primary);
   margin: 0;
 }
@@ -670,6 +721,18 @@
   border-radius: 20px;
 }
 
+/* 暂停状态 */
+.status-badge.paused {
+  color: #9ca3af;
+  background: rgba(156, 163, 175, 0.1);
+}
+
+/* 触发状态 */
+.status-badge.triggered {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
 .status-dot {
   width: 6px;
   height: 6px;
@@ -679,10 +742,30 @@
   animation: statusPulse 2s infinite;
 }
 
+/* 暂停状态的状态灯 */
+.status-badge.paused .status-dot {
+  background-color: #9ca3af;
+  box-shadow: none;
+  animation: none;
+}
+
+/* 触发状态的状态灯 */
+.status-badge.triggered .status-dot {
+  background-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+  animation: statusPulseRed 1s infinite;
+}
+
 @keyframes statusPulse {
   0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
   70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
   100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@keyframes statusPulseRed {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
 /* 价格显示区域 - 右对齐，无背景 */
@@ -732,13 +815,26 @@
 }
 
 .price-alert-list .alert-item {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
   padding: 10px 20px;
   border-bottom: 1px solid var(--border-color);
-  transition: background-color 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
+  overflow: hidden;
+  /* 用于丝滑展开动画 */
+  max-height: 60px;
+  opacity: 1;
+}
+
+/* 折叠状态的条件项 - 丝滑收起 */
+.price-alert-list .alert-item.collapsed {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom-width: 0;
+  opacity: 0;
 }
 
 .price-alert-list .alert-item:last-of-type {
@@ -769,6 +865,32 @@
   gap: 12px;
 }
 
+/* 涨跌趋势图标 */
+.price-alert-list .trend-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.price-alert-list .trend-icon.up {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.price-alert-list .trend-icon.down {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.price-alert-list .trend-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .price-alert-list .condition-title {
   font-size: 14px;
   color: var(--text-primary);
@@ -779,7 +901,15 @@
 .price-alert-list .condition-val {
   font-family: "SF Mono", "Roboto Mono", monospace;
   font-weight: 700;
-  color: var(--text-primary);
+}
+
+/* 条件值颜色 - 根据突破/跌破 */
+.price-alert-list .condition-val.up {
+  color: var(--up-color);
+}
+
+.price-alert-list .condition-val.down {
+  color: var(--down-color);
 }
 
 /* 备注 - 同一行显示，hover时淡入，不省略 */
@@ -849,16 +979,15 @@
   height: 14px;
 }
 
-/* 展开按钮 */
+/* 展开按钮 - 简洁下划线风格 */
 .price-alert-list .expand-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 8px 20px;
+  padding: 10px 20px;
   background: none;
   border: none;
-  border-top: 1px solid var(--border-color);
   color: var(--text-tertiary);
   font-size: 12px;
   cursor: pointer;
@@ -866,7 +995,7 @@
 }
 
 .price-alert-list .expand-btn:hover {
-  color: var(--text-primary);
+  color: var(--primary-color);
 }
 
 .price-alert-list .expand-btn svg {
@@ -874,13 +1003,16 @@
   height: 12px;
 }
 
-/* 底部操作栏 - 与其他策略卡片一致 */
+/* 底部操作栏 - 固定在卡片右下角 */
 .price-alert-footer {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  padding: 12px 20px;
-  border-top: 1px solid var(--border-color);
+  padding: 0;
+  background: transparent;
 }
 
 .price-alert-footer .strategy-actions {
@@ -889,13 +1021,19 @@
 }
 
 .price-alert-footer .strategy-action-btn {
-  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   border: none;
-  background: none;
+  background: var(--bg-primary);
   color: var(--text-tertiary);
   cursor: pointer;
   border-radius: 4px;
   transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .price-alert-footer .strategy-action-btn:hover {
@@ -906,6 +1044,7 @@
 .price-alert-footer .strategy-action-btn svg {
   width: 16px;
   height: 16px;
+  display: block;
 }
 /* 卡片底部 */
 .strategy-card-footer {
@@ -1016,7 +1155,13 @@
 /* 响应式 */
 @media (max-width: 1024px) {
   .strategy-grid {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .strategy-column {
+    display: contents; /* 让子元素直接成为 grid 的子元素 */
   }
 }
 

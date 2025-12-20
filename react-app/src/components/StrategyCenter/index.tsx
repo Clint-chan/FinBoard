@@ -99,6 +99,7 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingStrategy, setEditingStrategy] = useState<Strategy | null>(null)
+  const [highlightConditionIndex, setHighlightConditionIndex] = useState<number | null>(null)
   const [_loading, setLoading] = useState(false)
 
   // 加载策略
@@ -206,8 +207,9 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
   }, [])
 
   // 编辑策略
-  const handleEditStrategy = useCallback((strategy: Strategy) => {
+  const handleEditStrategy = useCallback((strategy: Strategy, conditionIndex?: number) => {
     setEditingStrategy(strategy)
+    setHighlightConditionIndex(conditionIndex ?? null)
     setModalOpen(true)
   }, [])
 
@@ -282,16 +284,32 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
           </div>
         ) : (
           <div className="strategy-grid">
-            {filteredStrategies.map(strategy => (
-              <StrategyCard
-                key={strategy.id}
-                strategy={strategy}
-                stockData={stockData}
-                onEdit={() => handleEditStrategy(strategy)}
-                onDelete={() => handleDeleteStrategy(strategy.id)}
-                onToggle={() => handleToggleStrategy(strategy.id)}
-              />
-            ))}
+            {/* 左列 - 偶数索引 */}
+            <div className="strategy-column">
+              {filteredStrategies.filter((_, i) => i % 2 === 0).map(strategy => (
+                <StrategyCard
+                  key={strategy.id}
+                  strategy={strategy}
+                  stockData={stockData}
+                  onEdit={(conditionIndex) => handleEditStrategy(strategy, conditionIndex)}
+                  onDelete={() => handleDeleteStrategy(strategy.id)}
+                  onToggle={() => handleToggleStrategy(strategy.id)}
+                />
+              ))}
+            </div>
+            {/* 右列 - 奇数索引 */}
+            <div className="strategy-column">
+              {filteredStrategies.filter((_, i) => i % 2 === 1).map(strategy => (
+                <StrategyCard
+                  key={strategy.id}
+                  strategy={strategy}
+                  stockData={stockData}
+                  onEdit={(conditionIndex) => handleEditStrategy(strategy, conditionIndex)}
+                  onDelete={() => handleDeleteStrategy(strategy.id)}
+                  onToggle={() => handleToggleStrategy(strategy.id)}
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -306,9 +324,11 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
       <StrategyModal
         open={modalOpen}
         strategy={editingStrategy}
+        highlightConditionIndex={highlightConditionIndex}
         onClose={() => {
           setModalOpen(false)
           setEditingStrategy(null)
+          setHighlightConditionIndex(null)
         }}
         onSave={handleSaveStrategy}
       />
@@ -320,9 +340,53 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
 interface StrategyCardProps {
   strategy: Strategy
   stockData?: Record<string, StockData>
-  onEdit: () => void
+  onEdit: (conditionIndex?: number) => void
   onDelete: () => void
   onToggle: () => void
+}
+
+// 获取策略标签文字
+function getStrategyTagLabel(type: Strategy['type']): string {
+  switch (type) {
+    case 'price': return '价格监控'
+    case 'sector_arb': return '行业套利'
+    case 'ah_premium': return 'AH溢价'
+    case 'fake_breakout': return '假突破预警'
+  }
+}
+
+// 获取策略显示名称（不含类型前缀）
+function getStrategyDisplayName(strategy: Strategy): string {
+  switch (strategy.type) {
+    case 'price': {
+      const ps = strategy as PriceAlertStrategy
+      return ps.stockName || ps.code || '未知'
+    }
+    case 'sector_arb': {
+      // 使用用户自定义的名称，或者生成默认名称
+      if (strategy.name && !strategy.name.startsWith('行业套利')) {
+        return strategy.name
+      }
+      const ss = strategy as SectorArbStrategy
+      const longName = ss.longName || ss.longCode
+      const shortName = ss.shortName || ss.shortCode
+      return `${longName} / ${shortName}`
+    }
+    case 'ah_premium': {
+      if (strategy.name && !strategy.name.startsWith('AH溢价')) {
+        return strategy.name
+      }
+      const as = strategy as AHPremiumStrategy
+      return as.aName || as.aCode
+    }
+    case 'fake_breakout': {
+      if (strategy.name && !strategy.name.startsWith('假突破')) {
+        return strategy.name
+      }
+      const fs = strategy as FakeBreakoutStrategy
+      return `${fs.sectorName || fs.sectorCode} · 诱多监控`
+    }
+  }
 }
 
 function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: StrategyCardProps) {
@@ -336,6 +400,13 @@ function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: 
   const preClose = stock?.preClose || 0
   const pctChange = preClose ? ((currentPrice - preClose) / preClose * 100) : 0
   const isUp = pctChange >= 0
+  
+  // 策略标签和名称
+  const tagLabel = getStrategyTagLabel(strategy.type)
+  const displayName = getStrategyDisplayName(strategy)
+  
+  // 获取策略类型对应的 CSS class
+  const typeClass = `type-${strategy.type.replace('_', '-')}`
 
   return (
     <div className={`strategy-card ${isTriggered ? 'triggered' : ''} ${isPriceAlert ? 'price-alert-card' : ''}`}>
@@ -344,13 +415,14 @@ function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: 
         {isPriceAlert ? (
           <div className="price-alert-header">
             <div className="header-left">
-              <h3 className="strategy-card-name">
-                {strategy.name}
-                <span className="status-badge">
+              <div className="title-row">
+                <span className={`strategy-type-tag ${typeClass}`}>{tagLabel}</span>
+                <h3 className="strategy-card-name">{displayName}</h3>
+                <span className={`status-badge ${isTriggered ? 'triggered' : strategy.enabled ? '' : 'paused'}`}>
                   <span className="status-dot" />
                   {isTriggered ? '已触发' : strategy.enabled ? '监控中' : '已暂停'}
                 </span>
-              </h3>
+              </div>
               <p className="strategy-card-desc">{priceStrategy?.code?.toUpperCase()}</p>
             </div>
             <div className="price-box">
@@ -366,8 +438,9 @@ function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: 
           <div className="strategy-card-header">
             <div className="strategy-card-title">
               <div className="title-row">
-                <h3 className="strategy-card-name">{strategy.name}</h3>
-                <span className="status-badge">
+                <span className={`strategy-type-tag ${typeClass}`}>{tagLabel}</span>
+                <h3 className="strategy-card-name">{displayName}</h3>
+                <span className={`status-badge ${isTriggered ? 'triggered' : strategy.enabled ? '' : 'paused'}`}>
                   <span className="status-dot" />
                   {isTriggered ? '已触发' : strategy.enabled ? '监控中' : '已暂停'}
                 </span>
@@ -417,7 +490,7 @@ function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: 
               <button className="strategy-action-btn" onClick={onToggle} title={strategy.enabled ? '暂停' : '启动'}>
                 {strategy.enabled ? Icons.pause : Icons.play}
               </button>
-              <button className="strategy-action-btn" onClick={onEdit} title="编辑">
+              <button className="strategy-action-btn" onClick={() => onEdit()} title="编辑">
                 {Icons.edit}
               </button>
               <button className="strategy-action-btn" onClick={onDelete} title="删除">
@@ -550,7 +623,7 @@ function FakeBreakoutContent({ strategy }: { strategy: FakeBreakoutStrategy }) {
 interface PriceAlertContentProps {
   strategy: PriceAlertStrategy
   stockData?: Record<string, StockData>
-  onEdit?: () => void
+  onEdit?: (conditionIndex?: number) => void
   onDelete?: () => void
   onToggle?: () => void
 }
@@ -561,15 +634,34 @@ function PriceAlertContent({ strategy, onEdit, onDelete, onToggle }: PriceAlertC
 
   // 最多显示3个，超过则折叠
   const MAX_VISIBLE = 3
-  const visibleConditions = expanded ? conditions : conditions.slice(0, MAX_VISIBLE)
   const hasMore = conditions.length > MAX_VISIBLE
 
+  // 涨跌图标组件
+  const TrendIcon = ({ isUp }: { isUp: boolean }) => (
+    <span className={`trend-icon ${isUp ? 'up' : 'down'}`}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        {isUp ? (
+          // 上涨图标 - 折线向上
+          <polyline points="4 16 8 12 12 14 20 6" />
+        ) : (
+          // 下跌图标 - 折线向下
+          <polyline points="4 8 8 12 12 10 20 18" />
+        )}
+        {isUp ? (
+          <polyline points="16 6 20 6 20 10" />
+        ) : (
+          <polyline points="16 18 20 18 20 14" />
+        )}
+      </svg>
+    </span>
+  )
+
   // 操作处理 - 编辑单个条件
-  const handleEditCondition = (_idx: number, e: React.MouseEvent) => {
+  const handleEditCondition = (idx: number, e: React.MouseEvent) => {
     e.stopPropagation()
-    // 调用父组件的编辑方法，打开策略编辑弹窗
+    // 调用父组件的编辑方法，打开策略编辑弹窗，并传递条件索引
     if (onEdit) {
-      onEdit()
+      onEdit(idx)
     }
   }
 
@@ -589,44 +681,51 @@ function PriceAlertContent({ strategy, onEdit, onDelete, onToggle }: PriceAlertC
 
   return (
     <div className="price-alert-list">
-      {/* 预警条件列表 */}
-      {visibleConditions.map((cond, idx) => (
-        <div 
-          key={idx} 
-          className={`alert-item ${cond.triggered ? 'triggered' : ''}`}
-        >
-          <div className="condition-info">
-            <span className="condition-title">
-              {cond.type === 'price' ? '价格' : '涨跌幅'}
-              {cond.operator === 'above' ? '突破' : '跌破'}{' '}
-              <span className="condition-val">{cond.value}{cond.type === 'pct' ? '%' : ''}</span>
-            </span>
-            {/* 备注 - 同一行显示，hover时淡入，不省略 */}
-            {cond.note && <span className="remark-inline">{cond.note}</span>}
-          </div>
-          <div className="item-actions">
-            <button className="action-btn" onClick={(e) => handleEditCondition(idx, e)} title="编辑">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-            </button>
-            <button className="action-btn" onClick={(e) => handleDeleteCondition(idx, e)} title="删除">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
-            </button>
-            {cond.triggered && (
-              <button className="action-btn confirm" onClick={(e) => handleConfirm(idx, e)} title="确认">
+      {/* 预警条件列表 - 始终渲染所有条件，用 CSS 控制显示 */}
+      {conditions.map((cond, idx) => {
+        // 判断是上涨还是下跌条件
+        const isUpCondition = cond.operator === 'above'
+        const isHidden = !expanded && idx >= MAX_VISIBLE
+        
+        return (
+          <div 
+            key={idx} 
+            className={`alert-item ${cond.triggered ? 'triggered' : ''} ${isHidden ? 'collapsed' : ''}`}
+          >
+            <div className="condition-info">
+              <TrendIcon isUp={isUpCondition} />
+              <span className="condition-title">
+                {cond.type === 'price' ? '价格' : '涨跌幅'}
+                {cond.operator === 'above' ? '突破' : '跌破'}{' '}
+                <span className={`condition-val ${isUpCondition ? 'up' : 'down'}`}>{cond.value}{cond.type === 'pct' ? '%' : ''}</span>
+              </span>
+              {/* 备注 - 同一行显示，hover时淡入，不省略 */}
+              {cond.note && <span className="remark-inline">{cond.note}</span>}
+            </div>
+            <div className="item-actions">
+              <button className="action-btn" onClick={(e) => handleEditCondition(idx, e)} title="编辑">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="20 6 9 17 4 12" />
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </svg>
               </button>
-            )}
+              <button className="action-btn" onClick={(e) => handleDeleteCondition(idx, e)} title="删除">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+              </button>
+              {cond.triggered && (
+                <button className="action-btn confirm" onClick={(e) => handleConfirm(idx, e)} title="确认">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
       
       {conditions.length === 0 && (
         <div className="alert-item empty">
@@ -646,7 +745,7 @@ function PriceAlertContent({ strategy, onEdit, onDelete, onToggle }: PriceAlertC
             fill="none" 
             stroke="currentColor" 
             strokeWidth="2"
-            style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }}
+            style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}
           >
             <polyline points="6 9 12 15 18 9" />
           </svg>
@@ -668,7 +767,7 @@ function PriceAlertContent({ strategy, onEdit, onDelete, onToggle }: PriceAlertC
               )}
             </svg>
           </button>
-          <button className="strategy-action-btn" onClick={onEdit} title="编辑">
+          <button className="strategy-action-btn" onClick={() => onEdit && onEdit()} title="编辑">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
