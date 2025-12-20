@@ -494,8 +494,14 @@
   margin-bottom: 4px;
 }
 
-.arb-stock-pct.up { color: var(--up-color); }
-.arb-stock-pct.down { color: var(--down-color); }
+.arb-stock-pct.up { 
+  color: var(--up-color); 
+  background: none !important;
+}
+.arb-stock-pct.down { 
+  color: var(--down-color); 
+  background: none !important;
+}
 
 .arb-stock-tag {
   display: inline-block;
