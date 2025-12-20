@@ -621,7 +621,7 @@
 .suspect-data .down { color: var(--down-color); }
 .suspect-data .warn { color: #ea580c; font-weight: 600; }
 
-/* 价格预警卡片 - 参考4.html简洁风格 */
+/* 价格预警卡片 - 简洁风格 */
 .price-alert-card .strategy-card-body {
   padding: 0;
 }
@@ -646,7 +646,7 @@
   align-items: center;
   gap: 10px;
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
   margin: 0;
 }
@@ -698,6 +698,10 @@
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  background: none !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .price-box .current-price.up { color: var(--up-color); }
@@ -707,6 +711,10 @@
   font-size: 13px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  background: none !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .price-box .price-change.up { color: var(--up-color); }
@@ -727,7 +735,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 20px;
+  padding: 10px 20px;
   border-bottom: 1px solid var(--border-color);
   transition: background-color 0.2s ease;
   cursor: pointer;
@@ -749,19 +757,23 @@
   justify-content: center;
   color: var(--text-tertiary);
   font-size: 13px;
-  padding: 24px 20px;
+  padding: 20px;
 }
 
-/* 条件信息 */
+/* 条件信息 - 单行布局 */
 .price-alert-list .condition-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .price-alert-list .condition-title {
-  font-size: 15px;
+  font-size: 14px;
   color: var(--text-primary);
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .price-alert-list .condition-val {
@@ -770,39 +782,27 @@
   color: var(--text-primary);
 }
 
-/* 备注标签 - 默认隐藏，hover时下拉展开 */
-.price-alert-list .remark-wrapper {
-  max-height: 0;
-  overflow: hidden;
-  opacity: 0;
-  transition: max-height 0.25s ease, opacity 0.2s ease, margin-top 0.25s ease;
-  margin-top: 0;
-}
-
-.price-alert-list .remark-wrapper.show {
-  max-height: 50px;
-  opacity: 1;
-  margin-top: 6px;
-}
-
-.price-alert-list .remark-tag {
-  display: inline-block;
+/* 备注 - 同一行显示，hover时淡入，不省略 */
+.price-alert-list .remark-inline {
   font-size: 12px;
   color: #92400e;
   background: #fffbeb;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border-left: 3px solid #fbbf24;
-  max-width: 280px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border-left: 2px solid #fbbf24;
+  opacity: 0;
+  transition: opacity 0.2s ease;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.price-alert-list .alert-item:hover .remark-inline {
+  opacity: 1;
 }
 
 /* 操作按钮组 - 默认隐藏，hover显示 */
 .price-alert-list .item-actions {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   opacity: 0;
   transform: translateX(10px);
   transition: all 0.2s ease;
@@ -817,8 +817,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
@@ -855,12 +855,12 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 10px 20px;
+  padding: 8px 20px;
   background: none;
   border: none;
   border-top: 1px solid var(--border-color);
   color: var(--text-tertiary);
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: color 0.2s;
 }
@@ -870,40 +870,42 @@
 }
 
 .price-alert-list .expand-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
 }
 
-/* 底部操作栏 */
+/* 底部操作栏 - 与其他策略卡片一致 */
 .price-alert-footer {
   display: flex;
   justify-content: flex-end;
   align-items: center;
   padding: 12px 20px;
-  background: var(--bg-secondary);
   border-top: 1px solid var(--border-color);
 }
 
-.price-alert-footer .footer-actions {
+.price-alert-footer .strategy-actions {
   display: flex;
-  gap: 16px;
-}
-
-.price-alert-footer .footer-action {
-  display: flex;
-  align-items: center;
   gap: 4px;
-  padding: 0;
-  background: none;
-  border: none;
-  color: var(--text-tertiary);
-  font-size: 13px;
-  cursor: pointer;
-  transition: color 0.2s;
 }
 
-.price-alert-footer .footer-action:hover {
+.price-alert-footer .strategy-action-btn {
+  padding: 6px;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.price-alert-footer .strategy-action-btn:hover {
+  background: var(--bg-secondary);
   color: var(--text-primary);
+}
+
+.price-alert-footer .strategy-action-btn svg {
+  width: 16px;
+  height: 16px;
 }
 /* 卡片底部 */
 .strategy-card-footer {
