@@ -31,6 +31,7 @@ export interface PriceAlertStrategy extends BaseStrategy {
 }
 
 export interface PriceCondition {
+  id?: string            // 唯一标识，用于动画
   type: 'price' | 'pct'
   operator: 'above' | 'below'
   value: number

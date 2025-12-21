@@ -1,272 +1,142 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<style>
-    /* --- 基础变量保持不变，新增一些 --- */
-    :root {
-        --bg-color: #f3f4f6;
-        --card-bg: #ffffff;
-        --text-main: #111827; /* 更深一点的黑 */
-        --text-sub: #6b7280;
-        --accent-red: #ef4444; 
-        --accent-red-bg: #fef2f2;
-        --accent-green: #10b981;
-        --accent-green-bg: #ecfdf5;
-        --border-color: #f3f4f6;
-        --hover-bg: #fafafa;
-    }
-
-    body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        background-color: var(--bg-color);
-        display: flex;
-        justify-content: center;
-        padding-top: 50px;
-    }
-
-    .monitor-card {
-        background: var(--card-bg);
-        width: 100%;
-        max-width: 640px; /*稍微宽一点*/
-        border-radius: 16px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-        overflow: hidden;
-    }
-
-    /* --- 头部 (保持你之前的风格，微调) --- */
-    .card-header {
-        padding: 20px 24px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-bottom: 1px solid var(--border-color);
-    }
-    .header-info h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;}
-    .stock-code { font-size: 13px; color: #9ca3af; margin-top: 4px; display: block; font-family: monospace;}
-    .live-price { text-align: right; }
-    .price-main { font-size: 24px; font-weight: 800; color: var(--accent-red); font-family: "SF Mono", monospace; letter-spacing: -0.5px;}
-    .price-sub { font-size: 13px; color: var(--accent-red); font-weight: 600; display: block;}
-    
-    .status-tag { 
-        font-size: 12px; background: var(--accent-green-bg); color: var(--accent-green); 
-        padding: 2px 8px; border-radius: 12px; font-weight: 500;
-    }
-
-    /* --- 核心优化：子条件列表 --- */
-    .alert-list { padding: 0; margin: 0; }
-
-    .alert-row {
-        display: flex;
-        align-items: center;
-        padding: 16px 24px;
-        border-bottom: 1px solid var(--border-color);
-        transition: background 0.2s;
-        cursor: pointer;
-        position: relative; /* 用于定位操作栏 */
-    }
-
-    .alert-row:hover {
-        background-color: var(--hover-bg);
-    }
-
-    /* 图标容器 (代替文字“突破”) */
-    .condition-icon-box {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 16px;
-        flex-shrink: 0;
-    }
-
-    /* 红色向上样式 */
-    .condition-icon-box.up { background-color: var(--accent-red-bg); color: var(--accent-red); }
-    /* 绿色向下样式 */
-    .condition-icon-box.down { background-color: var(--accent-green-bg); color: var(--accent-green); }
-
-    .icon-svg { width: 20px; height: 20px; stroke-width: 2.5; }
-
-    /* 中间内容区 */
-    .condition-content {
-        flex: 1;
-        display: flex;
-        flex-direction: column; 
-        justify-content: center;
-    }
-
-    /* 第一行：条件+数值 */
-    .condition-main {
-        display: flex;
-        align-items: baseline;
-        gap: 8px;
-        margin-bottom: 4px;
-    }
-
-    .condition-label {
-        font-size: 14px;
-        color: var(--text-sub);
-        font-weight: 500;
-    }
-
-    .condition-val {
-        font-family: "SF Mono", "Roboto Mono", monospace;
-        font-size: 17px;
-        font-weight: 700;
-        color: var(--text-main);
-    }
-    
-    /* 根据涨跌改变数字颜色，增强视觉 */
-    .up .condition-val { color: var(--accent-red); } 
-    .down .condition-val { color: var(--accent-green); }
-
-    /* 备注样式 (Tag化) */
-    .remark-pill {
-        display: inline-flex;
-        align-items: center;
-        font-size: 12px;
-        color: #854d0e; /* 深黄褐色 */
-        background-color: #fef9c3; /* 浅柔和黄 */
-        padding: 2px 8px;
-        border-radius: 6px;
-        max-width: fit-content;
-        border: 1px solid rgba(234, 179, 8, 0.2); /* 微妙的边框 */
-        line-height: 1.5;
-    }
-
-    /* 右侧操作区 (悬停显示) */
-    .row-actions {
-        display: flex;
-        gap: 4px;
-        opacity: 0;
-        transform: translateX(10px);
-        transition: all 0.2s ease;
-    }
-
-    .alert-row:hover .row-actions {
-        opacity: 1;
-        transform: translateX(0);
-    }
-
-    .icon-btn {
-        width: 32px;
-        height: 32px;
-        border: none;
-        background: transparent;
-        border-radius: 6px;
-        color: #9ca3af;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-    }
-
-    .icon-btn:hover { background-color: #e5e7eb; color: var(--text-main); }
-    
-    /* 底部折叠栏 */
-    .expand-footer {
-        text-align: center;
-        padding: 12px;
-        background: #f9fafb;
-        font-size: 12px;
-        color: #6b7280;
-        cursor: pointer;
-        border-top: 1px solid var(--border-color);
-        transition: color 0.2s;
-    }
-    .expand-footer:hover { color: var(--text-main); }
-
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>策略编辑弹窗优化</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f1f5f9; }
+        /* 自定义滚动条，让列表滚动更优雅 */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+    </style>
 </head>
-<body>
+<body class="flex items-center justify-center min-h-screen p-4">
 
-<div class="monitor-card">
-    <div class="card-header">
-        <div class="header-info">
-            <h2>影视ETF <span class="status-tag">● 监控中</span></h2>
-            <span class="stock-code">SZ159855</span>
-        </div>
-        <div class="live-price">
-            <div class="price-main">0.930</div>
-            <span class="price-sub">+1.31%</span>
-        </div>
-    </div>
+    <div class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"></div>
 
-    <div class="alert-list">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl z-50 relative flex flex-col max-h-[90vh]">
         
-        <div class="alert-row">
-            <div class="condition-icon-box up">
-                <svg class="icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+            <div class="flex items-center gap-3">
+                <h2 class="text-lg font-bold text-slate-900">编辑策略</h2>
+                <span class="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 text-xs font-semibold border border-indigo-100 flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    价格预警
+                </span>
             </div>
+            <button class="text-slate-400 hover:text-slate-600 transition-colors">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+
+        <div class="p-6 overflow-y-auto custom-scrollbar space-y-6">
             
-            <div class="condition-content">
-                <div class="condition-main up">
-                    <span class="condition-label">价格突破</span>
-                    <span class="condition-val">0.932</span>
-                </div>
-                <div class="remark-pill">
-                    高抛点 (卖出): 日线MA10压力且量能不足
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="col-span-1 md:col-span-2">
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">股票名称/代码 <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span class="text-slate-400 text-sm">SH</span>
+                        </div>
+                        <input type="text" value="603883 (老百姓)" class="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all shadow-sm" placeholder="输入股票代码">
+                    </div>
                 </div>
             </div>
 
-            <div class="row-actions">
-                <button class="icon-btn" title="编辑">
-                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                </button>
-                <button class="icon-btn" title="删除">
-                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                </button>
+            <div class="border-t border-slate-100"></div>
+
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <label class="block text-sm font-medium text-slate-900">预警条件配置</label>
+                    <button class="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 4v16m8-8H4"/></svg>
+                        添加条件
+                    </button>
+                </div>
+
+                <div class="space-y-3">
+                    
+                    <div class="group relative bg-slate-50 border border-slate-200 rounded-lg p-4 hover:border-indigo-300 transition-all">
+                        <div class="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="text-slate-400 hover:text-red-500"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+                        </div>
+                        
+                        <div class="flex flex-wrap items-center gap-3 mb-3">
+                            <select class="bg-white border border-slate-300 text-slate-700 text-sm rounded-md focus:ring-indigo-500 focus:border-indigo-500 block p-2 min-w-[80px]">
+                                <option>价格</option>
+                                <option>涨跌幅</option>
+                            </select>
+                            <span class="text-slate-400 text-xs">当</span>
+                            <select class="bg-white border border-slate-300 text-slate-700 text-sm rounded-md focus:ring-indigo-500 focus:border-indigo-500 block p-2 min-w-[80px]">
+                                <option>突破</option>
+                                <option>跌破</option>
+                            </select>
+                            <div class="relative flex-1 min-w-[120px]">
+                                <input type="number" value="15.85" class="bg-white border border-slate-300 text-slate-900 text-sm rounded-md focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2 pr-8" placeholder="阈值">
+                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                    <span class="text-slate-400 text-xs">元</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <input type="text" value="高抛点 (卖出): 60分RSI超买及MA20压力" class="w-full bg-transparent border-b border-slate-200 text-xs text-slate-600 focus:border-indigo-500 focus:ring-0 outline-none pb-1 placeholder-slate-400" placeholder="添加备注或逻辑说明...">
+                        </div>
+                    </div>
+
+                    <div class="group relative bg-slate-50 border border-slate-200 rounded-lg p-4 hover:border-indigo-300 transition-all">
+                        <div class="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button class="text-slate-400 hover:text-red-500"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+                        </div>
+                        
+                        <div class="flex flex-wrap items-center gap-3 mb-3">
+                            <select class="bg-white border border-slate-300 text-slate-700 text-sm rounded-md focus:ring-indigo-500 focus:border-indigo-500 block p-2 min-w-[80px]">
+                                <option>价格</option>
+                            </select>
+                            <span class="text-slate-400 text-xs">当</span>
+                            <select class="bg-white border border-slate-300 text-slate-700 text-sm rounded-md focus:ring-indigo-500 focus:border-indigo-500 block p-2 min-w-[80px]">
+                                <option>跌破</option>
+                            </select>
+                            <div class="relative flex-1 min-w-[120px]">
+                                <input type="number" value="15.25" class="bg-white border border-slate-300 text-slate-900 text-sm rounded-md focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2 pr-8">
+                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                    <span class="text-slate-400 text-xs">元</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <input type="text" value="止损点 (风控): 跌破日内均线支撑" class="w-full bg-transparent border-b border-slate-200 text-xs text-slate-600 focus:border-indigo-500 focus:ring-0 outline-none pb-1" placeholder="添加备注...">
+                        </div>
+                    </div>
+
+                    <button class="w-full py-2 border border-dashed border-slate-300 rounded-lg text-sm text-slate-500 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        添加新的监控条件
+                    </button>
+                </div>
             </div>
+
+             <div class="pt-2">
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">全局策略逻辑备忘</label>
+                <textarea rows="3" class="block w-full p-3 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none shadow-sm" placeholder="在此记录该策略的核心思路..."></textarea>
+            </div>
+
         </div>
 
-        <div class="alert-row">
-            <div class="condition-icon-box down">
-                <svg class="icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-                </svg>
-            </div>
-            <div class="condition-content">
-                <div class="condition-main down">
-                    <span class="condition-label">价格跌破</span>
-                    <span class="condition-val">0.904</span>
-                </div>
-            </div>
-            <div class="row-actions">
-                <button class="icon-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
-                <button class="icon-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
-            </div>
-        </div>
-
-        <div class="alert-row">
-            <div class="condition-icon-box down">
-                <svg class="icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-                </svg>
-            </div>
-            <div class="condition-content">
-                <div class="condition-main down">
-                    <span class="condition-label">价格跌破</span>
-                    <span class="condition-val">0.910</span>
-                </div>
-            </div>
-             <div class="row-actions">
-                <button class="icon-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
-                <button class="icon-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
-            </div>
+        <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 rounded-b-xl flex justify-end gap-3">
+            <button class="px-5 py-2 rounded-lg text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm">
+                取消
+            </button>
+            <button class="px-5 py-2 rounded-lg text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-md flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                保存修改
+            </button>
         </div>
 
     </div>
-
-    <div class="expand-footer">
-        查看全部 7 个监控条件 ▾
-    </div>
-
-</div>
-
 </body>
 </html>

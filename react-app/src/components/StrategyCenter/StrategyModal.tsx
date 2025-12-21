@@ -2,6 +2,7 @@
  * StrategyModal - 新建/编辑策略弹窗
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import type { 
   Strategy, 
   StrategyType,
@@ -58,7 +59,12 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
         setFormData(strategy)
         setStep('config')
         if (strategy.type === 'price') {
-          setPriceConditions((strategy as PriceAlertStrategy).conditions || [])
+          // 确保每个条件都有唯一 id
+          const conditions = ((strategy as PriceAlertStrategy).conditions || []).map((c, i) => ({
+            ...c,
+            id: c.id || `cond-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`
+          }))
+          setPriceConditions(conditions)
           setSearchQuery((strategy as PriceAlertStrategy).stockName || (strategy as PriceAlertStrategy).code || '')
         }
       } else {
@@ -121,7 +127,12 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
     setSelectedType(type)
     setFormData({ type, name: '', enabled: true })
     if (type === 'price') {
-      setPriceConditions([{ type: 'price', operator: 'above', value: 0 }])
+      setPriceConditions([{ 
+        id: `cond-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        type: 'price', 
+        operator: 'above', 
+        value: 0 
+      }])
     }
     setStep('config')
   }
@@ -136,7 +147,12 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
 
   // 添加预警条件
   const addCondition = () => {
-    setPriceConditions([...priceConditions, { type: 'price', operator: 'above', value: 0 }])
+    setPriceConditions([...priceConditions, { 
+      id: `cond-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      type: 'price', 
+      operator: 'above', 
+      value: 0 
+    }])
   }
 
   // 更新预警条件
@@ -236,7 +252,15 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
     <div className="strategy-modal-backdrop" onClick={onClose}>
       <div className="strategy-modal" onClick={e => e.stopPropagation()}>
         <div className="strategy-modal-header">
-          <h2>{isEdit ? '编辑策略' : '新建策略'}</h2>
+          <div className="modal-header-left">
+            <h2>{isEdit ? '编辑策略' : '新建策略'}</h2>
+            {step === 'config' && selectedType && (
+              <span className={`modal-type-badge type-${selectedType.replace('_', '-')}`}>
+                {getTypeIcon(selectedType)}
+                {getStrategyTypeLabel(selectedType)}
+              </span>
+            )}
+          </div>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
@@ -266,10 +290,13 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
                 <button className="btn-back" onClick={() => setStep('type')}>← 返回选择类型</button>
               )}
 
-              <div className="config-type-badge">
-                {getTypeIcon(selectedType!)}
-                <span>{getStrategyTypeLabel(selectedType!)}</span>
-              </div>
+              {/* 价格预警不显示下方的类型徽章，因为头部已经有了 */}
+              {selectedType !== 'price' && (
+                <div className="config-type-badge">
+                  {getTypeIcon(selectedType!)}
+                  <span>{getStrategyTypeLabel(selectedType!)}</span>
+                </div>
+              )}
 
               {selectedType !== 'price' && (
                 <div className="form-group">
@@ -368,8 +395,13 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
               {selectedType === 'price' && (
                 <div className="price-alert-config">
                   <div className="form-group stock-search-group">
-                    <label>股票 *</label>
+                    <label>股票名称/代码 <span className="required">*</span></label>
                     <div className="stock-search-wrapper">
+                      <span className="stock-prefix">
+                        {(formData as PriceAlertStrategy).code 
+                          ? ((formData as PriceAlertStrategy).code?.toLowerCase().startsWith('sz') ? 'SZ' : 'SH')
+                          : '--'}
+                      </span>
                       <input
                         type="text"
                         placeholder="输入股票代码或名称搜索..."
@@ -393,51 +425,100 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
                     {errors.code && <span className="error-msg">{errors.code}</span>}
                   </div>
 
+                  <div className="section-divider" />
+
                   <div className="price-conditions-section">
-                    <label>预警条件</label>
+                    <div className="conditions-header">
+                      <label>预警条件配置</label>
+                      <button className="add-condition-link" onClick={addCondition}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 4v16m8-8H4" />
+                        </svg>
+                        添加条件
+                      </button>
+                    </div>
                     {errors.conditions && <span className="error-msg">{errors.conditions}</span>}
                     
                     <div className="price-conditions-list" ref={conditionsListRef}>
-                      {priceConditions.length === 0 ? (
-                        <div className="conditions-empty">暂无预警条件，点击下方按钮添加</div>
-                      ) : (
-                        priceConditions.map((cond, idx) => (
-                          <div 
-                            key={idx} 
-                            ref={highlightConditionIndex === idx ? highlightedConditionRef : null}
-                            className={`price-condition-item ${highlightConditionIndex === idx ? 'highlighted' : ''}`}
+                      <AnimatePresence mode="popLayout">
+                        {priceConditions.length === 0 ? (
+                          <motion.div 
+                            key="empty"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="conditions-empty"
                           >
-                            <div className="condition-row">
-                              <select value={cond.type} onChange={e => updateCondition(idx, 'type', e.target.value as 'price' | 'pct')}>
-                                <option value="price">价格</option>
-                                <option value="pct">涨跌幅</option>
-                              </select>
-                              <select value={cond.operator} onChange={e => updateCondition(idx, 'operator', e.target.value as 'above' | 'below')}>
-                                <option value="above">{cond.type === 'pct' ? '≥' : '突破'}</option>
-                                <option value="below">{cond.type === 'pct' ? '≤' : '跌破'}</option>
-                              </select>
-                              <input type="text" inputMode="decimal" value={cond.value || ''} placeholder={cond.type === 'price' ? '价格' : '百分比'} onChange={e => updateCondition(idx, 'value', e.target.value)} />
-                              <span className="condition-unit">{cond.type === 'pct' ? '%' : ''}</span>
-                              <button className="condition-del-btn" onClick={() => deleteCondition(idx)}>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                            暂无预警条件，点击上方按钮添加
+                          </motion.div>
+                        ) : (
+                          priceConditions.map((cond, idx) => (
+                            <motion.div 
+                              key={cond.id || `condition-${idx}`}
+                              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, x: -20, scale: 0.9, transition: { duration: 0.2 } }}
+                              transition={{ duration: 0.2, ease: "easeOut" }}
+                              ref={highlightConditionIndex === idx ? highlightedConditionRef : null}
+                              className={`price-condition-card ${highlightConditionIndex === idx ? 'highlighted' : ''}`}
+                            >
+                              <button className="condition-delete-btn" onClick={() => deleteCondition(idx)} title="删除条件">
+                                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                  <path d="M18 6 6 18M6 6l12 12" />
                                 </svg>
                               </button>
-                            </div>
-                            <input type="text" className="condition-note" value={(cond as any).note || ''} placeholder="备注（可选，用于浏览器通知）" onChange={e => updateCondition(idx, 'note' as any, e.target.value)} />
-                          </div>
-                        ))
-                      )}
+                              
+                              <div className="condition-controls">
+                                <select value={cond.type} onChange={e => updateCondition(idx, 'type', e.target.value as 'price' | 'pct')}>
+                                  <option value="price">价格</option>
+                                  <option value="pct">涨跌幅</option>
+                                </select>
+                                <span className="condition-label">当</span>
+                                <select value={cond.operator} onChange={e => updateCondition(idx, 'operator', e.target.value as 'above' | 'below')}>
+                                  <option value="above">{cond.type === 'pct' ? '≥' : '突破'}</option>
+                                  <option value="below">{cond.type === 'pct' ? '≤' : '跌破'}</option>
+                                </select>
+                                <div className="condition-value-wrapper">
+                                  <input 
+                                    type="text" 
+                                    inputMode="decimal" 
+                                    value={cond.value || ''} 
+                                    placeholder="阈值" 
+                                    onChange={e => updateCondition(idx, 'value', e.target.value)} 
+                                  />
+                                  <span className="condition-unit">{cond.type === 'pct' ? '%' : '元'}</span>
+                                </div>
+                              </div>
+                              
+                              <input 
+                                type="text" 
+                                className="condition-note-input" 
+                                value={(cond as any).note || ''} 
+                                placeholder="添加备注或逻辑说明..." 
+                                onChange={e => updateCondition(idx, 'note' as any, e.target.value)} 
+                              />
+                            </motion.div>
+                          ))
+                        )}
+                      </AnimatePresence>
+                      
+                      <button className="add-condition-card" onClick={addCondition}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 4v16m8-8H4" />
+                        </svg>
+                        添加新的监控条件
+                      </button>
                     </div>
+                  </div>
 
-                    <button className="add-condition-btn" onClick={addCondition}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                      </svg>
-                      添加条件
-                    </button>
+                  <div className="form-group">
+                    <label>全局策略逻辑备忘</label>
+                    <textarea 
+                      placeholder="在此记录该策略的核心思路..." 
+                      value={formData.note || ''} 
+                      onChange={e => updateField('note', e.target.value)} 
+                      rows={3} 
+                    />
                   </div>
                 </div>
               )}
@@ -465,10 +546,26 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
 
 function getTypeIcon(type: StrategyType) {
   const icons: Record<StrategyType, JSX.Element> = {
-    sector_arb: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" /></svg>),
-    ah_premium: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>),
-    fake_breakout: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>),
-    price: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>)
+    sector_arb: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 3v18h18" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" />
+      </svg>
+    ),
+    ah_premium: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" /><line x1="2" x2="22" y1="12" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+      </svg>
+    ),
+    fake_breakout: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" />
+      </svg>
+    ),
+    price: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+      </svg>
+    )
   }
   return icons[type] || null
 }

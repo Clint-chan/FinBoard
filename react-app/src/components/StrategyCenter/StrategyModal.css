@@ -48,15 +48,62 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .strategy-modal-header h2 {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
   margin: 0;
+}
+
+/* 头部策略类型徽章 */
+.modal-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid;
+}
+
+.modal-type-badge svg {
+  width: 12px;
+  height: 12px;
+}
+
+.modal-type-badge.type-sector-arb {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.modal-type-badge.type-ah-premium {
+  background: #f3e8ff;
+  color: #7c3aed;
+  border-color: #ddd6fe;
+}
+
+.modal-type-badge.type-fake-breakout {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: #fed7aa;
+}
+
+.modal-type-badge.type-price {
+  background: #eef2ff;
+  color: #4f46e5;
+  border-color: #c7d2fe;
 }
 
 .modal-close {
@@ -320,42 +367,56 @@
 }
 
 
-/* 价格预警配置样式 */
+/* 价格预警配置样式 - 参考 4.html 设计 */
 .price-alert-config {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
 .stock-search-group {
   position: relative;
 }
 
+.stock-search-group label .required {
+  color: #ef4444;
+}
+
 .stock-search-wrapper {
   position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.stock-prefix {
+  position: absolute;
+  left: 12px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+  pointer-events: none;
 }
 
 .stock-search-wrapper input {
   width: 100%;
-  padding: 10px 12px;
+  padding: 10px 12px 10px 36px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   font-size: 14px;
   background: var(--bg-primary);
   color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s;
 }
 
 .stock-search-wrapper input:focus {
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(79, 106, 245, 0.1);
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
 .search-loading {
   position: absolute;
   right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
   font-size: 12px;
   color: var(--text-tertiary);
 }
@@ -372,7 +433,7 @@
   max-height: 240px;
   overflow-y: auto;
   z-index: 100;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
 }
 
 .search-result-item {
@@ -398,54 +459,142 @@
   color: var(--text-tertiary);
 }
 
+/* 分隔线 */
+.section-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 4px 0;
+}
+
 /* 预警条件区域 */
 .price-conditions-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
-.price-conditions-section > label {
-  font-size: 13px;
+.conditions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.conditions-header label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.add-condition-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: #4f46e5;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.add-condition-link:hover {
+  color: #4338ca;
 }
 
 .price-conditions-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-height: 280px;
+  gap: 12px;
+  min-height: 200px;
+  max-height: 320px;
   overflow-y: auto;
+}
+
+/* 自定义滚动条 */
+.price-conditions-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.price-conditions-list::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+.price-conditions-list::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 10px;
 }
 
 .conditions-empty {
   text-align: center;
-  padding: 24px;
+  padding: 32px;
   color: var(--text-tertiary);
   font-size: 13px;
   background: var(--bg-secondary);
   border-radius: 8px;
+  border: 1px dashed var(--border-color);
 }
 
-.price-condition-item {
+/* 条件卡片 - 参考 4.html */
+.price-condition-card {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
+  gap: 12px;
+  padding: 16px;
   background: var(--bg-secondary);
-  border-radius: 8px;
   border: 1px solid var(--border-color);
+  border-radius: 8px;
+  transition: border-color 0.2s;
 }
 
-.condition-row {
+.price-condition-card:hover {
+  border-color: #a5b4fc;
+}
+
+.condition-delete-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-quaternary, #c0c0c0);
+  cursor: pointer;
+  border-radius: 50%;
   display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+
+.price-condition-card:hover .condition-delete-btn {
+  opacity: 1;
+}
+
+.condition-delete-btn:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+[data-theme="dark"] .condition-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.condition-controls {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
 
-.condition-row select {
-  padding: 8px 12px;
+.condition-controls select {
+  padding: 8px 32px 8px 12px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 13px;
@@ -454,33 +603,32 @@
   cursor: pointer;
   transition: all 0.2s;
   appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
-  padding-right: 32px;
-  min-width: 90px;
-}
-
-.condition-row select:hover {
-  border-color: var(--text-tertiary);
-}
-
-.condition-row select:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(79, 106, 245, 0.1);
-}
-
-[data-theme="dark"] .condition-row select {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
-}
-
-.condition-row input[type="text"] {
-  flex: 1;
   min-width: 80px;
-  padding: 8px 10px;
+}
+
+.condition-controls select:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+.condition-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.condition-value-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 120px;
+}
+
+.condition-value-wrapper input {
+  width: 100%;
+  padding: 8px 32px 8px 12px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 13px;
@@ -489,90 +637,75 @@
   transition: all 0.2s;
 }
 
-.condition-row input[type="text"]:hover {
-  border-color: var(--text-tertiary);
-}
-
-.condition-row input[type="text"]:focus {
+.condition-value-wrapper input:focus {
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(79, 106, 245, 0.1);
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
 }
 
-.condition-unit {
-  font-size: 13px;
+.condition-value-wrapper .condition-unit {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
   color: var(--text-tertiary);
-  min-width: 16px;
+  pointer-events: none;
 }
 
-.condition-del-btn {
-  padding: 6px;
-  border: none;
-  background: none;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.15s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.condition-del-btn:hover {
-  background: #fee2e2;
-  color: #ef4444;
-}
-
-[data-theme="dark"] .condition-del-btn:hover {
-  background: rgba(239, 68, 68, 0.15);
-}
-
-.condition-note {
+.condition-note-input {
   width: 100%;
-  padding: 8px 10px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font-size: 13px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  padding: 0 0 4px 0;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  background: transparent;
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: border-color 0.2s;
 }
 
-.condition-note::placeholder {
+.condition-note-input:focus {
+  outline: none;
+  border-bottom-color: #4f46e5;
+}
+
+.condition-note-input::placeholder {
   color: var(--text-tertiary);
 }
 
-.price-conditions-section .add-condition-btn {
+/* 添加条件卡片按钮 */
+.add-condition-card {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 10px;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
   border: 1px dashed var(--border-color);
   border-radius: 8px;
   background: none;
-  color: var(--primary-color);
   font-size: 13px;
+  color: var(--text-tertiary);
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: none;
 }
 
-.price-conditions-section .add-condition-btn:hover {
-  border-color: var(--primary-color);
-  background: rgba(79, 106, 245, 0.05);
+.add-condition-card:hover {
+  border-color: #4f46e5;
+  color: #4f46e5;
+  background: rgba(79, 70, 229, 0.05);
 }
 
-
-/* 高亮选中的条件 - 直接修改边框颜色，不使用 box-shadow 避免圆角不重合 */
-.price-condition-item.highlighted {
-  border-color: rgba(59, 130, 246, 0.6);
+/* 高亮选中的条件 */
+.price-condition-card.highlighted {
+  border-color: #4f46e5;
   border-width: 2px;
-  background: rgba(59, 130, 246, 0.06);
-  animation: highlightBorderPulse 1.5s ease-in-out;
+  background: rgba(79, 70, 229, 0.05);
+  animation: highlightPulse 1.5s ease-in-out;
 }
 
-@keyframes highlightBorderPulse {
-  0% { border-color: rgba(59, 130, 246, 0.8); background: rgba(59, 130, 246, 0.1); }
-  50% { border-color: rgba(59, 130, 246, 0.5); background: rgba(59, 130, 246, 0.04); }
-  100% { border-color: rgba(59, 130, 246, 0.6); background: rgba(59, 130, 246, 0.06); }
+@keyframes highlightPulse {
+  0% { border-color: #4f46e5; background: rgba(79, 70, 229, 0.1); }
+  50% { border-color: #818cf8; background: rgba(79, 70, 229, 0.03); }
+  100% { border-color: #4f46e5; background: rgba(79, 70, 229, 0.05); }
 }
