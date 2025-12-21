@@ -562,6 +562,23 @@
   margin-bottom: 4px;
 }
 
+/* 使用 data-trend 属性避免与全局 .up/.down 类冲突 */
+.arb-stock-pct-value {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  background: none;
+}
+
+.arb-stock-pct-value[data-trend="up"] {
+  color: var(--up-color);
+}
+
+.arb-stock-pct-value[data-trend="down"] {
+  color: var(--down-color);
+}
+
+/* 保留旧的类名以兼容 */
 .arb-stock-pct {
   font-size: 16px;
   font-weight: 700;
@@ -660,13 +677,7 @@
   justify-content: center;
   gap: 6px;
   margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed var(--border-color);
   font-size: 11px;
-}
-
-.arb-sector-ref .sector-label {
-  color: var(--text-tertiary);
 }
 
 .arb-sector-ref .sector-name {
@@ -678,11 +689,11 @@
   font-weight: 600;
 }
 
-.arb-sector-ref .sector-pct.up {
+.arb-sector-ref .sector-pct[data-trend="up"] {
   color: var(--up-color);
 }
 
-.arb-sector-ref .sector-pct.down {
+.arb-sector-ref .sector-pct[data-trend="down"] {
   color: var(--down-color);
 }
 

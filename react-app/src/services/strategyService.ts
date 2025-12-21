@@ -337,7 +337,7 @@ export async function checkSectorArbStrategy(
   
   const triggered = Math.abs(deviation) >= strategy.threshold
   
-  // 如果有关联板块，获取板块数据
+  // 如果有关联板块ETF，获取ETF行情数据
   let sectorPct: number | undefined
   let sectorName: string | undefined
   let stockAVsSector: number | undefined
@@ -345,16 +345,17 @@ export async function checkSectorArbStrategy(
   
   if (strategy.sectorCode) {
     try {
-      const sectors = await fetchSectorList()
-      const sector = sectors.find(s => s.code === strategy.sectorCode)
-      if (sector) {
-        sectorPct = sector.pctChg
-        sectorName = sector.name
+      // sectorCode 现在存储的是 ETF 代码，直接获取行情
+      const sectorQuotes = await fetchQuotes([strategy.sectorCode])
+      const sectorData = sectorQuotes[strategy.sectorCode]
+      if (sectorData) {
+        sectorPct = sectorData.preClose ? ((sectorData.price - sectorData.preClose) / sectorData.preClose * 100) : 0
+        sectorName = sectorData.name || strategy.sectorName
         stockAVsSector = stockAPct - sectorPct
         stockBVsSector = stockBPct - sectorPct
       }
     } catch (err) {
-      console.error('获取板块数据失败:', err)
+      console.error('获取板块ETF数据失败:', err)
     }
   }
   

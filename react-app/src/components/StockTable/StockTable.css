@@ -188,22 +188,15 @@ tr:hover td {
 }
 
 .up {
-  background-color: var(--color-up-bg);
   color: var(--color-up);
 }
 
 .down {
-  background-color: var(--color-down-bg);
   color: var(--color-down);
 }
 
 .flat {
-  background-color: #f3f4f6;
   color: var(--text-secondary);
-}
-
-[data-theme="dark"] .flat {
-  background-color: #334155;
 }
 
 .range-container {

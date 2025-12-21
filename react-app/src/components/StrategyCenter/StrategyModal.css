@@ -25,11 +25,20 @@
   width: 90%;
   max-width: 560px;
   max-height: 90vh;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   animation: slideUp 0.3s ease;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  position: relative;
+}
+
+/* 内容区域需要单独处理滚动 */
+.strategy-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+  min-height: 0; /* 确保 flex 子元素可以收缩 */
 }
 
 @keyframes slideUp {
@@ -121,13 +130,6 @@
 .modal-close:hover {
   background: var(--bg-secondary);
   color: var(--text-primary);
-}
-
-/* 内容区域 */
-.strategy-modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
 }
 
 /* 策略类型选择 */
@@ -309,6 +311,8 @@
   gap: 12px;
   padding: 16px 24px;
   border-top: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  flex-shrink: 0;
 }
 
 .btn-cancel,
@@ -725,12 +729,17 @@
   border-radius: 12px;
   overflow: visible;
   box-shadow: var(--shadow-sm);
+  /* 确保下拉框不被裁剪 */
+  position: relative;
+  z-index: 10;
 }
 
 .pair-comparison-inner {
   display: flex;
   align-items: stretch;
   overflow: visible;
+  /* 给下拉框留出空间 */
+  min-height: 100px;
 }
 
 /* 标的选择框 */
@@ -816,16 +825,23 @@
 
 .pair-search-results {
   position: absolute;
+  /* 默认向下展开，如果空间不够会被裁剪 */
   top: calc(100% + 4px);
   left: 0;
   right: 0;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  max-height: 240px;
+  max-height: 180px;
   overflow-y: auto;
-  z-index: 1000;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* 当下拉框在底部时，向上展开 */
+.pair-stock-box:last-child .pair-search-results {
+  top: auto;
+  bottom: calc(100% + 4px);
 }
 
 .pair-search-item {
@@ -1040,7 +1056,92 @@
 }
 
 
-/* 关联板块区域 */
+/* 关联板块ETF区域 - 放在最上面 */
+.sector-etf-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.sector-etf-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sector-etf-search {
+  position: relative;
+}
+
+.sector-etf-search input {
+  width: 100%;
+  padding: 10px 36px 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: all 0.2s;
+}
+
+.sector-etf-search input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(79, 106, 245, 0.1);
+}
+
+.sector-etf-search input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.clear-sector-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.clear-sector-btn:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.sector-search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 9999;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.sector-etf-hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+/* 旧的关联板块区域样式保留但不再使用 */
 .sector-reference-section {
   margin-top: 8px;
   padding-top: 16px;

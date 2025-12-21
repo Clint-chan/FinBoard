@@ -644,7 +644,7 @@ function SectorArbContent({ strategy }: { strategy: SectorArbStrategy }) {
     <div className="arb-comparison">
       <div className="arb-stock">
         <div className="arb-stock-name">{strategy.stockAName || strategy.stockACode}</div>
-        <div className={`arb-stock-pct ${stockAPct >= 0 ? 'up' : 'down'}`}>
+        <div className="arb-stock-pct-value" data-trend={stockAPct >= 0 ? 'up' : 'down'}>
           {stockAPct >= 0 ? '+' : ''}{stockAPct.toFixed(2)}%
         </div>
         {stockAVsSector !== null && (
@@ -652,7 +652,6 @@ function SectorArbContent({ strategy }: { strategy: SectorArbStrategy }) {
             {stockAVsSector >= 0 ? '溢价' : '折价'} {Math.abs(stockAVsSector).toFixed(1)}%
           </div>
         )}
-        <span className="arb-stock-tag">X</span>
       </div>
 
       <div className="arb-divider">
@@ -670,19 +669,17 @@ function SectorArbContent({ strategy }: { strategy: SectorArbStrategy }) {
         </div>
         {strategy.sectorCode && strategy.sectorName && (
           <div className="arb-sector-ref">
-            <span className="sector-label">板块</span>
             <span className="sector-name">{strategy.sectorName}</span>
-            <span className={`sector-pct ${sectorPct >= 0 ? 'up' : 'down'}`}>
+            <span className="sector-pct" data-trend={sectorPct >= 0 ? 'up' : 'down'}>
               {sectorPct >= 0 ? '+' : ''}{sectorPct.toFixed(2)}%
             </span>
           </div>
         )}
-        <span className="arb-vs">VS</span>
       </div>
 
       <div className="arb-stock">
         <div className="arb-stock-name">{strategy.stockBName || strategy.stockBCode}</div>
-        <div className={`arb-stock-pct ${stockBPct >= 0 ? 'up' : 'down'}`}>
+        <div className="arb-stock-pct-value" data-trend={stockBPct >= 0 ? 'up' : 'down'}>
           {stockBPct >= 0 ? '+' : ''}{stockBPct.toFixed(2)}%
         </div>
         {stockBVsSector !== null && (
@@ -690,7 +687,6 @@ function SectorArbContent({ strategy }: { strategy: SectorArbStrategy }) {
             {stockBVsSector >= 0 ? '溢价' : '折价'} {Math.abs(stockBVsSector).toFixed(1)}%
           </div>
         )}
-        <span className="arb-stock-tag">Y</span>
       </div>
     </div>
   )

@@ -574,19 +574,24 @@ interface PairMonitorConfigProps {
 function PairMonitorConfig({ formData, errors, updateField }: PairMonitorConfigProps) {
   const [searchQueryA, setSearchQueryA] = useState('')
   const [searchQueryB, setSearchQueryB] = useState('')
+  const [searchQuerySector, setSearchQuerySector] = useState('')
   const [searchResultsA, setSearchResultsA] = useState<SearchResult[]>([])
   const [searchResultsB, setSearchResultsB] = useState<SearchResult[]>([])
+  const [searchResultsSector, setSearchResultsSector] = useState<SearchResult[]>([])
   const [showResultsA, setShowResultsA] = useState(false)
   const [showResultsB, setShowResultsB] = useState(false)
+  const [showResultsSector, setShowResultsSector] = useState(false)
   const [searchingA, setSearchingA] = useState(false)
   const [searchingB, setSearchingB] = useState(false)
+  const [searchingSector, setSearchingSector] = useState(false)
   const [calculatingStats, setCalculatingStats] = useState(false)
 
   // 初始化搜索框显示
   useEffect(() => {
     if (formData.stockAName) setSearchQueryA(formData.stockAName)
     if (formData.stockBName) setSearchQueryB(formData.stockBName)
-  }, [formData.stockAName, formData.stockBName])
+    if (formData.sectorName) setSearchQuerySector(formData.sectorName)
+  }, [formData.stockAName, formData.stockBName, formData.sectorName])
 
   // 当两只股票都选择后，自动计算相关性和 Beta
   useEffect(() => {
@@ -670,6 +675,41 @@ function PairMonitorConfig({ formData, errors, updateField }: PairMonitorConfigP
     setShowResultsB(false)
   }
 
+  // 搜索板块ETF
+  const handleSearchSector = useCallback(async (query: string) => {
+    setSearchQuerySector(query)
+    if (query.length < 1) {
+      setSearchResultsSector([])
+      setShowResultsSector(false)
+      return
+    }
+    setSearchingSector(true)
+    try {
+      const results = await searchStock(query)
+      setSearchResultsSector(results.slice(0, 6))
+      setShowResultsSector(true)
+    } catch (err) {
+      console.error('搜索失败:', err)
+    } finally {
+      setSearchingSector(false)
+    }
+  }, [])
+
+  const selectSector = (result: SearchResult) => {
+    setSearchQuerySector(result.name)
+    updateField('sectorCode', result.code)
+    updateField('sectorName', result.name)
+    setShowResultsSector(false)
+  }
+
+  const clearSector = () => {
+    setSearchQuerySector('')
+    updateField('sectorCode', undefined)
+    updateField('sectorName', undefined)
+    setSearchResultsSector([])
+    setShowResultsSector(false)
+  }
+
   const getCodePrefix = (code?: string) => {
     if (!code) return '--'
     return code.toLowerCase().startsWith('sz') ? 'SZ' : 'SH'
@@ -682,6 +722,42 @@ function PairMonitorConfig({ formData, errors, updateField }: PairMonitorConfigP
 
   return (
     <div className="pair-monitor-config">
+      {/* 关联板块ETF（可选）- 放在最上面 */}
+      <div className="sector-etf-section">
+        <label className="sector-etf-label">
+          关联板块ETF <span className="optional-tag">选填</span>
+        </label>
+        <div className="sector-etf-search">
+          <input
+            type="text"
+            placeholder="搜索板块ETF，如：机器人ETF"
+            value={searchQuerySector}
+            onChange={e => handleSearchSector(e.target.value)}
+            onFocus={() => searchResultsSector.length > 0 && setShowResultsSector(true)}
+            onBlur={() => setTimeout(() => setShowResultsSector(false), 200)}
+          />
+          {searchingSector && <span className="search-spinner" />}
+          {formData.sectorCode && (
+            <button type="button" className="clear-sector-btn" onClick={clearSector} title="清除">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+          {showResultsSector && searchResultsSector.length > 0 && (
+            <div className="sector-search-results">
+              {searchResultsSector.map(r => (
+                <div key={r.code} className="pair-search-item" onMouseDown={() => selectSector(r)}>
+                  <span className="item-name">{r.name}</span>
+                  <span className="item-code">{r.code}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <span className="sector-etf-hint">填写后，X/Y 将显示相对板块的溢价/折价</span>
+      </div>
+
       {/* 配对标的选择卡片 */}
       <div className="pair-comparison-card">
         <div className="pair-comparison-inner">
@@ -811,6 +887,7 @@ function PairMonitorConfig({ formData, errors, updateField }: PairMonitorConfigP
           <div className="input-with-unit">
             <input 
               type="number" 
+              step="0.1"
               placeholder={formData.monitorMode === 'spread' ? '0.5' : '5'} 
               value={formData.threshold || ''} 
               onChange={e => updateField('threshold', parseFloat(e.target.value) || 0)} 
@@ -822,31 +899,6 @@ function PairMonitorConfig({ formData, errors, updateField }: PairMonitorConfigP
             {formData.monitorMode === 'ratio' && '当 (X/Y) 偏离历史均值超过此百分比时触发'}
             {(!formData.monitorMode || formData.monitorMode === 'return_diff') && '当 (X涨跌幅 - Y涨跌幅) 超过此值时触发信号'}
           </span>
-        </div>
-      </div>
-
-      {/* 关联板块（可选） */}
-      <div className="sector-reference-section">
-        <div className="section-header">
-          <label>关联板块 <span className="optional-tag">选填</span></label>
-          <span className="section-hint">填写后，X/Y 将显示相对板块的溢价/折价</span>
-        </div>
-        <div className="form-group">
-          <input
-            type="text"
-            placeholder="输入板块代码，如 BK0447（机器人）"
-            value={formData.sectorCode || ''}
-            onChange={e => {
-              updateField('sectorCode', e.target.value || undefined)
-              // 清除板块名称，等待检查时自动获取
-              if (!e.target.value) {
-                updateField('sectorName', undefined)
-              }
-            }}
-          />
-          {formData.sectorName && (
-            <span className="sector-name-display">{formData.sectorName}</span>
-          )}
         </div>
       </div>
     </div>
