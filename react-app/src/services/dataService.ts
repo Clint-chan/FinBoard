@@ -55,11 +55,12 @@ export async function fetchQuotes(
   return stockData
 }
 
-// 搜索股票 (JSONP)
+// 搜索股票 (JSONP) - 支持股票、ETF、指数
 export function searchStock(keyword: string): Promise<SearchResult[]> {
   return new Promise((resolve, reject) => {
     const script = document.createElement('script')
-    script.src = `https://suggest3.sinajs.cn/suggest/type=11,12,13,14,15,21,22,23,24,25&key=${encodeURIComponent(keyword)}&name=suggestdata`
+    // type 参数说明：11=A股, 12=B股, 21=开放式基金, 22=ETF, 23=LOF, 25=指数
+    script.src = `https://suggest3.sinajs.cn/suggest/type=11,12,21,22,23,25&key=${encodeURIComponent(keyword)}&name=suggestdata`
     
     script.onload = () => {
       const dataStr = window.suggestdata
@@ -71,16 +72,26 @@ export function searchStock(keyword: string): Promise<SearchResult[]> {
         return
       }
       
-      const items = dataStr.split(';').slice(0, 8).map(item => {
+      const items = dataStr.split(';').slice(0, 10).map(item => {
         const parts = item.split(',')
         if (parts.length >= 5) {
           let code = parts[3]
           const name = parts[4]
           if (!code || !name) return null
+          
+          // 处理基金代码 (of 开头)
           if (code.startsWith('of')) {
             const num = code.slice(2)
-            code = num.startsWith('1') ? 'sz' + num : 'sh' + num
+            // 上海基金 5 开头，深圳基金 1 开头
+            code = num.startsWith('5') ? 'sh' + num : 'sz' + num
           }
+          
+          // 处理指数代码 (s_ 开头，如 s_sh000001)
+          if (code.startsWith('s_')) {
+            code = code.slice(2) // 移除 s_ 前缀
+          }
+          
+          // 只保留 sh/sz 开头的代码
           if (code.startsWith('sh') || code.startsWith('sz')) {
             return { code, name }
           }

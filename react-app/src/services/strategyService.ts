@@ -337,6 +337,27 @@ export async function checkSectorArbStrategy(
   
   const triggered = Math.abs(deviation) >= strategy.threshold
   
+  // 如果有关联板块，获取板块数据
+  let sectorPct: number | undefined
+  let sectorName: string | undefined
+  let stockAVsSector: number | undefined
+  let stockBVsSector: number | undefined
+  
+  if (strategy.sectorCode) {
+    try {
+      const sectors = await fetchSectorList()
+      const sector = sectors.find(s => s.code === strategy.sectorCode)
+      if (sector) {
+        sectorPct = sector.pctChg
+        sectorName = sector.name
+        stockAVsSector = stockAPct - sectorPct
+        stockBVsSector = stockBPct - sectorPct
+      }
+    } catch (err) {
+      console.error('获取板块数据失败:', err)
+    }
+  }
+  
   return {
     ...strategy,
     stockAName: stockAData.name,
@@ -345,6 +366,10 @@ export async function checkSectorArbStrategy(
     stockBPrice: stockBData.price,
     stockAPct,
     stockBPct,
+    sectorPct,
+    sectorName: sectorName || strategy.sectorName,
+    stockAVsSector,
+    stockBVsSector,
     deviation,
     status: triggered ? 'triggered' : 'running',
     triggeredAt: triggered && strategy.status !== 'triggered' ? Date.now() : strategy.triggeredAt

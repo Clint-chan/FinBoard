@@ -634,6 +634,58 @@
   margin-top: 4px;
 }
 
+/* 相对板块溢价/折价显示 */
+.arb-vs-sector {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+.arb-vs-sector.premium {
+  color: var(--up-color);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.arb-vs-sector.discount {
+  color: var(--down-color);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+/* 板块参考信息 */
+.arb-sector-ref {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-color);
+  font-size: 11px;
+}
+
+.arb-sector-ref .sector-label {
+  color: var(--text-tertiary);
+}
+
+.arb-sector-ref .sector-name {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.arb-sector-ref .sector-pct {
+  font-weight: 600;
+}
+
+.arb-sector-ref .sector-pct.up {
+  color: var(--up-color);
+}
+
+.arb-sector-ref .sector-pct.down {
+  color: var(--down-color);
+}
+
 /* AH溢价卡片 */
 .ah-premium-box {
   background: var(--bg-secondary);

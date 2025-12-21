@@ -52,6 +52,9 @@ export interface SectorArbStrategy extends BaseStrategy {
   stockBName?: string
   monitorMode: PairMonitorMode  // 监控逻辑模式
   threshold: number        // 偏离阈值 如 5%
+  // 关联板块（可选）- 用于计算相对板块的溢价/折价
+  sectorCode?: string      // 板块代码 如 BK0447
+  sectorName?: string      // 板块名称 如 机器人
   // 统计数据
   correlation?: number     // 历史相关性
   beta?: number            // Beta系数
@@ -60,7 +63,11 @@ export interface SectorArbStrategy extends BaseStrategy {
   stockAPct?: number       // 标的A涨跌幅
   stockBPrice?: number
   stockBPct?: number       // 标的B涨跌幅
+  sectorPct?: number       // 板块涨跌幅（当有关联板块时）
   deviation?: number       // 当前偏离度
+  // 相对板块的溢价/折价（当有关联板块时）
+  stockAVsSector?: number  // X 相对板块的溢价/折价
+  stockBVsSector?: number  // Y 相对板块的溢价/折价
 }
 
 // AH溢价策略

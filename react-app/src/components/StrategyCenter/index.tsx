@@ -2,7 +2,7 @@
  * StrategyCenter - 策略监控中心
  * 支持多种策略类型：价格预警、行业套利、AH溢价、假突破/异动
  */
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion } from 'framer-motion'
 import type { 
   Strategy, 
@@ -19,6 +19,7 @@ import {
   checkAllStrategies,
   getStrategyTypeLabel
 } from '@/services/strategyService'
+import { sendNotification, isMarketOpen } from '@/utils/format'
 import { StrategyModal } from './StrategyModal'
 import { initSampleStrategies } from './sampleStrategies'
 import './StrategyCenter.css'
@@ -108,6 +109,9 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingStrategy, setEditingStrategy] = useState<Strategy | null>(null)
   const [highlightConditionIndex, setHighlightConditionIndex] = useState<number | null>(null)
+  
+  // 已通知的策略记录，避免重复通知
+  const notifiedStrategies = useRef<Set<string>>(new Set())
 
   // 加载策略
   useEffect(() => {
@@ -153,6 +157,51 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
     const check = async () => {
       try {
         const updated = await checkAllStrategies(strategies)
+        
+        // 检查是否有新触发的策略，发送浏览器通知
+        if (isMarketOpen()) {
+          updated.forEach((strategy, idx) => {
+            const oldStrategy = strategies[idx]
+            // 如果策略从非触发状态变为触发状态，且未通知过
+            if (strategy.status === 'triggered' && 
+                oldStrategy?.status !== 'triggered' && 
+                !notifiedStrategies.current.has(strategy.id)) {
+              
+              notifiedStrategies.current.add(strategy.id)
+              
+              // 根据策略类型生成通知内容
+              let title = ''
+              let body = ''
+              
+              switch (strategy.type) {
+                case 'sector_arb': {
+                  const s = strategy as SectorArbStrategy
+                  title = `配对监控触发: ${s.name}`
+                  body = `${s.stockAName || s.stockACode} vs ${s.stockBName || s.stockBCode}\n偏离度: ${s.deviation?.toFixed(2)}% (阈值 ${s.threshold}%)`
+                  break
+                }
+                case 'ah_premium': {
+                  const s = strategy as AHPremiumStrategy
+                  title = `AH溢价触发: ${s.name}`
+                  body = `当前溢价率: ${s.premium?.toFixed(1)}%\n阈值范围: ${s.lowThreshold}% ~ ${s.highThreshold}%`
+                  break
+                }
+                case 'fake_breakout': {
+                  const s = strategy as FakeBreakoutStrategy
+                  title = `假突破预警: ${s.name}`
+                  body = `${s.sectorName || s.sectorCode} 板块\n发现 ${s.suspects?.length || 0} 个疑似诱多标的`
+                  break
+                }
+                default:
+                  title = `策略触发: ${strategy.name}`
+                  body = getStrategyTypeLabel(strategy.type)
+              }
+              
+              sendNotification(title, body)
+            }
+          })
+        }
+        
         setStrategies(updated)
         saveStrategies(updated)
       } catch (err) {
@@ -583,8 +632,13 @@ function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: 
 function SectorArbContent({ strategy }: { strategy: SectorArbStrategy }) {
   const stockAPct = strategy.stockAPct ?? 0
   const stockBPct = strategy.stockBPct ?? 0
+  const sectorPct = strategy.sectorPct ?? 0
   const deviation = strategy.deviation ?? 0
   const deviationPct = Math.min(Math.abs(deviation) / strategy.threshold * 100, 100)
+  
+  // 计算相对板块的溢价/折价
+  const stockAVsSector = strategy.sectorCode ? (stockAPct - sectorPct) : null
+  const stockBVsSector = strategy.sectorCode ? (stockBPct - sectorPct) : null
 
   return (
     <div className="arb-comparison">
@@ -593,6 +647,11 @@ function SectorArbContent({ strategy }: { strategy: SectorArbStrategy }) {
         <div className={`arb-stock-pct ${stockAPct >= 0 ? 'up' : 'down'}`}>
           {stockAPct >= 0 ? '+' : ''}{stockAPct.toFixed(2)}%
         </div>
+        {stockAVsSector !== null && (
+          <div className={`arb-vs-sector ${stockAVsSector >= 0 ? 'premium' : 'discount'}`}>
+            {stockAVsSector >= 0 ? '溢价' : '折价'} {Math.abs(stockAVsSector).toFixed(1)}%
+          </div>
+        )}
         <span className="arb-stock-tag">X</span>
       </div>
 
@@ -609,6 +668,15 @@ function SectorArbContent({ strategy }: { strategy: SectorArbStrategy }) {
             style={{ width: `${deviationPct}%` }}
           />
         </div>
+        {strategy.sectorCode && strategy.sectorName && (
+          <div className="arb-sector-ref">
+            <span className="sector-label">板块</span>
+            <span className="sector-name">{strategy.sectorName}</span>
+            <span className={`sector-pct ${sectorPct >= 0 ? 'up' : 'down'}`}>
+              {sectorPct >= 0 ? '+' : ''}{sectorPct.toFixed(2)}%
+            </span>
+          </div>
+        )}
         <span className="arb-vs">VS</span>
       </div>
 
@@ -617,6 +685,11 @@ function SectorArbContent({ strategy }: { strategy: SectorArbStrategy }) {
         <div className={`arb-stock-pct ${stockBPct >= 0 ? 'up' : 'down'}`}>
           {stockBPct >= 0 ? '+' : ''}{stockBPct.toFixed(2)}%
         </div>
+        {stockBVsSector !== null && (
+          <div className={`arb-vs-sector ${stockBVsSector >= 0 ? 'premium' : 'discount'}`}>
+            {stockBVsSector >= 0 ? '溢价' : '折价'} {Math.abs(stockBVsSector).toFixed(1)}%
+          </div>
+        )}
         <span className="arb-stock-tag">Y</span>
       </div>
     </div>

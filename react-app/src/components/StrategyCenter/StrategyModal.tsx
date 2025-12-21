@@ -824,6 +824,31 @@ function PairMonitorConfig({ formData, errors, updateField }: PairMonitorConfigP
           </span>
         </div>
       </div>
+
+      {/* 关联板块（可选） */}
+      <div className="sector-reference-section">
+        <div className="section-header">
+          <label>关联板块 <span className="optional-tag">选填</span></label>
+          <span className="section-hint">填写后，X/Y 将显示相对板块的溢价/折价</span>
+        </div>
+        <div className="form-group">
+          <input
+            type="text"
+            placeholder="输入板块代码，如 BK0447（机器人）"
+            value={formData.sectorCode || ''}
+            onChange={e => {
+              updateField('sectorCode', e.target.value || undefined)
+              // 清除板块名称，等待检查时自动获取
+              if (!e.target.value) {
+                updateField('sectorName', undefined)
+              }
+            }}
+          />
+          {formData.sectorName && (
+            <span className="sector-name-display">{formData.sectorName}</span>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
