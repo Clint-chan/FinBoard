@@ -709,3 +709,332 @@
   50% { border-color: #818cf8; background: rgba(79, 70, 229, 0.03); }
   100% { border-color: #4f46e5; background: rgba(79, 70, 229, 0.05); }
 }
+
+
+/* ========== 配对监控配置样式 ========== */
+.pair-monitor-config {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* 配对比较卡片 */
+.pair-comparison-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: visible;
+  box-shadow: var(--shadow-sm);
+}
+
+.pair-comparison-inner {
+  display: flex;
+  align-items: stretch;
+  overflow: visible;
+}
+
+/* 标的选择框 */
+.pair-stock-box {
+  flex: 1;
+  padding: 20px;
+  position: relative;
+  overflow: visible;
+}
+
+.pair-stock-box:first-child {
+  background: rgba(59, 130, 246, 0.02);
+}
+
+.pair-stock-box:last-child {
+  background: rgba(100, 116, 139, 0.02);
+}
+
+.pair-stock-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.stock-code-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #3b82f6;
+  font-family: "SF Mono", "Roboto Mono", monospace;
+}
+
+.stock-code-badge.secondary {
+  color: var(--text-tertiary);
+}
+
+.pair-stock-search {
+  position: relative;
+  overflow: visible;
+}
+
+.pair-stock-search input {
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.pair-stock-search input::placeholder {
+  color: var(--text-quaternary, #d1d5db);
+  font-weight: 400;
+}
+
+.pair-stock-search input.error {
+  color: #ef4444;
+}
+
+.search-spinner {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-color);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: translateY(-50%) rotate(360deg); }
+}
+
+.pair-search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.pair-search-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.pair-search-item:hover {
+  background: var(--bg-hover);
+}
+
+.pair-search-item .item-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.pair-search-item .item-code {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-family: "SF Mono", "Roboto Mono", monospace;
+}
+
+.pair-stock-price {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.pair-stock-price strong {
+  color: var(--text-primary);
+  font-family: "SF Mono", "Roboto Mono", monospace;
+}
+
+.pair-stock-price .up {
+  color: var(--up-color);
+}
+
+.pair-stock-price .down {
+  color: var(--down-color);
+}
+
+/* VS 分隔符 */
+.pair-vs-divider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  position: relative;
+}
+
+.vs-line {
+  flex: 1;
+  width: 1px;
+  background: var(--border-color);
+}
+
+.vs-badge {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 统计数据栏 */
+.pair-stats-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  font-size: 12px;
+}
+
+.pair-stats-left {
+  display: flex;
+  gap: 16px;
+  color: var(--text-tertiary);
+}
+
+.pair-stats-left strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.pair-chart-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  font-weight: 500;
+  color: #3b82f6;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.pair-chart-link:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+/* 输入框带单位 */
+.input-with-unit {
+  position: relative;
+}
+
+.input-with-unit input {
+  width: 100%;
+  padding-right: 36px;
+}
+
+.input-unit {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+/* 响应式 */
+@media (max-width: 600px) {
+  .pair-comparison-inner {
+    flex-direction: column;
+  }
+  
+  .pair-vs-divider {
+    flex-direction: row;
+    width: 100%;
+    height: 40px;
+    padding: 0 20px;
+  }
+  
+  .vs-line {
+    flex: 1;
+    height: 1px;
+    width: auto;
+  }
+}
+
+
+/* 计算中状态 */
+.pair-stats-bar .calculating {
+  color: #3b82f6;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pair-stats-bar .calculating::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* 监控模式 select 样式 */
+.monitor-mode-select {
+  width: 100%;
+  padding: 10px 36px 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.monitor-mode-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.monitor-mode-select:hover {
+  border-color: var(--text-tertiary);
+}
+
+/* 标签提示文字 */
+.label-hint {
+  font-weight: 400;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  margin-left: 4px;
+}

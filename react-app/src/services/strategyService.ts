@@ -1,10 +1,10 @@
 /**
  * 策略监控服务 - 数据获取和策略检查
  */
-import type { 
-  Strategy, 
-  StrategyConfig, 
-  AHComparisonData, 
+import type {
+  Strategy,
+  StrategyConfig,
+  AHComparisonData,
   SectorData,
   SectorArbStrategy,
   AHPremiumStrategy,
@@ -39,6 +39,128 @@ export function saveStrategies(strategies: Strategy[]): void {
     localStorage.setItem(STRATEGY_STORAGE_KEY, JSON.stringify(config))
   } catch (e) {
     console.warn('Failed to save strategies:', e)
+  }
+}
+
+// ============ 历史K线数据 ============
+
+/**
+ * 获取股票历史日K线数据
+ * 东方财富接口
+ */
+export async function fetchHistoryKline(
+  code: string,
+  days: number = 60
+): Promise<{ date: string; close: number; pctChg: number }[]> {
+  const symbol = code.replace(/^(sh|sz)/i, '')
+  const marketCode = code.toLowerCase().startsWith('sh') ? 1 : 0
+
+  const url = 'https://push2his.eastmoney.com/api/qt/stock/kline/get'
+  const params = new URLSearchParams({
+    fields1: 'f1,f2,f3,f4,f5,f6',
+    fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
+    ut: '7eea3edcaed734bea9cbfc24409ed989',
+    klt: '101', // 日K
+    fqt: '1', // 前复权
+    secid: `${marketCode}.${symbol}`,
+    beg: '0',
+    end: '20500101',
+    lmt: days.toString()
+  })
+
+  try {
+    const response = await fetch(`${url}?${params}`)
+    const data = await response.json()
+
+    if (!data.data?.klines) return []
+
+    return data.data.klines.map((line: string) => {
+      const parts = line.split(',')
+      return {
+        date: parts[0],
+        close: parseFloat(parts[2]),
+        pctChg: parseFloat(parts[8])
+      }
+    })
+  } catch (err) {
+    console.error('获取历史K线失败:', err)
+    return []
+  }
+}
+
+/**
+ * 计算两只股票的相关性和Beta系数
+ * @param codeA 股票A代码
+ * @param codeB 股票B代码（基准）
+ * @param days 计算天数
+ */
+export async function calculateCorrelationAndBeta(
+  codeA: string,
+  codeB: string,
+  days: number = 60
+): Promise<{ correlation: number; beta: number } | null> {
+  try {
+    // 并行获取两只股票的历史数据
+    const [historyA, historyB] = await Promise.all([
+      fetchHistoryKline(codeA, days),
+      fetchHistoryKline(codeB, days)
+    ])
+
+    if (historyA.length < 20 || historyB.length < 20) {
+      console.warn('历史数据不足，无法计算相关性')
+      return null
+    }
+
+    // 对齐日期，取交集
+    const dateSetB = new Set(historyB.map(d => d.date))
+    const alignedA = historyA.filter(d => dateSetB.has(d.date))
+    const alignedB = historyB.filter(d => alignedA.some(a => a.date === d.date))
+
+    if (alignedA.length < 20) {
+      console.warn('对齐后数据不足')
+      return null
+    }
+
+    // 提取收益率序列
+    const returnsA = alignedA.map(d => d.pctChg)
+    const returnsB = alignedB.map(d => d.pctChg)
+
+    // 计算均值
+    const meanA = returnsA.reduce((a, b) => a + b, 0) / returnsA.length
+    const meanB = returnsB.reduce((a, b) => a + b, 0) / returnsB.length
+
+    // 计算协方差和方差
+    let covariance = 0
+    let varianceA = 0
+    let varianceB = 0
+
+    for (let i = 0; i < returnsA.length; i++) {
+      const diffA = returnsA[i] - meanA
+      const diffB = returnsB[i] - meanB
+      covariance += diffA * diffB
+      varianceA += diffA * diffA
+      varianceB += diffB * diffB
+    }
+
+    covariance /= returnsA.length
+    varianceA /= returnsA.length
+    varianceB /= returnsB.length
+
+    // 计算相关系数
+    const stdA = Math.sqrt(varianceA)
+    const stdB = Math.sqrt(varianceB)
+    const correlation = stdA > 0 && stdB > 0 ? covariance / (stdA * stdB) : 0
+
+    // 计算 Beta = Cov(A, B) / Var(B)
+    const beta = varianceB > 0 ? covariance / varianceB : 0
+
+    return {
+      correlation: Math.round(correlation * 100) / 100,
+      beta: Math.round(beta * 100) / 100
+    }
+  } catch (err) {
+    console.error('计算相关性失败:', err)
+    return null
   }
 }
 
@@ -177,41 +299,52 @@ export async function fetchSectorStocks(sectorCode: string): Promise<any[]> {
 // ============ 策略检查 ============
 
 /**
- * 检查行业套利策略
+ * 检查配对监控策略（原行业套利）
  */
 export async function checkSectorArbStrategy(
   strategy: SectorArbStrategy
 ): Promise<SectorArbStrategy> {
-  const codes = [strategy.longCode, strategy.shortCode, strategy.benchmarkCode]
+  const codes = [strategy.stockACode, strategy.stockBCode]
   const quotes = await fetchQuotes(codes)
   
-  const longData = quotes[strategy.longCode]
-  const shortData = quotes[strategy.shortCode]
-  const benchmarkData = quotes[strategy.benchmarkCode]
+  const stockAData = quotes[strategy.stockACode]
+  const stockBData = quotes[strategy.stockBCode]
   
-  if (!longData || !shortData || !benchmarkData) {
+  if (!stockAData || !stockBData) {
     return strategy
   }
   
-  const longPct = longData.preClose ? ((longData.price - longData.preClose) / longData.preClose * 100) : 0
-  const shortPct = shortData.preClose ? ((shortData.price - shortData.preClose) / shortData.preClose * 100) : 0
-  const benchmarkPct = benchmarkData.preClose ? ((benchmarkData.price - benchmarkData.preClose) / benchmarkData.preClose * 100) : 0
+  const stockAPct = stockAData.preClose ? ((stockAData.price - stockAData.preClose) / stockAData.preClose * 100) : 0
+  const stockBPct = stockBData.preClose ? ((stockBData.price - stockBData.preClose) / stockBData.preClose * 100) : 0
   
-  // 计算偏离度：做多标的相对基准的超额 - 做空标的相对基准的超额
-  const longExcess = longPct - benchmarkPct
-  const shortExcess = shortPct - benchmarkPct
-  const deviation = longExcess - shortExcess
+  // 根据监控模式计算偏离度
+  let deviation = 0
+  switch (strategy.monitorMode) {
+    case 'spread':
+      // 价差偏离：(A价格 - B价格) 的变化率
+      deviation = stockAPct - stockBPct
+      break
+    case 'ratio':
+      // 比价偏离：A/B 比值的变化率
+      deviation = stockAPct - stockBPct
+      break
+    case 'return_diff':
+    default:
+      // 涨跌幅差值
+      deviation = stockAPct - stockBPct
+      break
+  }
   
   const triggered = Math.abs(deviation) >= strategy.threshold
   
   return {
     ...strategy,
-    longName: longData.name,
-    shortName: shortData.name,
-    benchmarkName: benchmarkData.name,
-    longPct,
-    shortPct,
-    benchmarkPct,
+    stockAName: stockAData.name,
+    stockBName: stockBData.name,
+    stockAPrice: stockAData.price,
+    stockBPrice: stockBData.price,
+    stockAPct,
+    stockBPct,
     deviation,
     status: triggered ? 'triggered' : 'running',
     triggeredAt: triggered && strategy.status !== 'triggered' ? Date.now() : strategy.triggeredAt
@@ -340,7 +473,7 @@ export function generateStrategyId(): string {
 export function getStrategyTypeLabel(type: string): string {
   const labels: Record<string, string> = {
     price: '价格预警',
-    sector_arb: '行业套利',
+    sector_arb: '配对监控',
     ah_premium: 'AH溢价',
     fake_breakout: '假突破'
   }

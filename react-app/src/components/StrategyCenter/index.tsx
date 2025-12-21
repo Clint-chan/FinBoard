@@ -37,7 +37,7 @@ const STRATEGY_TABS: { id: StrategyType | 'all'; label: string; icon: JSX.Elemen
   },
   { 
     id: 'sector_arb', 
-    label: '行业套利',
+    label: '配对监控',
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></svg>
   },
   { 
@@ -403,7 +403,7 @@ interface StrategyCardProps {
 function getStrategyTagLabel(type: Strategy['type']): string {
   switch (type) {
     case 'price': return '价格监控'
-    case 'sector_arb': return '行业套利'
+    case 'sector_arb': return '配对监控'
     case 'ah_premium': return 'AH溢价'
     case 'fake_breakout': return '假突破预警'
   }
@@ -418,13 +418,13 @@ function getStrategyDisplayName(strategy: Strategy): string {
     }
     case 'sector_arb': {
       // 使用用户自定义的名称，或者生成默认名称
-      if (strategy.name && !strategy.name.startsWith('行业套利')) {
+      if (strategy.name && !strategy.name.startsWith('配对监控')) {
         return strategy.name
       }
       const ss = strategy as SectorArbStrategy
-      const longName = ss.longName || ss.longCode
-      const shortName = ss.shortName || ss.shortCode
-      return `${longName} / ${shortName}`
+      const stockAName = ss.stockAName || ss.stockACode
+      const stockBName = ss.stockBName || ss.stockBCode
+      return `${stockAName} / ${stockBName}`
     }
     case 'ah_premium': {
       if (strategy.name && !strategy.name.startsWith('AH溢价')) {
@@ -502,7 +502,8 @@ function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: 
               </div>
               {strategy.type === 'sector_arb' ? (
                 <p className="strategy-card-desc">
-                  基准：{(strategy as SectorArbStrategy).benchmarkName || (strategy as SectorArbStrategy).benchmarkCode}
+                  模式：{(strategy as SectorArbStrategy).monitorMode === 'spread' ? '价差偏离' : 
+                        (strategy as SectorArbStrategy).monitorMode === 'ratio' ? '比价偏离' : '涨跌幅差值'}
                 </p>
               ) : strategy.type === 'ah_premium' ? (
                 <p className="strategy-card-desc">
@@ -578,27 +579,21 @@ function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: 
   )
 }
 
-// 行业套利内容
+// 配对监控内容（原行业套利）
 function SectorArbContent({ strategy }: { strategy: SectorArbStrategy }) {
-  const longPct = strategy.longPct ?? 0
-  const shortPct = strategy.shortPct ?? 0
-  const benchmarkPct = strategy.benchmarkPct ?? 0
+  const stockAPct = strategy.stockAPct ?? 0
+  const stockBPct = strategy.stockBPct ?? 0
   const deviation = strategy.deviation ?? 0
   const deviationPct = Math.min(Math.abs(deviation) / strategy.threshold * 100, 100)
-
-  const longExcess = longPct - benchmarkPct
-  const shortExcess = shortPct - benchmarkPct
 
   return (
     <div className="arb-comparison">
       <div className="arb-stock">
-        <div className="arb-stock-name">{strategy.longName || strategy.longCode}</div>
-        <div className={`arb-stock-pct ${longPct >= 0 ? 'up' : 'down'}`}>
-          {longPct >= 0 ? '+' : ''}{longPct.toFixed(2)}%
+        <div className="arb-stock-name">{strategy.stockAName || strategy.stockACode}</div>
+        <div className={`arb-stock-pct ${stockAPct >= 0 ? 'up' : 'down'}`}>
+          {stockAPct >= 0 ? '+' : ''}{stockAPct.toFixed(2)}%
         </div>
-        <span className="arb-stock-tag">
-          {longExcess >= 0 ? '超' : '弱'}指数 {Math.abs(longExcess).toFixed(1)}%
-        </span>
+        <span className="arb-stock-tag">X</span>
       </div>
 
       <div className="arb-divider">
@@ -618,13 +613,11 @@ function SectorArbContent({ strategy }: { strategy: SectorArbStrategy }) {
       </div>
 
       <div className="arb-stock">
-        <div className="arb-stock-name">{strategy.shortName || strategy.shortCode}</div>
-        <div className={`arb-stock-pct ${shortPct >= 0 ? 'up' : 'down'}`}>
-          {shortPct >= 0 ? '+' : ''}{shortPct.toFixed(2)}%
+        <div className="arb-stock-name">{strategy.stockBName || strategy.stockBCode}</div>
+        <div className={`arb-stock-pct ${stockBPct >= 0 ? 'up' : 'down'}`}>
+          {stockBPct >= 0 ? '+' : ''}{stockBPct.toFixed(2)}%
         </div>
-        <span className="arb-stock-tag">
-          {shortExcess >= 0 ? '超' : '弱'}指数 {Math.abs(shortExcess).toFixed(1)}%
-        </span>
+        <span className="arb-stock-tag">Y</span>
       </div>
     </div>
   )

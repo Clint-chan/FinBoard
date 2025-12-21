@@ -4,7 +4,7 @@
 import type { Strategy, SectorArbStrategy, AHPremiumStrategy, FakeBreakoutStrategy, PriceAlertStrategy } from '@/types/strategy'
 
 export const SAMPLE_STRATEGIES: Strategy[] = [
-  // 行业套利策略 - 机器人板块
+  // 配对监控策略 - 机器人板块
   {
     id: 'sample_sector_arb_1',
     name: '机器人板块强弱配对',
@@ -14,18 +14,20 @@ export const SAMPLE_STRATEGIES: Strategy[] = [
     createdAt: Date.now() - 86400000,
     updatedAt: Date.now(),
     triggeredAt: Date.now() - 3600000,
-    note: '策略逻辑: 多头超额收益 > 5% 且 空头跑输行业',
-    longCode: 'sh603166',
-    longName: '福达股份',
-    shortCode: 'sz002050',
-    shortName: '三花智控',
-    benchmarkCode: 'sz159770',
-    benchmarkName: '机器人ETF',
+    note: '策略逻辑: 涨跌幅差值 > 5% 时触发',
+    stockACode: 'sh603166',
+    stockAName: '福达股份',
+    stockBCode: 'sz159770',
+    stockBName: '机器人ETF',
+    monitorMode: 'return_diff',
     threshold: 5,
-    longPct: 5.23,
-    shortPct: -2.41,
-    benchmarkPct: 2.1,
-    deviation: 7.8
+    correlation: 0.82,
+    beta: 1.15,
+    stockAPrice: 14.62,
+    stockAPct: 5.23,
+    stockBPrice: 0.892,
+    stockBPct: -0.4,
+    deviation: 5.63
   } as SectorArbStrategy,
 
   // AH溢价策略 - 招商银行

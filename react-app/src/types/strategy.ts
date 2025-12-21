@@ -40,21 +40,27 @@ export interface PriceCondition {
   triggeredAt?: number
 }
 
-// 行业套利策略
+// 监控逻辑模式
+export type PairMonitorMode = 'spread' | 'ratio' | 'return_diff'
+
+// 配对监控策略（原行业套利）
 export interface SectorArbStrategy extends BaseStrategy {
   type: 'sector_arb'
-  longCode: string       // 做多标的 如 sh603166
-  longName?: string
-  shortCode: string      // 做空标的 如 sz002050
-  shortName?: string
-  benchmarkCode: string  // 行业ETF 如 sz159770
-  benchmarkName?: string
-  threshold: number      // 偏离阈值 如 5%
+  stockACode: string       // 核心观察标的 (X)
+  stockAName?: string
+  stockBCode: string       // 对标/基准标的 (Y)
+  stockBName?: string
+  monitorMode: PairMonitorMode  // 监控逻辑模式
+  threshold: number        // 偏离阈值 如 5%
+  // 统计数据
+  correlation?: number     // 历史相关性
+  beta?: number            // Beta系数
   // 实时数据
-  longPct?: number       // 做多标的涨跌幅
-  shortPct?: number      // 做空标的涨跌幅
-  benchmarkPct?: number  // 基准涨跌幅
-  deviation?: number     // 当前偏离度
+  stockAPrice?: number
+  stockAPct?: number       // 标的A涨跌幅
+  stockBPrice?: number
+  stockBPct?: number       // 标的B涨跌幅
+  deviation?: number       // 当前偏离度
 }
 
 // AH溢价策略

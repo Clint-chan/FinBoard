@@ -10,9 +10,10 @@ import type {
   AHPremiumStrategy,
   FakeBreakoutStrategy,
   PriceAlertStrategy,
-  PriceCondition
+  PriceCondition,
+  PairMonitorMode
 } from '@/types/strategy'
-import { generateStrategyId, getStrategyTypeLabel } from '@/services/strategyService'
+import { generateStrategyId, getStrategyTypeLabel, calculateCorrelationAndBeta } from '@/services/strategyService'
 import { searchStock } from '@/services/dataService'
 import type { SearchResult } from '@/types'
 import './StrategyModal.css'
@@ -26,7 +27,7 @@ interface StrategyModalProps {
 }
 
 const STRATEGY_TYPES: { id: StrategyType; label: string; desc: string }[] = [
-  { id: 'sector_arb', label: '行业套利', desc: '监控同行业两只股票的走势偏离' },
+  { id: 'sector_arb', label: '配对监控', desc: '监控两只股票的走势偏离或与基准的偏离' },
   { id: 'ah_premium', label: 'AH溢价', desc: '监控A股与H股的溢价率变化' },
   { id: 'fake_breakout', label: '假突破/异动', desc: '监控高开但板块走弱的诱多信号' },
   { id: 'price', label: '价格预警', desc: '监控股票价格突破或跌破指定价位' }
@@ -195,9 +196,8 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
 
     switch (selectedType) {
       case 'sector_arb':
-        if (!(formData as SectorArbStrategy).longCode) newErrors.longCode = '请输入做多标的代码'
-        if (!(formData as SectorArbStrategy).shortCode) newErrors.shortCode = '请输入做空标的代码'
-        if (!(formData as SectorArbStrategy).benchmarkCode) newErrors.benchmarkCode = '请输入基准ETF代码'
+        if (!(formData as SectorArbStrategy).stockACode) newErrors.stockACode = '请选择核心观察标的'
+        if (!(formData as SectorArbStrategy).stockBCode) newErrors.stockBCode = '请选择对标/基准标的'
         if (!(formData as SectorArbStrategy).threshold) newErrors.threshold = '请输入偏离阈值'
         break
       case 'ah_premium':
@@ -240,6 +240,7 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
 
     if (selectedType === 'sector_arb') {
       (newStrategy as SectorArbStrategy).threshold = (formData as SectorArbStrategy).threshold || 5
+      ;(newStrategy as SectorArbStrategy).monitorMode = (formData as SectorArbStrategy).monitorMode || 'return_diff'
     }
     if (selectedType === 'ah_premium') {
       (newStrategy as AHPremiumStrategy).lowThreshold = (formData as AHPremiumStrategy).lowThreshold || 25
@@ -309,12 +310,7 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
               )}
 
               {/* 价格预警不显示下方的类型徽章，因为头部已经有了 */}
-              {selectedType !== 'price' && (
-                <div className="config-type-badge">
-                  {getTypeIcon(selectedType!)}
-                  <span>{getStrategyTypeLabel(selectedType!)}</span>
-                </div>
-              )}
+              {/* 类型徽章已在头部显示，此处不再重复 */}
 
               {selectedType !== 'price' && (
                 <div className="form-group">
@@ -331,31 +327,11 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
               )}
 
               {selectedType === 'sector_arb' && (
-                <>
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>做多标的代码 *</label>
-                      <input type="text" placeholder="如：sh603166" value={(formData as SectorArbStrategy).longCode || ''} onChange={e => updateField('longCode', e.target.value)} className={errors.longCode ? 'error' : ''} />
-                      {errors.longCode && <span className="error-msg">{errors.longCode}</span>}
-                    </div>
-                    <div className="form-group">
-                      <label>做空标的代码 *</label>
-                      <input type="text" placeholder="如：sz002050" value={(formData as SectorArbStrategy).shortCode || ''} onChange={e => updateField('shortCode', e.target.value)} className={errors.shortCode ? 'error' : ''} />
-                      {errors.shortCode && <span className="error-msg">{errors.shortCode}</span>}
-                    </div>
-                  </div>
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>基准ETF代码 *</label>
-                      <input type="text" placeholder="如：sz159770" value={(formData as SectorArbStrategy).benchmarkCode || ''} onChange={e => updateField('benchmarkCode', e.target.value)} className={errors.benchmarkCode ? 'error' : ''} />
-                      {errors.benchmarkCode && <span className="error-msg">{errors.benchmarkCode}</span>}
-                    </div>
-                    <div className="form-group">
-                      <label>偏离阈值 (%)</label>
-                      <input type="number" placeholder="5" value={(formData as SectorArbStrategy).threshold || ''} onChange={e => updateField('threshold', parseFloat(e.target.value) || 0)} />
-                    </div>
-                  </div>
-                </>
+                <PairMonitorConfig 
+                  formData={formData as Partial<SectorArbStrategy>}
+                  errors={errors}
+                  updateField={updateField}
+                />
               )}
 
               {selectedType === 'ah_premium' && (
@@ -586,6 +562,270 @@ function getTypeIcon(type: StrategyType) {
     )
   }
   return icons[type] || null
+}
+
+// 配对监控配置组件
+interface PairMonitorConfigProps {
+  formData: Partial<SectorArbStrategy>
+  errors: Record<string, string>
+  updateField: (field: string, value: any) => void
+}
+
+function PairMonitorConfig({ formData, errors, updateField }: PairMonitorConfigProps) {
+  const [searchQueryA, setSearchQueryA] = useState('')
+  const [searchQueryB, setSearchQueryB] = useState('')
+  const [searchResultsA, setSearchResultsA] = useState<SearchResult[]>([])
+  const [searchResultsB, setSearchResultsB] = useState<SearchResult[]>([])
+  const [showResultsA, setShowResultsA] = useState(false)
+  const [showResultsB, setShowResultsB] = useState(false)
+  const [searchingA, setSearchingA] = useState(false)
+  const [searchingB, setSearchingB] = useState(false)
+  const [calculatingStats, setCalculatingStats] = useState(false)
+
+  // 初始化搜索框显示
+  useEffect(() => {
+    if (formData.stockAName) setSearchQueryA(formData.stockAName)
+    if (formData.stockBName) setSearchQueryB(formData.stockBName)
+  }, [formData.stockAName, formData.stockBName])
+
+  // 当两只股票都选择后，自动计算相关性和 Beta
+  useEffect(() => {
+    const calcStats = async () => {
+      if (!formData.stockACode || !formData.stockBCode) return
+      // 如果已经有数据且股票没变，不重复计算
+      if (formData.correlation !== undefined && formData.beta !== undefined) return
+
+      setCalculatingStats(true)
+      try {
+        const result = await calculateCorrelationAndBeta(formData.stockACode, formData.stockBCode, 60)
+        if (result) {
+          updateField('correlation', result.correlation)
+          updateField('beta', result.beta)
+        }
+      } catch (err) {
+        console.error('计算统计数据失败:', err)
+      } finally {
+        setCalculatingStats(false)
+      }
+    }
+
+    calcStats()
+  }, [formData.stockACode, formData.stockBCode])
+
+  const handleSearchA = useCallback(async (query: string) => {
+    setSearchQueryA(query)
+    if (query.length < 1) {
+      setSearchResultsA([])
+      setShowResultsA(false)
+      return
+    }
+    setSearchingA(true)
+    try {
+      const results = await searchStock(query)
+      setSearchResultsA(results.slice(0, 6))
+      setShowResultsA(true)
+    } catch (err) {
+      console.error('搜索失败:', err)
+    } finally {
+      setSearchingA(false)
+    }
+  }, [])
+
+  const handleSearchB = useCallback(async (query: string) => {
+    setSearchQueryB(query)
+    if (query.length < 1) {
+      setSearchResultsB([])
+      setShowResultsB(false)
+      return
+    }
+    setSearchingB(true)
+    try {
+      const results = await searchStock(query)
+      setSearchResultsB(results.slice(0, 6))
+      setShowResultsB(true)
+    } catch (err) {
+      console.error('搜索失败:', err)
+    } finally {
+      setSearchingB(false)
+    }
+  }, [])
+
+  const selectStockA = (result: SearchResult) => {
+    setSearchQueryA(result.name)
+    updateField('stockACode', result.code)
+    updateField('stockAName', result.name)
+    // 清除旧的统计数据，触发重新计算
+    updateField('correlation', undefined)
+    updateField('beta', undefined)
+    setShowResultsA(false)
+  }
+
+  const selectStockB = (result: SearchResult) => {
+    setSearchQueryB(result.name)
+    updateField('stockBCode', result.code)
+    updateField('stockBName', result.name)
+    // 清除旧的统计数据，触发重新计算
+    updateField('correlation', undefined)
+    updateField('beta', undefined)
+    setShowResultsB(false)
+  }
+
+  const getCodePrefix = (code?: string) => {
+    if (!code) return '--'
+    return code.toLowerCase().startsWith('sz') ? 'SZ' : 'SH'
+  }
+
+  const getCodeNumber = (code?: string) => {
+    if (!code) return ''
+    return code.replace(/^(sh|sz)/i, '').toUpperCase()
+  }
+
+  return (
+    <div className="pair-monitor-config">
+      {/* 配对标的选择卡片 */}
+      <div className="pair-comparison-card">
+        <div className="pair-comparison-inner">
+          {/* 标的 A */}
+          <div className="pair-stock-box">
+            <label className="pair-stock-label">
+              <span>核心观察标的 (X)</span>
+              <span className="stock-code-badge">{getCodePrefix(formData.stockACode)}{getCodeNumber(formData.stockACode)}</span>
+            </label>
+            <div className="pair-stock-search">
+              <input
+                type="text"
+                placeholder="输入代码或名称搜索"
+                value={searchQueryA}
+                onChange={e => handleSearchA(e.target.value)}
+                onFocus={() => searchResultsA.length > 0 && setShowResultsA(true)}
+                onBlur={() => setTimeout(() => setShowResultsA(false), 200)}
+                className={errors.stockACode ? 'error' : ''}
+              />
+              {searchingA && <span className="search-spinner" />}
+              {showResultsA && searchResultsA.length > 0 && (
+                <div className="pair-search-results">
+                  {searchResultsA.map(r => (
+                    <div key={r.code} className="pair-search-item" onMouseDown={() => selectStockA(r)}>
+                      <span className="item-name">{r.name}</span>
+                      <span className="item-code">{r.code}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {formData.stockAPrice !== undefined && (
+              <div className="pair-stock-price">
+                <span>现价: <strong>{formData.stockAPrice?.toFixed(2)}</strong></span>
+                <span className={formData.stockAPct && formData.stockAPct >= 0 ? 'up' : 'down'}>
+                  {formData.stockAPct !== undefined ? `${formData.stockAPct >= 0 ? '+' : ''}${formData.stockAPct.toFixed(2)}%` : '--'}
+                </span>
+              </div>
+            )}
+            {errors.stockACode && <span className="error-msg">{errors.stockACode}</span>}
+          </div>
+
+          {/* VS 分隔符 */}
+          <div className="pair-vs-divider">
+            <div className="vs-line" />
+            <div className="vs-badge">VS</div>
+            <div className="vs-line" />
+          </div>
+
+          {/* 标的 B */}
+          <div className="pair-stock-box">
+            <label className="pair-stock-label">
+              <span>对标/基准标的 (Y)</span>
+              <span className="stock-code-badge secondary">{getCodePrefix(formData.stockBCode)}{getCodeNumber(formData.stockBCode)}</span>
+            </label>
+            <div className="pair-stock-search">
+              <input
+                type="text"
+                placeholder="代码/指数/ETF"
+                value={searchQueryB}
+                onChange={e => handleSearchB(e.target.value)}
+                onFocus={() => searchResultsB.length > 0 && setShowResultsB(true)}
+                onBlur={() => setTimeout(() => setShowResultsB(false), 200)}
+                className={errors.stockBCode ? 'error' : ''}
+              />
+              {searchingB && <span className="search-spinner" />}
+              {showResultsB && searchResultsB.length > 0 && (
+                <div className="pair-search-results">
+                  {searchResultsB.map(r => (
+                    <div key={r.code} className="pair-search-item" onMouseDown={() => selectStockB(r)}>
+                      <span className="item-name">{r.name}</span>
+                      <span className="item-code">{r.code}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {formData.stockBPrice !== undefined && (
+              <div className="pair-stock-price">
+                <span>现价: <strong>{formData.stockBPrice?.toFixed(2)}</strong></span>
+                <span className={formData.stockBPct && formData.stockBPct >= 0 ? 'up' : 'down'}>
+                  {formData.stockBPct !== undefined ? `${formData.stockBPct >= 0 ? '+' : ''}${formData.stockBPct.toFixed(2)}%` : '--'}
+                </span>
+              </div>
+            )}
+            {errors.stockBCode && <span className="error-msg">{errors.stockBCode}</span>}
+          </div>
+        </div>
+
+        {/* 统计数据栏 */}
+        <div className="pair-stats-bar">
+          <div className="pair-stats-left">
+            {calculatingStats ? (
+              <span className="calculating">计算中...</span>
+            ) : (
+              <>
+                <span>历史相关性: <strong>{formData.correlation?.toFixed(2) || '--'}</strong></span>
+                <span>Beta系数: <strong>{formData.beta?.toFixed(2) || '--'}</strong></span>
+              </>
+            )}
+          </div>
+          <button type="button" className="pair-chart-link">查看价差走势图 &gt;</button>
+        </div>
+      </div>
+
+      {/* 监控参数 */}
+      <div className="form-row">
+        <div className="form-group">
+          <label>监控逻辑模式</label>
+          <select 
+            className="monitor-mode-select"
+            value={formData.monitorMode || 'return_diff'} 
+            onChange={e => updateField('monitorMode', e.target.value as PairMonitorMode)}
+          >
+            <option value="spread">价差偏离 (Spread Deviation)</option>
+            <option value="ratio">比价偏离 (Price Ratio)</option>
+            <option value="return_diff">涨跌幅差值 (Return Diff)</option>
+          </select>
+        </div>
+        <div className="form-group">
+          <label>
+            偏离触发阈值
+            {formData.monitorMode === 'spread' && <span className="label-hint">（价差绝对值）</span>}
+            {formData.monitorMode === 'ratio' && <span className="label-hint">（比价偏离%）</span>}
+            {(!formData.monitorMode || formData.monitorMode === 'return_diff') && <span className="label-hint">（涨跌幅差%）</span>}
+          </label>
+          <div className="input-with-unit">
+            <input 
+              type="number" 
+              placeholder={formData.monitorMode === 'spread' ? '0.5' : '5'} 
+              value={formData.threshold || ''} 
+              onChange={e => updateField('threshold', parseFloat(e.target.value) || 0)} 
+            />
+            <span className="input-unit">{formData.monitorMode === 'spread' ? '元' : '%'}</span>
+          </div>
+          <span className="form-hint">
+            {formData.monitorMode === 'spread' && '当 |X价格 - Y价格| 超过此值时触发信号'}
+            {formData.monitorMode === 'ratio' && '当 (X/Y) 偏离历史均值超过此百分比时触发'}
+            {(!formData.monitorMode || formData.monitorMode === 'return_diff') && '当 (X涨跌幅 - Y涨跌幅) 超过此值时触发信号'}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default StrategyModal
