@@ -120,36 +120,152 @@
   height: 16px;
 }
 
-/* Tab 导航 - 紧贴头部 */
+/* Tab 导航 - 丝滑动画版 */
 .strategy-tabs {
-  display: flex;
-  gap: 8px;
-  padding: 0 24px 16px;
+  padding: 0 24px 20px;
   background: var(--bg-secondary);
 }
 
+.strategy-tabs-inner {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+}
+
 .strategy-tab {
-  padding: 8px 16px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
   border: none;
-  background: none;
+  background: transparent;
   cursor: pointer;
-  border-radius: 20px;
-  transition: all 0.2s;
+  border-radius: 8px;
+  transition: color 0.2s;
+  z-index: 1;
+}
+
+.strategy-tab .tab-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.strategy-tab .tab-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.strategy-tab .tab-label {
+  white-space: nowrap;
 }
 
 .strategy-tab:hover {
   color: var(--text-primary);
-  background: var(--bg-primary);
+}
+
+.strategy-tab:hover .tab-icon {
+  opacity: 1;
 }
 
 .strategy-tab.active {
   color: var(--text-primary);
   font-weight: 600;
+}
+
+.strategy-tab.active .tab-icon {
+  opacity: 1;
+  color: #4f46e5; /* indigo-600 - 选中时图标变色 */
+}
+
+/* 动画指示器 - 背景滑块 */
+.tab-indicator {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  z-index: -1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Tubelight 顶部光效 */
+.tubelight {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tubelight-glow {
+  width: 32px;
+  height: 4px;
+  background: #4f46e5;
+  border-radius: 4px 4px 0 0;
+}
+
+.tubelight-glow-md {
+  position: absolute;
+  width: 48px;
+  height: 24px;
+  background: rgba(79, 70, 229, 0.15);
+  border-radius: 50%;
+  filter: blur(8px);
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.tubelight-glow-sm {
+  position: absolute;
+  width: 32px;
+  height: 24px;
+  background: rgba(79, 70, 229, 0.1);
+  border-radius: 50%;
+  filter: blur(4px);
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* 深色模式 */
+[data-theme="dark"] .strategy-tabs-inner {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .tab-indicator {
   background: var(--bg-primary);
-  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="dark"] .strategy-tab.active .tab-icon {
+  color: #818cf8; /* indigo-400 - 深色模式下的图标颜色 */
+}
+
+[data-theme="dark"] .tubelight-glow {
+  background: #818cf8;
+}
+
+[data-theme="dark"] .tubelight-glow-md {
+  background: rgba(129, 140, 248, 0.2);
+}
+
+[data-theme="dark"] .tubelight-glow-sm {
+  background: rgba(129, 140, 248, 0.15);
 }
 
 /* 搜索和筛选 */

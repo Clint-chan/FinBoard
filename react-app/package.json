@@ -10,6 +10,7 @@
     "deploy": "npm run build && npx wrangler pages deploy dist --project-name=stock-board"
   },
   "dependencies": {
+    "framer-motion": "^12.23.26",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

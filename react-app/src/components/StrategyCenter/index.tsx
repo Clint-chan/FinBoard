@@ -3,6 +3,7 @@
  * 支持多种策略类型：价格预警、行业套利、AH溢价、假突破/异动
  */
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { motion } from 'framer-motion'
 import type { 
   Strategy, 
   StrategyType,
@@ -27,13 +28,33 @@ interface StrategyCenterProps {
   stockData?: Record<string, StockData>
 }
 
-// 策略类型 Tab
-const STRATEGY_TABS: { id: StrategyType | 'all'; label: string }[] = [
-  { id: 'all', label: '全部策略' },
-  { id: 'sector_arb', label: '行业套利' },
-  { id: 'ah_premium', label: 'AH溢价' },
-  { id: 'fake_breakout', label: '假突破/异动' },
-  { id: 'price', label: '价格预警' }
+// 策略类型 Tab - 使用优化后的 SVG 图标
+const STRATEGY_TABS: { id: StrategyType | 'all'; label: string; icon: JSX.Element }[] = [
+  { 
+    id: 'all', 
+    label: '全部策略',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></svg>
+  },
+  { 
+    id: 'sector_arb', 
+    label: '行业套利',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></svg>
+  },
+  { 
+    id: 'ah_premium', 
+    label: 'AH溢价',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" x2="22" y1="12" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
+  },
+  { 
+    id: 'fake_breakout', 
+    label: '假突破',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
+  },
+  { 
+    id: 'price', 
+    label: '价格预警',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></svg>
+  }
 ]
 
 // 图标组件
@@ -268,17 +289,42 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
         </button>
       </header>
 
-      {/* Tab 导航 */}
+      {/* Tab 导航 - 丝滑动画版 + Tubelight 效果 */}
       <div className="strategy-tabs">
-        {STRATEGY_TABS.map(tab => (
-          <button
-            key={tab.id}
-            className={`strategy-tab ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
+        <div className="strategy-tabs-inner">
+          {STRATEGY_TABS.map(tab => {
+            const isActive = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                className={`strategy-tab ${isActive ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <span className="tab-icon">{tab.icon}</span>
+                <span className="tab-label">{tab.label}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="tab-indicator"
+                    initial={false}
+                    transition={{
+                      type: "spring",
+                      stiffness: 500,
+                      damping: 35
+                    }}
+                  >
+                    {/* Tubelight 顶部光效 */}
+                    <div className="tubelight">
+                      <div className="tubelight-glow" />
+                      <div className="tubelight-glow-md" />
+                      <div className="tubelight-glow-sm" />
+                    </div>
+                  </motion.div>
+                )}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* 工具栏 */}

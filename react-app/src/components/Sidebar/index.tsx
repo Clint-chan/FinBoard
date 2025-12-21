@@ -12,15 +12,15 @@ const Icons = {
   ),
   analysis: (
     <svg viewBox="0 0 24 24">
-      <line x1="18" y1="20" x2="18" y2="10"></line>
-      <line x1="12" y1="20" x2="12" y2="4"></line>
-      <line x1="6" y1="20" x2="6" y2="14"></line>
+      <path d="M3 3v18h18"></path>
+      <path d="m19 9-5 5-4-4-3 3"></path>
     </svg>
   ),
   strategies: (
     <svg viewBox="0 0 24 24">
-      <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-      <path d="M2 17l10 5 10-5M2 12l10 5 10-5"></path>
+      <path d="m12 3-8.8 4.7a.8.8 0 0 0 0 1.4L12 13.9l8.8-4.7a.8.8 0 0 0 0-1.4L12 3Z"></path>
+      <path d="m21.2 13.4-8.8 4.7a.8.8 0 0 1-.8 0L2.8 13.4"></path>
+      <path d="m21.2 17.4-8.8 4.7a.8.8 0 0 1-.8 0L2.8 17.4"></path>
     </svg>
   ),
   alerts: (

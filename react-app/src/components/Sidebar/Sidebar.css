@@ -95,6 +95,15 @@
 .sidebar-item.active {
   color: var(--text-primary);
   font-weight: 500;
+  background: var(--bg-hover);
+}
+
+.sidebar-item.active .sidebar-icon {
+  color: #4f46e5; /* indigo-600 - 选中时图标变色 */
+}
+
+[data-theme="dark"] .sidebar-item.active .sidebar-icon {
+  color: #818cf8; /* indigo-400 */
 }
 
 .sidebar-item.auth-btn {
