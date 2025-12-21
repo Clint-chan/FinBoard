@@ -2,72 +2,149 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .chart-grid { background-image: linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px); background-size: 20px 20px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f3f4f6; }
+        /* 隐藏滚动条但保留功能 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-slate-50 p-4">
+<body class="overflow-hidden">
 
-    <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden max-w-4xl mx-auto">
+    <div class="h-screen w-full bg-slate-100 flex items-center justify-center">
+        <p class="text-slate-400">点击右下角按钮呼出抽屉</p>
+    </div>
+
+    <div class="fixed inset-0 bg-slate-900/20 backdrop-blur-[1px] z-40 transition-opacity"></div>
+
+    <div class="fixed inset-y-0 right-0 w-[420px] bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col">
         
-        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+        <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white z-10">
             <div>
-                <h3 class="font-bold text-slate-800">价差诊断分析</h3>
-                <p class="text-xs text-slate-500">Spread Diagnosis: SH603166 vs SH600480</p>
+                <h2 class="text-lg font-bold text-slate-900">历史预警记录</h2>
+                <p class="text-xs text-slate-400 mt-0.5">Alert History & Signal Snapshots</p>
             </div>
-            <div class="flex gap-6 text-sm">
-                <div class="text-center">
-                    <div class="text-xs text-slate-400">当前价差 (Spread)</div>
-                    <div class="font-mono font-bold text-blue-600">5.23%</div>
-                </div>
-                <div class="text-center">
-                    <div class="text-xs text-slate-400">Z-Score (标准分)</div>
-                    <div class="font-mono font-bold text-red-500">> 2.1 σ</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="p-6 relative h-64 border-b border-slate-100">
-            <div class="absolute top-4 left-6 z-10 flex gap-4 text-xs font-medium">
-                <span class="flex items-center gap-1 text-blue-600"><span class="w-2 h-2 rounded-full bg-blue-600"></span> 福达股份 (基准)</span>
-                <span class="flex items-center gap-1 text-slate-400"><span class="w-2 h-2 rounded-full bg-slate-400"></span> 凌云股份 (对标)</span>
-            </div>
-            <div class="w-full h-full chart-grid relative flex items-end pb-5">
-                <svg class="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-                    <path d="M0,80 C20,70 40,85 60,50 S80,30 100,20" fill="none" stroke="#2563eb" stroke-width="2" />
-                </svg>
-                <svg class="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-                    <path d="M0,80 C20,75 40,80 60,70 S80,65 100,60" fill="none" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4 4" />
-                </svg>
-                
-                <div class="absolute right-0 top-[20%] bottom-[60%] w-1/4 bg-red-50/50 border-l border-dashed border-red-300 flex items-center justify-center">
-                    <span class="text-xs text-red-500 font-bold bg-white/80 px-1 rounded">乖离扩大</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="p-6 h-48 bg-slate-50 relative">
-            <div class="absolute top-2 left-6 text-xs font-bold text-slate-500">Spread / Residual (残差波动)</div>
             
-            <div class="w-full h-full relative flex items-center">
-                <div class="absolute w-full h-px bg-slate-300 top-1/2"></div>
-                
-                <div class="absolute w-full h-px bg-red-200 top-[20%] border-t border-dashed border-red-300">
-                    <span class="absolute -top-3 right-0 text-[10px] text-red-400">卖出阈值 (+2σ)</span>
-                </div>
-                
-                <div class="absolute w-full h-px bg-green-200 bottom-[20%] border-t border-dashed border-green-300">
-                    <span class="absolute -top-3 right-0 text-[10px] text-green-400">买入阈值 (-2σ)</span>
+            <button class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+        </div>
+
+        <div class="px-6 py-3 border-b border-slate-100 bg-slate-50/50 flex gap-2 overflow-x-auto no-scrollbar">
+            <button class="px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-800 text-white shadow-sm whitespace-nowrap">全部记录</button>
+            <button class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:text-slate-900 whitespace-nowrap transition-colors">配对套利</button>
+            <button class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:text-slate-900 whitespace-nowrap transition-colors">价格预警</button>
+            <button class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:text-slate-900 whitespace-nowrap transition-colors">AH溢价</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 bg-slate-50/30">
+            
+            <div class="mb-6">
+                <div class="sticky top-0 z-10 bg-slate-50/30 backdrop-blur-sm py-2 mb-4">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Today, 24 Oct</span>
                 </div>
 
-                <svg class="absolute inset-0 w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-                    <path d="M0,50 L10,52 L20,48 L30,55 L40,40 L50,60 L60,30 L70,20 L80,25 L90,15 L100,10" fill="none" stroke="#4f46e5" stroke-width="2" />
-                    <circle cx="100" cy="10" r="4" fill="#ef4444" stroke="white" stroke-width="2" />
-                </svg>
+                <div class="space-y-6 border-l-2 border-slate-200 ml-3 pl-6 relative">
+                    
+                    <div class="relative group">
+                        <div class="absolute -left-[31px] top-1 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-white shadow-sm"></div>
+                        
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-50 text-red-600 border border-red-100">配对 · 卖出信号</span>
+                                <span class="text-xs text-slate-400 font-mono">14:32:05</span>
+                            </div>
+                            <h4 class="text-sm font-bold text-slate-900 mb-1">机器人板块强弱配对</h4>
+                            <p class="text-xs text-slate-500 mb-3">价差偏离突破历史高位，触发做空 X / 做多 Y。</p>
+                            
+                            <div class="bg-slate-50 rounded-lg p-2.5 grid grid-cols-2 gap-2 border border-slate-100">
+                                <div>
+                                    <div class="text-[10px] text-slate-400">Spread (价差)</div>
+                                    <div class="text-sm font-mono font-bold text-red-600">5.2% <span class="text-[10px] font-normal text-slate-400">/ 阈值 5%</span></div>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] text-slate-400">Z-Score</div>
+                                    <div class="text-sm font-mono font-bold text-slate-700">2.14 σ</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="relative group">
+                        <div class="absolute -left-[31px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white shadow-sm"></div>
+                        
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">价格 · 跌破支撑</span>
+                                <span class="text-xs text-slate-400 font-mono">10:15:22</span>
+                            </div>
+                            <h4 class="text-sm font-bold text-slate-900 mb-1">老百姓 (603883)</h4>
+                            <p class="text-xs text-slate-500 mb-3">股价快速下跌触及止损线。</p>
+                            
+                            <div class="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs text-slate-500">触发价:</span>
+                                    <span class="text-sm font-mono font-bold text-emerald-600">15.25</span>
+                                </div>
+                                <span class="text-[10px] text-slate-400 line-through">15.30 (前值)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="relative group">
+                        <div class="absolute -left-[31px] top-1 w-2.5 h-2.5 rounded-full bg-slate-300 border-2 border-white shadow-sm"></div>
+                        
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-xs font-bold text-slate-500">策略监控暂停</span>
+                                <span class="text-xs text-slate-400 font-mono">09:30:00</span>
+                            </div>
+                            <p class="text-xs text-slate-500">"半导体诱多监控" 已手动停止运行。</p>
+                        </div>
+                    </div>
+
+                </div>
             </div>
+
+            <div class="mb-6">
+                <div class="sticky top-0 z-10 bg-slate-50/30 backdrop-blur-sm py-2 mb-4">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Yesterday, 23 Oct</span>
+                </div>
+                <div class="space-y-6 border-l-2 border-slate-200 ml-3 pl-6 relative">
+                    <div class="relative group opacity-75 hover:opacity-100 transition-opacity">
+                        <div class="absolute -left-[31px] top-1 w-2.5 h-2.5 rounded-full bg-blue-500 border-2 border-white shadow-sm"></div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100">AH溢价 · 机会</span>
+                                <span class="text-xs text-slate-400 font-mono">14:55:00</span>
+                            </div>
+                            <h4 class="text-sm font-bold text-slate-900 mb-1">招商银行</h4>
+                            <div class="bg-slate-50 rounded-lg p-2 mt-2 border border-slate-100">
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-500">溢价率 (Premium)</span>
+                                    <span class="font-mono font-bold text-blue-600">32.5%</span>
+                                </div>
+                                <div class="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                                    <div class="bg-blue-500 h-full rounded-full" style="width: 80%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="px-6 py-4 bg-white border-t border-slate-100 text-center">
+            <button class="text-xs text-slate-500 hover:text-indigo-600 font-medium transition-colors flex items-center justify-center gap-1 w-full">
+                查看所有历史归档
+                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+            </button>
         </div>
 
     </div>
+
 </body>
 </html>

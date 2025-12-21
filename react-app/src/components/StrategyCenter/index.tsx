@@ -102,6 +102,9 @@ const Icons = {
   )
 }
 
+// 筛选状态类型
+type FilterStatus = 'all' | 'triggered' | 'running'
+
 export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
   const [strategies, setStrategies] = useState<Strategy[]>([])
   const [activeTab, setActiveTab] = useState<StrategyType | 'all'>('all')
@@ -109,6 +112,8 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingStrategy, setEditingStrategy] = useState<Strategy | null>(null)
   const [highlightConditionIndex, setHighlightConditionIndex] = useState<number | null>(null)
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
+  const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false)
   
   // 已通知的策略记录，避免重复通知
   const notifiedStrategies = useRef<Set<string>>(new Set())
@@ -225,6 +230,13 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
       result = result.filter(s => s.type === activeTab)
     }
 
+    // 按状态筛选
+    if (filterStatus === 'triggered') {
+      result = result.filter(s => s.status === 'triggered')
+    } else if (filterStatus === 'running') {
+      result = result.filter(s => s.status === 'running' && s.enabled)
+    }
+
     // 按搜索词筛选
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
@@ -235,7 +247,7 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
     }
 
     return result
-  }, [strategies, activeTab, searchTerm])
+  }, [strategies, activeTab, searchTerm, filterStatus])
 
   // 统计数据
   const stats = useMemo(() => {
@@ -371,9 +383,24 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
           />
         </div>
         <div className="strategy-filters">
-          <button className="filter-btn active">全部</button>
-          <button className="filter-btn">已触发</button>
-          <button className="filter-btn">运行中</button>
+          <button 
+            className={`filter-btn ${filterStatus === 'all' ? 'active' : ''}`}
+            onClick={() => setFilterStatus('all')}
+          >
+            全部
+          </button>
+          <button 
+            className={`filter-btn ${filterStatus === 'triggered' ? 'active' : ''}`}
+            onClick={() => setFilterStatus('triggered')}
+          >
+            已触发
+          </button>
+          <button 
+            className={`filter-btn ${filterStatus === 'running' ? 'active' : ''}`}
+            onClick={() => setFilterStatus('running')}
+          >
+            运行中
+          </button>
         </div>
       </div>
 
@@ -418,10 +445,16 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
       </div>
 
       {/* 历史记录按钮 */}
-      <button className="btn-history">
+      <button className="btn-history" onClick={() => setHistoryDrawerOpen(true)}>
         <span className="dot" />
         历史预警记录
       </button>
+
+      {/* 历史预警记录抽屉 */}
+      <HistoryDrawer 
+        open={historyDrawerOpen} 
+        onClose={() => setHistoryDrawerOpen(false)} 
+      />
 
       {/* 新建/编辑策略弹窗 */}
       <StrategyModal
@@ -935,6 +968,254 @@ function getStrategyLogic(strategy: Strategy): string {
     default:
       return ''
   }
+}
+
+// 历史预警记录抽屉组件
+interface HistoryDrawerProps {
+  open: boolean
+  onClose: () => void
+}
+
+// 历史记录类型
+interface AlertHistoryItem {
+  id: string
+  type: 'sector_arb' | 'ah_premium' | 'fake_breakout' | 'price' | 'system'
+  title: string
+  description: string
+  timestamp: number
+  data?: Record<string, unknown>
+}
+
+// 历史记录筛选类型
+type HistoryFilterType = 'all' | 'sector_arb' | 'price' | 'ah_premium'
+
+function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
+  const [filterType, setFilterType] = useState<HistoryFilterType>('all')
+  
+  // 模拟历史数据 - 实际应从 localStorage 或服务端获取
+  const historyItems: AlertHistoryItem[] = useMemo(() => {
+    // 从 localStorage 读取历史记录
+    const stored = localStorage.getItem('fintell_alert_history')
+    if (stored) {
+      try {
+        return JSON.parse(stored)
+      } catch {
+        return []
+      }
+    }
+    // 返回示例数据
+    return [
+      {
+        id: '1',
+        type: 'sector_arb',
+        title: '机器人板块强弱配对',
+        description: '价差偏离突破历史高位，触发做空 X / 做多 Y。',
+        timestamp: Date.now() - 3600000,
+        data: { spread: 5.2, threshold: 5, zScore: 2.14 }
+      },
+      {
+        id: '2',
+        type: 'price',
+        title: '老百姓 (603883)',
+        description: '股价快速下跌触及止损线。',
+        timestamp: Date.now() - 7200000,
+        data: { triggerPrice: 15.25, prevPrice: 15.30 }
+      },
+      {
+        id: '3',
+        type: 'ah_premium',
+        title: '招商银行',
+        description: 'AH溢价率突破阈值。',
+        timestamp: Date.now() - 86400000,
+        data: { premium: 32.5 }
+      }
+    ]
+  }, [])
+
+  // 筛选历史记录
+  const filteredHistory = useMemo(() => {
+    if (filterType === 'all') return historyItems
+    return historyItems.filter(item => item.type === filterType)
+  }, [historyItems, filterType])
+
+  // 按日期分组
+  const groupedHistory = useMemo(() => {
+    const groups: Record<string, AlertHistoryItem[]> = {}
+    filteredHistory.forEach(item => {
+      const date = new Date(item.timestamp)
+      const today = new Date()
+      const yesterday = new Date(today)
+      yesterday.setDate(yesterday.getDate() - 1)
+      
+      let dateKey: string
+      if (date.toDateString() === today.toDateString()) {
+        dateKey = `Today, ${date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}`
+      } else if (date.toDateString() === yesterday.toDateString()) {
+        dateKey = `Yesterday, ${date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}`
+      } else {
+        dateKey = date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })
+      }
+      
+      if (!groups[dateKey]) groups[dateKey] = []
+      groups[dateKey].push(item)
+    })
+    return groups
+  }, [filteredHistory])
+
+  // 获取类型标签
+  const getTypeLabel = (type: AlertHistoryItem['type']) => {
+    switch (type) {
+      case 'sector_arb': return { text: '配对 · 卖出信号', color: 'red' }
+      case 'price': return { text: '价格 · 跌破支撑', color: 'emerald' }
+      case 'ah_premium': return { text: 'AH溢价 · 机会', color: 'blue' }
+      case 'fake_breakout': return { text: '假突破 · 预警', color: 'orange' }
+      default: return { text: '系统', color: 'slate' }
+    }
+  }
+
+  // 格式化时间
+  const formatTime = (timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      second: '2-digit' 
+    })
+  }
+
+  if (!open) return null
+
+  return (
+    <>
+      {/* 遮罩层 */}
+      <div className="history-drawer-overlay" onClick={onClose} />
+      
+      {/* 抽屉 */}
+      <div className="history-drawer">
+        {/* 头部 */}
+        <div className="history-drawer-header">
+          <div>
+            <h2>历史预警记录</h2>
+            <p>Alert History & Signal Snapshots</p>
+          </div>
+          <button className="close-btn" onClick={onClose}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* 筛选标签 */}
+        <div className="history-drawer-filters">
+          <button 
+            className={`filter-tag ${filterType === 'all' ? 'active' : ''}`}
+            onClick={() => setFilterType('all')}
+          >
+            全部记录
+          </button>
+          <button 
+            className={`filter-tag ${filterType === 'sector_arb' ? 'active' : ''}`}
+            onClick={() => setFilterType('sector_arb')}
+          >
+            配对套利
+          </button>
+          <button 
+            className={`filter-tag ${filterType === 'price' ? 'active' : ''}`}
+            onClick={() => setFilterType('price')}
+          >
+            价格预警
+          </button>
+          <button 
+            className={`filter-tag ${filterType === 'ah_premium' ? 'active' : ''}`}
+            onClick={() => setFilterType('ah_premium')}
+          >
+            AH溢价
+          </button>
+        </div>
+
+        {/* 内容区域 */}
+        <div className="history-drawer-content">
+          {Object.entries(groupedHistory).map(([dateKey, items]) => (
+            <div key={dateKey} className="history-group">
+              <div className="history-date-header">
+                <span>{dateKey}</span>
+              </div>
+              <div className="history-timeline">
+                {items.map(item => {
+                  const typeInfo = getTypeLabel(item.type)
+                  return (
+                    <div key={item.id} className="history-item">
+                      <div className={`timeline-dot ${typeInfo.color}`} />
+                      <div className="history-card">
+                        <div className="history-card-header">
+                          <span className={`type-tag ${typeInfo.color}`}>{typeInfo.text}</span>
+                          <span className="time">{formatTime(item.timestamp)}</span>
+                        </div>
+                        <h4>{item.title}</h4>
+                        <p>{item.description}</p>
+                        {item.data && (
+                          <div className="history-card-data">
+                            {item.type === 'sector_arb' && (
+                              <>
+                                <div>
+                                  <div className="data-label">Spread (价差)</div>
+                                  <div className="data-value red">
+                                    {(item.data.spread as number).toFixed(1)}% 
+                                    <span className="threshold">/ 阈值 {item.data.threshold as number}%</span>
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="data-label">Z-Score</div>
+                                  <div className="data-value">{(item.data.zScore as number).toFixed(2)} σ</div>
+                                </div>
+                              </>
+                            )}
+                            {item.type === 'price' && (
+                              <div className="price-data">
+                                <span className="label">触发价:</span>
+                                <span className="value emerald">{item.data.triggerPrice as number}</span>
+                                <span className="prev">{item.data.prevPrice as number} (前值)</span>
+                              </div>
+                            )}
+                            {item.type === 'ah_premium' && (
+                              <div className="premium-data">
+                                <div className="premium-row">
+                                  <span className="label">溢价率 (Premium)</span>
+                                  <span className="value blue">{(item.data.premium as number).toFixed(1)}%</span>
+                                </div>
+                                <div className="premium-bar">
+                                  <div className="fill" style={{ width: `${Math.min((item.data.premium as number) / 50 * 100, 100)}%` }} />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+          
+          {filteredHistory.length === 0 && (
+            <div className="history-empty">
+              <p>暂无历史记录</p>
+            </div>
+          )}
+        </div>
+
+        {/* 底部 */}
+        <div className="history-drawer-footer">
+          <button className="view-all-btn">
+            查看所有历史归档
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </>
+  )
 }
 
 export default StrategyCenter
