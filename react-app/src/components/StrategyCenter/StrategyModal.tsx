@@ -45,11 +45,17 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
   const [searching, setSearching] = useState(false)
   const [showSearchResults, setShowSearchResults] = useState(false)
   
+  // 内部高亮索引（用于添加新条件时的高亮）
+  const [internalHighlightIndex, setInternalHighlightIndex] = useState<number | null>(null)
+  
   // 条件列表容器 ref，用于滚动
   const conditionsListRef = useRef<HTMLDivElement>(null)
   const highlightedConditionRef = useRef<HTMLDivElement>(null)
 
   const isEdit = !!strategy
+  
+  // 合并外部和内部的高亮索引
+  const activeHighlightIndex = highlightConditionIndex ?? internalHighlightIndex
 
   // 初始化表单
   useEffect(() => {
@@ -77,12 +83,13 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
       setErrors({})
       setSearchResults([])
       setShowSearchResults(false)
+      setInternalHighlightIndex(null)
     }
   }, [open, strategy])
 
   // 自动滚动到高亮的条件
   useEffect(() => {
-    if (open && highlightConditionIndex !== null && highlightConditionIndex !== undefined && highlightedConditionRef.current) {
+    if (open && activeHighlightIndex !== null && activeHighlightIndex !== undefined && highlightedConditionRef.current) {
       // 延迟一点确保 DOM 已渲染
       setTimeout(() => {
         highlightedConditionRef.current?.scrollIntoView({
@@ -90,8 +97,16 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
           block: 'center'
         })
       }, 100)
+      
+      // 内部高亮 1.5 秒后自动消失
+      if (internalHighlightIndex !== null) {
+        const timer = setTimeout(() => {
+          setInternalHighlightIndex(null)
+        }, 1500)
+        return () => clearTimeout(timer)
+      }
     }
-  }, [open, highlightConditionIndex, priceConditions.length])
+  }, [open, activeHighlightIndex, priceConditions.length, internalHighlightIndex])
 
   // 搜索股票
   const handleSearch = useCallback(async (query: string) => {
@@ -147,12 +162,15 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
 
   // 添加预警条件
   const addCondition = () => {
+    const newIndex = priceConditions.length
     setPriceConditions([...priceConditions, { 
       id: `cond-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       type: 'price', 
       operator: 'above', 
       value: 0 
     }])
+    // 高亮新添加的条件
+    setInternalHighlightIndex(newIndex)
   }
 
   // 更新预警条件
@@ -459,8 +477,8 @@ export function StrategyModal({ open, strategy, highlightConditionIndex, onClose
                               animate={{ opacity: 1, y: 0, scale: 1 }}
                               exit={{ opacity: 0, x: -20, scale: 0.9, transition: { duration: 0.2 } }}
                               transition={{ duration: 0.2, ease: "easeOut" }}
-                              ref={highlightConditionIndex === idx ? highlightedConditionRef : null}
-                              className={`price-condition-card ${highlightConditionIndex === idx ? 'highlighted' : ''}`}
+                              ref={activeHighlightIndex === idx ? highlightedConditionRef : null}
+                              className={`price-condition-card ${activeHighlightIndex === idx ? 'highlighted' : ''}`}
                             >
                               <button className="condition-delete-btn" onClick={() => deleteCondition(idx)} title="删除条件">
                                 <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
