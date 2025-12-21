@@ -31,7 +31,17 @@ export interface AlertConfig {
   conditions: AlertCondition[]
 }
 
-// 预警历史记录
+// 预警历史记录（策略中心使用的新格式）
+export interface StrategyAlertHistoryItem {
+  id: string
+  type: 'sector_arb' | 'ah_premium' | 'fake_breakout' | 'price' | 'system'
+  title: string
+  description: string
+  timestamp: number
+  data?: Record<string, unknown>
+}
+
+// 旧版预警历史记录（保留兼容）
 export interface AlertHistoryItem {
   code: string
   stockName: string
@@ -51,7 +61,7 @@ export interface UserConfig {
   theme: 'light' | 'dark' | 'auto'
   quoteSource?: QuoteSource // 数据源
   userProfile?: UserProfile
-  alertHistory?: AlertHistoryItem[] // 预警历史记录
+  alertHistory?: StrategyAlertHistoryItem[] // 策略预警历史记录（云同步）
   refreshOnlyInMarketHours?: boolean // 仅在交易时间刷新
 }
 

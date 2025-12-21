@@ -678,7 +678,13 @@ function App() {
         
         {activePage === 'admin' && isAdmin && <AdminPage />}
         
-        {activePage === 'strategies' && <StrategyCenter stockData={stockData} />}
+        {activePage === 'strategies' && (
+          <StrategyCenter 
+            stockData={stockData}
+            alertHistory={config.alertHistory}
+            onAlertHistoryChange={(history) => updateConfig({ alertHistory: history })}
+          />
+        )}
       </main>
 
       {/* 移动端行情详情页 */}

@@ -12,7 +12,7 @@ import type {
   FakeBreakoutStrategy,
   PriceAlertStrategy
 } from '@/types/strategy'
-import type { StockData } from '@/types'
+import type { StockData, StrategyAlertHistoryItem } from '@/types'
 import {
   loadStrategies,
   saveStrategies,
@@ -27,6 +27,8 @@ import './StrategyCenter.css'
 // Props 类型
 interface StrategyCenterProps {
   stockData?: Record<string, StockData>
+  alertHistory?: StrategyAlertHistoryItem[]
+  onAlertHistoryChange?: (history: StrategyAlertHistoryItem[]) => void
 }
 
 // 策略类型 Tab - 使用优化后的 SVG 图标
@@ -105,7 +107,7 @@ const Icons = {
 // 筛选状态类型
 type FilterStatus = 'all' | 'triggered' | 'running'
 
-export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
+export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHistoryChange }: StrategyCenterProps) {
   const [strategies, setStrategies] = useState<Strategy[]>([])
   const [activeTab, setActiveTab] = useState<StrategyType | 'all'>('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -117,6 +119,15 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
   
   // 已通知的策略记录，避免重复通知
   const notifiedStrategies = useRef<Set<string>>(new Set())
+  
+  // 保存预警历史记录（通过 props 回调，支持云同步）
+  const saveAlertHistory = useCallback((item: StrategyAlertHistoryItem) => {
+    if (!onAlertHistoryChange) return
+    
+    // 添加新记录到开头，保留最近100条
+    const newHistory = [item, ...alertHistory].slice(0, 100)
+    onAlertHistoryChange(newHistory)
+  }, [alertHistory, onAlertHistoryChange])
 
   // 加载策略
   useEffect(() => {
@@ -163,7 +174,7 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
       try {
         const updated = await checkAllStrategies(strategies)
         
-        // 检查是否有新触发的策略，发送浏览器通知
+        // 检查是否有新触发的策略，发送浏览器通知并保存历史记录
         if (isMarketOpen()) {
           updated.forEach((strategy, idx) => {
             const oldStrategy = strategies[idx]
@@ -177,32 +188,72 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
               // 根据策略类型生成通知内容
               let title = ''
               let body = ''
+              let historyData: Record<string, unknown> = {}
               
               switch (strategy.type) {
                 case 'sector_arb': {
                   const s = strategy as SectorArbStrategy
                   title = `配对监控触发: ${s.name}`
                   body = `${s.stockAName || s.stockACode} vs ${s.stockBName || s.stockBCode}\n偏离度: ${s.deviation?.toFixed(2)}% (阈值 ${s.threshold}%)`
+                  historyData = { 
+                    spread: s.deviation || 0, 
+                    threshold: s.threshold,
+                    stockA: s.stockAName || s.stockACode,
+                    stockB: s.stockBName || s.stockBCode
+                  }
                   break
                 }
                 case 'ah_premium': {
                   const s = strategy as AHPremiumStrategy
                   title = `AH溢价触发: ${s.name}`
                   body = `当前溢价率: ${s.premium?.toFixed(1)}%\n阈值范围: ${s.lowThreshold}% ~ ${s.highThreshold}%`
+                  historyData = { 
+                    premium: s.premium || 0,
+                    lowThreshold: s.lowThreshold,
+                    highThreshold: s.highThreshold
+                  }
                   break
                 }
                 case 'fake_breakout': {
                   const s = strategy as FakeBreakoutStrategy
                   title = `假突破预警: ${s.name}`
                   body = `${s.sectorName || s.sectorCode} 板块\n发现 ${s.suspects?.length || 0} 个疑似诱多标的`
+                  historyData = {
+                    sectorName: s.sectorName || s.sectorCode,
+                    suspectsCount: s.suspects?.length || 0
+                  }
                   break
                 }
-                default:
-                  title = `策略触发: ${strategy.name}`
-                  body = getStrategyTypeLabel(strategy.type)
+                case 'price': {
+                  const s = strategy as PriceAlertStrategy
+                  title = `价格预警触发: ${s.stockName || s.code}`
+                  body = `${s.stockName || s.code} 触发价格预警`
+                  historyData = {
+                    stockName: s.stockName,
+                    code: s.code
+                  }
+                  break
+                }
               }
               
+              // 如果没有匹配到具体类型，使用默认值
+              if (!title) {
+                title = `策略触发: ${strategy.name}`
+                body = getStrategyTypeLabel(strategy.type)
+              }
+              
+              // 发送浏览器通知
               sendNotification(title, body)
+              
+              // 保存到历史记录
+              saveAlertHistory({
+                id: `${strategy.id}_${Date.now()}`,
+                type: strategy.type,
+                title: strategy.name,
+                description: body.replace('\n', ' '),
+                timestamp: Date.now(),
+                data: historyData
+              })
             }
           })
         }
@@ -453,7 +504,8 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
       {/* 历史预警记录抽屉 */}
       <HistoryDrawer 
         open={historyDrawerOpen} 
-        onClose={() => setHistoryDrawerOpen(false)} 
+        onClose={() => setHistoryDrawerOpen(false)}
+        historyItems={alertHistory}
       />
 
       {/* 新建/编辑策略弹窗 */}
@@ -974,63 +1026,14 @@ function getStrategyLogic(strategy: Strategy): string {
 interface HistoryDrawerProps {
   open: boolean
   onClose: () => void
-}
-
-// 历史记录类型
-interface AlertHistoryItem {
-  id: string
-  type: 'sector_arb' | 'ah_premium' | 'fake_breakout' | 'price' | 'system'
-  title: string
-  description: string
-  timestamp: number
-  data?: Record<string, unknown>
+  historyItems: StrategyAlertHistoryItem[]
 }
 
 // 历史记录筛选类型
 type HistoryFilterType = 'all' | 'sector_arb' | 'price' | 'ah_premium'
 
-function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
+function HistoryDrawer({ open, onClose, historyItems }: HistoryDrawerProps) {
   const [filterType, setFilterType] = useState<HistoryFilterType>('all')
-  
-  // 模拟历史数据 - 实际应从 localStorage 或服务端获取
-  const historyItems: AlertHistoryItem[] = useMemo(() => {
-    // 从 localStorage 读取历史记录
-    const stored = localStorage.getItem('fintell_alert_history')
-    if (stored) {
-      try {
-        return JSON.parse(stored)
-      } catch {
-        return []
-      }
-    }
-    // 返回示例数据
-    return [
-      {
-        id: '1',
-        type: 'sector_arb',
-        title: '机器人板块强弱配对',
-        description: '价差偏离突破历史高位，触发做空 X / 做多 Y。',
-        timestamp: Date.now() - 3600000,
-        data: { spread: 5.2, threshold: 5, zScore: 2.14 }
-      },
-      {
-        id: '2',
-        type: 'price',
-        title: '老百姓 (603883)',
-        description: '股价快速下跌触及止损线。',
-        timestamp: Date.now() - 7200000,
-        data: { triggerPrice: 15.25, prevPrice: 15.30 }
-      },
-      {
-        id: '3',
-        type: 'ah_premium',
-        title: '招商银行',
-        description: 'AH溢价率突破阈值。',
-        timestamp: Date.now() - 86400000,
-        data: { premium: 32.5 }
-      }
-    ]
-  }, [])
 
   // 筛选历史记录
   const filteredHistory = useMemo(() => {
@@ -1040,7 +1043,7 @@ function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
 
   // 按日期分组
   const groupedHistory = useMemo(() => {
-    const groups: Record<string, AlertHistoryItem[]> = {}
+    const groups: Record<string, StrategyAlertHistoryItem[]> = {}
     filteredHistory.forEach(item => {
       const date = new Date(item.timestamp)
       const today = new Date()
@@ -1063,7 +1066,7 @@ function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
   }, [filteredHistory])
 
   // 获取类型标签
-  const getTypeLabel = (type: AlertHistoryItem['type']) => {
+  const getTypeLabel = (type: StrategyAlertHistoryItem['type']) => {
     switch (type) {
       case 'sector_arb': return { text: '配对 · 卖出信号', color: 'red' }
       case 'price': return { text: '价格 · 跌破支撑', color: 'emerald' }

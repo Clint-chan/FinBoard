@@ -11,23 +11,31 @@ table {
 }
 
 th {
-  text-align: right;
+  text-align: center;
   padding: 16px 20px;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-secondary);
   background: #f9fafb;
   border-bottom: 1px solid var(--border-light);
   font-weight: 600;
+  vertical-align: middle;
 }
 
 [data-theme="dark"] th {
   background: #1e293b;
 }
 
+/* 标的列左对齐 */
 th:first-child {
   text-align: left;
+}
+
+
+/* 当日区间列居中 */
+th.col-range {
+  text-align: center;
 }
 
 th[data-sort] {
@@ -62,14 +70,21 @@ th[data-sort].sort-desc::after {
 
 td {
   padding: 16px 20px;
-  text-align: right;
+  text-align: center;
   border-bottom: 1px solid var(--border-light);
   font-variant-numeric: tabular-nums;
-  font-size: 0.95rem;
+  font-size: 1rem;
+  vertical-align: middle;
 }
 
+/* 标的列左对齐 */
 td:first-child {
   text-align: left;
+}
+
+/* 当日区间列居中 */
+td.col-range {
+  text-align: center;
 }
 
 tr:last-child td {
@@ -97,6 +112,7 @@ tr:hover td {
 
 .symbol-cell {
   font-weight: 700;
+  font-size: 1rem;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -109,7 +125,7 @@ tr:hover td {
 .symbol-name {
   display: block;
   font-weight: 400;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--text-tertiary);
   margin-top: 2px;
 }
@@ -144,6 +160,8 @@ tr:hover td {
   width: 50px;
   height: 24px;
   flex-shrink: 0;
+  position: relative;
+  left: -30px;  /* 负数是向左移，正数是向右。觉得不够就改成 -10px */
 }
 
 .sparkline polyline {
@@ -174,7 +192,7 @@ tr:hover td {
 
 .price-cell {
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 1.05rem;
 }
 
 .change-badge {
@@ -182,9 +200,22 @@ tr:hover td {
   padding: 4px 10px;
   border-radius: 99px;
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   min-width: 70px;
   text-align: center;
+}
+
+/* 涨跌幅胶囊背景色 */
+.change-badge.up {
+  background-color: var(--color-up-bg);
+}
+
+.change-badge.down {
+  background-color: var(--color-down-bg);
+}
+
+.change-badge.flat {
+  background-color: var(--bg-hover);
 }
 
 .up {
@@ -202,9 +233,10 @@ tr:hover td {
 .range-container {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   width: 140px;
-  margin-left: auto;
+  margin: 0 auto;
 }
 
 .range-label {
@@ -238,6 +270,7 @@ tr:hover td {
 .vol-cell,
 .amt-cell {
   color: var(--text-secondary);
+  font-size: 0.95rem;
 }
 
 /* 拖拽把手 */
