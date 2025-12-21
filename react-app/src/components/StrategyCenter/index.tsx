@@ -70,13 +70,6 @@ const Icons = {
       <path d="M21 21l-4.35-4.35" />
     </svg>
   ),
-  more: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="1" />
-      <circle cx="12" cy="5" r="1" />
-      <circle cx="12" cy="19" r="1" />
-    </svg>
-  ),
   edit: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -100,12 +93,6 @@ const Icons = {
       <polygon points="5 3 19 12 5 21 5 3" />
     </svg>
   ),
-  history: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  ),
   empty: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -121,7 +108,6 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingStrategy, setEditingStrategy] = useState<Strategy | null>(null)
   const [highlightConditionIndex, setHighlightConditionIndex] = useState<number | null>(null)
-  const [_loading, setLoading] = useState(false)
 
   // 加载策略
   useEffect(() => {
@@ -165,15 +151,12 @@ export function StrategyCenter({ stockData = {} }: StrategyCenterProps) {
     if (strategies.length === 0) return
 
     const check = async () => {
-      setLoading(true)
       try {
         const updated = await checkAllStrategies(strategies)
         setStrategies(updated)
         saveStrategies(updated)
       } catch (err) {
         console.error('检查策略失败:', err)
-      } finally {
-        setLoading(false)
       }
     }
 

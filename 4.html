@@ -3,140 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>策略编辑弹窗优化</title>
+    <title>行业套利策略编辑 - 优化版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f1f5f9; }
-        /* 自定义滚动条，让列表滚动更优雅 */
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f8fafc; }
+        /* 模拟高级金融终端的微渐变 */
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
-    <div class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"></div>
+    <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity"></div>
 
-    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl z-50 relative flex flex-col max-h-[90vh]">
+    <div class="glass-panel w-full max-w-3xl rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col transform transition-all">
         
-        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div class="px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-white">
             <div class="flex items-center gap-3">
-                <h2 class="text-lg font-bold text-slate-900">编辑策略</h2>
-                <span class="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 text-xs font-semibold border border-indigo-100 flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                    价格预警
-                </span>
-            </div>
-            <button class="text-slate-400 hover:text-slate-600 transition-colors">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-        </div>
-
-        <div class="p-6 overflow-y-auto custom-scrollbar space-y-6">
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div class="col-span-1 md:col-span-2">
-                    <label class="block text-sm font-medium text-slate-700 mb-1.5">股票名称/代码 <span class="text-red-500">*</span></label>
-                    <div class="relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span class="text-slate-400 text-sm">SH</span>
-                        </div>
-                        <input type="text" value="603883 (老百姓)" class="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all shadow-sm" placeholder="输入股票代码">
-                    </div>
+                <div class="bg-blue-50 p-2 rounded-lg text-blue-600">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z" /></svg>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">行业/配对套利配置</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Statistical Arbitrage & Pair Trading</p>
                 </div>
             </div>
+            <span class="px-3 py-1 rounded-full bg-green-50 text-green-700 text-xs font-medium border border-green-100 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                运行中
+            </span>
+        </div>
 
-            <div class="border-t border-slate-100"></div>
+        <div class="p-8 space-y-8 bg-slate-50/50">
 
             <div>
-                <div class="flex items-center justify-between mb-3">
-                    <label class="block text-sm font-medium text-slate-900">预警条件配置</label>
-                    <button class="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1">
-                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 4v16m8-8H4"/></svg>
-                        添加条件
-                    </button>
-                </div>
+                <label class="block text-sm font-semibold text-slate-700 mb-2">策略命名</label>
+                <input type="text" value="机器人板块强弱配对 (Robot_Pair_01)" class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow shadow-sm" placeholder="输入策略名称">
+            </div>
 
-                <div class="space-y-3">
+            <div class="bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+                <div class="flex flex-col md:flex-row items-stretch">
                     
-                    <div class="group relative bg-slate-50 border border-slate-200 rounded-lg p-4 hover:border-indigo-300 transition-all">
-                        <div class="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button class="text-slate-400 hover:text-red-500"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+                    <div class="flex-1 p-5 relative group">
+                        <label class="flex justify-between text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wider">
+                            核心观察标的 (X)
+                            <span class="text-blue-600">SH603166</span>
+                        </label>
+                        <input type="text" value="福达股份" class="text-lg font-bold text-slate-900 w-full border-none p-0 focus:ring-0 placeholder-slate-300 bg-transparent" placeholder="输入代码">
+                        <div class="mt-2 text-xs text-slate-400 flex items-center gap-2">
+                            <span>现价: <span class="text-slate-700 font-mono">14.62</span></span>
+                            <span class="text-red-500">+1.2%</span>
                         </div>
-                        
-                        <div class="flex flex-wrap items-center gap-3 mb-3">
-                            <select class="bg-white border border-slate-300 text-slate-700 text-sm rounded-md focus:ring-indigo-500 focus:border-indigo-500 block p-2 min-w-[80px]">
-                                <option>价格</option>
-                                <option>涨跌幅</option>
-                            </select>
-                            <span class="text-slate-400 text-xs">当</span>
-                            <select class="bg-white border border-slate-300 text-slate-700 text-sm rounded-md focus:ring-indigo-500 focus:border-indigo-500 block p-2 min-w-[80px]">
-                                <option>突破</option>
-                                <option>跌破</option>
-                            </select>
-                            <div class="relative flex-1 min-w-[120px]">
-                                <input type="number" value="15.85" class="bg-white border border-slate-300 text-slate-900 text-sm rounded-md focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2 pr-8" placeholder="阈值">
-                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                    <span class="text-slate-400 text-xs">元</span>
-                                </div>
-                            </div>
-                        </div>
+                        <div class="absolute inset-0 bg-blue-50/0 group-hover:bg-blue-50/30 rounded-l-lg transition-colors pointer-events-none"></div>
+                    </div>
 
-                        <div>
-                            <input type="text" value="高抛点 (卖出): 60分RSI超买及MA20压力" class="w-full bg-transparent border-b border-slate-200 text-xs text-slate-600 focus:border-indigo-500 focus:ring-0 outline-none pb-1 placeholder-slate-400" placeholder="添加备注或逻辑说明...">
+                    <div class="relative w-full md:w-16 flex items-center justify-center py-2 md:py-0">
+                        <div class="absolute inset-x-0 top-1/2 border-t border-slate-100 md:hidden"></div> <div class="absolute inset-y-0 left-1/2 border-l border-slate-100 hidden md:block"></div> <div class="relative z-10 bg-white border border-slate-200 text-slate-400 text-xs font-bold rounded-full w-8 h-8 flex items-center justify-center shadow-sm">
+                            VS
                         </div>
                     </div>
 
-                    <div class="group relative bg-slate-50 border border-slate-200 rounded-lg p-4 hover:border-indigo-300 transition-all">
-                        <div class="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button class="text-slate-400 hover:text-red-500"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+                    <div class="flex-1 p-5 relative group">
+                        <label class="flex justify-between text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wider">
+                            对标/基准标的 (Y)
+                            <span class="text-slate-400">SZ159770</span>
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <input type="text" value="机器人ETF" class="text-lg font-bold text-slate-900 w-full border-none p-0 focus:ring-0 placeholder-slate-300 bg-transparent" placeholder="代码/指数">
+                            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">BENCHMARK</span>
                         </div>
-                        
-                        <div class="flex flex-wrap items-center gap-3 mb-3">
-                            <select class="bg-white border border-slate-300 text-slate-700 text-sm rounded-md focus:ring-indigo-500 focus:border-indigo-500 block p-2 min-w-[80px]">
-                                <option>价格</option>
-                            </select>
-                            <span class="text-slate-400 text-xs">当</span>
-                            <select class="bg-white border border-slate-300 text-slate-700 text-sm rounded-md focus:ring-indigo-500 focus:border-indigo-500 block p-2 min-w-[80px]">
-                                <option>跌破</option>
-                            </select>
-                            <div class="relative flex-1 min-w-[120px]">
-                                <input type="number" value="15.25" class="bg-white border border-slate-300 text-slate-900 text-sm rounded-md focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2 pr-8">
-                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                                    <span class="text-slate-400 text-xs">元</span>
-                                </div>
-                            </div>
+                        <div class="mt-2 text-xs text-slate-400 flex items-center gap-2">
+                            <span>现价: <span class="text-slate-700 font-mono">0.892</span></span>
+                            <span class="text-green-500">-0.4%</span>
                         </div>
-
-                        <div>
-                            <input type="text" value="止损点 (风控): 跌破日内均线支撑" class="w-full bg-transparent border-b border-slate-200 text-xs text-slate-600 focus:border-indigo-500 focus:ring-0 outline-none pb-1" placeholder="添加备注...">
-                        </div>
+                        <div class="absolute inset-0 bg-slate-50/0 group-hover:bg-slate-50/50 rounded-r-lg transition-colors pointer-events-none"></div>
                     </div>
 
-                    <button class="w-full py-2 border border-dashed border-slate-300 rounded-lg text-sm text-slate-500 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all flex items-center justify-center gap-2">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                        添加新的监控条件
-                    </button>
+                </div>
+                
+                <div class="bg-slate-50 border-t border-slate-100 px-5 py-3 flex items-center justify-between text-xs">
+                    <div class="flex gap-4 text-slate-500">
+                        <span>历史相关性: <strong class="text-slate-700">0.82</strong></span>
+                        <span>Beta系数: <strong class="text-slate-700">1.15</strong></span>
+                    </div>
+                    <div class="text-blue-600 font-medium cursor-pointer hover:underline">查看价差走势图 ></div>
                 </div>
             </div>
 
-             <div class="pt-2">
-                <label class="block text-sm font-medium text-slate-700 mb-1.5">全局策略逻辑备忘</label>
-                <textarea rows="3" class="block w-full p-3 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none shadow-sm" placeholder="在此记录该策略的核心思路..."></textarea>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">监控逻辑模式</label>
+                    <select class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm appearance-none">
+                        <option>价差偏离 (Spread Deviation)</option>
+                        <option>比价偏离 (Price Ratio)</option>
+                        <option>涨跌幅差值 (Return Diff)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">偏离触发阈值</label>
+                    <div class="relative">
+                        <input type="number" value="5" class="w-full pl-4 pr-12 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-mono text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm">
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                            <span class="text-slate-400 text-xs font-bold">%</span>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-1.5">当 (X - Y) 的偏离度超过此值时触发信号</p>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-slate-700 mb-2">策略逻辑备注</label>
+                <div class="relative">
+                    <textarea rows="3" class="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm resize-none" placeholder="描述配对逻辑..."></textarea>
+                    <div class="absolute bottom-2 right-3 text-slate-300 pointer-events-none">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                    </div>
+                </div>
             </div>
 
         </div>
 
-        <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 rounded-b-xl flex justify-end gap-3">
-            <button class="px-5 py-2 rounded-lg text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm">
-                取消
+        <div class="px-8 py-5 bg-white border-t border-slate-100 flex justify-between items-center">
+            <button class="text-sm text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                删除策略
             </button>
-            <button class="px-5 py-2 rounded-lg text-sm font-medium text-white bg-slate-900 hover:bg-slate-800 transition-all shadow-md flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                保存修改
-            </button>
+            <div class="flex gap-3">
+                <button class="px-6 py-2.5 rounded-lg text-sm font-medium text-slate-600 bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:text-slate-900 transition-all">取消</button>
+                <button class="px-6 py-2.5 rounded-lg text-sm font-medium text-white bg-slate-900 hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/30 transition-all transform active:scale-95">保存配置</button>
+            </div>
         </div>
 
     </div>
+
 </body>
 </html>
