@@ -133,13 +133,15 @@ body {
 
 .app {
   display: flex;
+  flex-direction: row;
   min-height: 100vh;
 }
 
 .main-content {
   flex: 1;
   padding: 24px;
-  padding-left: 84px;
+  min-width: 0; /* 防止 flex item 溢出 */
+  overflow-x: hidden;
 }
 
 .page {
