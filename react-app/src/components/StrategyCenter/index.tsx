@@ -1315,7 +1315,7 @@ function HistoryDrawer({ open, onClose, historyItems }: HistoryDrawerProps) {
                         <p>{item.description}</p>
                         {item.data && (
                           <div className="history-card-data">
-                            {item.type === 'sector_arb' && (
+                            {item.type === 'sector_arb' && item.data.spread != null && (
                               <>
                                 <div>
                                   <div className="data-label">Spread (价差)</div>
@@ -1324,20 +1324,21 @@ function HistoryDrawer({ open, onClose, historyItems }: HistoryDrawerProps) {
                                     <span className="threshold">/ 阈值 {item.data.threshold as number}%</span>
                                   </div>
                                 </div>
-                                <div>
-                                  <div className="data-label">Z-Score</div>
-                                  <div className="data-value">{(item.data.zScore as number).toFixed(2)} σ</div>
-                                </div>
+                                {item.data.zScore != null && (
+                                  <div>
+                                    <div className="data-label">Z-Score</div>
+                                    <div className="data-value">{(item.data.zScore as number).toFixed(2)} σ</div>
+                                  </div>
+                                )}
                               </>
                             )}
-                            {item.type === 'price' && (
+                            {item.type === 'price' && item.data.price != null && (
                               <div className="price-data">
                                 <span className="label">触发价:</span>
-                                <span className="value emerald">{item.data.triggerPrice as number}</span>
-                                <span className="prev">{item.data.prevPrice as number} (前值)</span>
+                                <span className="value emerald">{(item.data.price as number).toFixed(2)}</span>
                               </div>
                             )}
-                            {item.type === 'ah_premium' && (
+                            {item.type === 'ah_premium' && item.data.premium != null && (
                               <div className="premium-data">
                                 <div className="premium-row">
                                   <span className="label">溢价率 (Premium)</span>
