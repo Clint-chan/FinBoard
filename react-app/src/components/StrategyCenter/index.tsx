@@ -153,6 +153,12 @@ export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHisto
     }
     window.addEventListener('storage', handleStorage)
     
+    // 监听自定义事件（同一标签页内的修改）
+    const handleStrategiesUpdated = () => {
+      loadData()
+    }
+    window.addEventListener('strategies-updated', handleStrategiesUpdated)
+    
     // 监听页面可见性变化（切换回来时刷新）
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
@@ -163,6 +169,7 @@ export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHisto
     
     return () => {
       window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('strategies-updated', handleStrategiesUpdated)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [])

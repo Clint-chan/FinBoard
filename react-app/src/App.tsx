@@ -220,6 +220,9 @@ function App() {
     }
     
     saveStrategies(existingStrategies)
+    
+    // 触发自定义事件通知策略中心刷新
+    window.dispatchEvent(new CustomEvent('strategies-updated'))
   }, [config.alerts, stockData, updateConfig])
 
   // 从 AI 卡片直接保存多个预警（追加到现有条件）
