@@ -64,6 +64,7 @@ export interface UserConfig {
   alertHistory?: StrategyAlertHistoryItem[] // 策略预警历史记录（云同步）
   refreshOnlyInMarketHours?: boolean // 仅在交易时间刷新
   strategyCheckInterval?: number // 策略检查间隔（秒），用于非价格策略如配对监控、AH溢价等
+  strategies?: unknown[] // 策略中心的策略列表（云同步）
 }
 
 // 用户资料

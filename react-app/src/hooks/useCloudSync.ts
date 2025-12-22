@@ -5,6 +5,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { cloudSaveConfig, cloudLoadConfig, verifyToken } from '@/services/cloudService'
 import { migrateConfig } from '@/services/migrationService'
+import { loadStrategies, saveStrategies } from '@/services/strategyService'
 import type { UserConfig } from '@/types'
 
 interface CloudAuth {
@@ -18,6 +19,22 @@ interface UseCloudSyncOptions {
 }
 
 const AUTH_STORAGE_KEY = 'market_board_auth'
+
+// 从云端配置中提取策略并保存到 localStorage
+function syncStrategiesToLocal(cloudConfig: Partial<UserConfig>) {
+  if (cloudConfig.strategies && Array.isArray(cloudConfig.strategies)) {
+    console.log('[CloudSync] 同步策略到本地:', cloudConfig.strategies.length, '个策略')
+    saveStrategies(cloudConfig.strategies as any[])
+    // 触发策略更新事件
+    window.dispatchEvent(new CustomEvent('strategies-updated'))
+  }
+}
+
+// 将本地策略添加到配置中准备上传
+function addStrategiesToConfig(config: UserConfig): UserConfig {
+  const strategies = loadStrategies()
+  return { ...config, strategies }
+}
 
 export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
   const [auth, setAuth] = useState<CloudAuth | null>(() => {
@@ -47,6 +64,8 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
       if (cloudConfig) {
         // 迁移旧版数据格式
         const migratedConfig = migrateConfig(cloudConfig)
+        // 同步策略到本地
+        syncStrategiesToLocal(migratedConfig)
         onConfigLoaded(migratedConfig)
       }
       setLastSyncTime(new Date())
@@ -66,6 +85,8 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
           if (cloudConfig) {
             // 迁移旧版数据格式
             const migratedConfig = migrateConfig(cloudConfig)
+            // 同步策略到本地
+            syncStrategiesToLocal(migratedConfig)
             onConfigLoaded(migratedConfig)
           }
         }).catch(err => {
@@ -99,7 +120,9 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
     saveTimeoutRef.current = window.setTimeout(async () => {
       setSyncing(true)
       try {
-        await cloudSaveConfig(auth.token, config)
+        // 将本地策略添加到配置中一起上传
+        const configWithStrategies = addStrategiesToConfig(config)
+        await cloudSaveConfig(auth.token, configWithStrategies)
         setLastSyncTime(new Date())
       } catch (err) {
         console.error('Failed to save config to cloud:', err)
@@ -123,7 +146,9 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
         // 迁移旧版数据格式
         const migratedConfig = migrateConfig(cloudConfig)
         console.log('[CloudSync] 迁移后配置:', migratedConfig)
-        console.log('[CloudSync] 迁移后 alerts:', migratedConfig.alerts)
+        console.log('[CloudSync] 迁移后 strategies:', migratedConfig.strategies?.length || 0, '个策略')
+        // 同步策略到本地
+        syncStrategiesToLocal(migratedConfig)
         onConfigLoaded(migratedConfig)
       }
       
@@ -169,6 +194,19 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
     }
   }, [])
 
+  // 监听策略更新事件，触发云同步
+  useEffect(() => {
+    if (!auth?.token) return
+    
+    const handleStrategiesUpdated = () => {
+      console.log('[CloudSync] 检测到策略更新，触发云同步')
+      saveToCloud()
+    }
+    
+    window.addEventListener('strategies-updated', handleStrategiesUpdated)
+    return () => window.removeEventListener('strategies-updated', handleStrategiesUpdated)
+  }, [auth?.token, saveToCloud])
+
   return {
     isLoggedIn: !!auth,
     username: auth?.username || null,
@@ -176,7 +214,8 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
     lastSyncTime,
     login,
     logout,
-    sync
+    sync,
+    triggerSave: saveToCloud // 暴露手动触发保存的方法
   }
 }
 
