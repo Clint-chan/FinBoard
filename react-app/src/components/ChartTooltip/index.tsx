@@ -2,7 +2,7 @@
  * ChartTooltip - 分时图悬浮组件
  * 完全对照原版 js/view.js 的 moveChart 函数实现位置计算
  */
-import { useState, useCallback, useRef, useLayoutEffect } from 'react'
+import { useState, useCallback, useRef, useLayoutEffect, useEffect } from 'react'
 import { SuperChart } from '@/components/SuperChart'
 import type { ChartConfig, ChartPeriod, SubIndicator } from '@/components/SuperChart/types'
 import './ChartTooltip.css'
@@ -144,6 +144,24 @@ function ChartTooltip({
     }
   }, [visible, calculatePosition])
 
+  // 检测是否是移动端 - 提前定义，供后续 hooks 使用
+  const isMobile = window.innerWidth <= 768
+
+  // 监听内部尺寸变化（如添加副图指标导致高度变化），实现自适应定位
+  useEffect(() => {
+    if (!tooltipRef.current || !visible || isMobile) return
+    
+    const observer = new ResizeObserver(() => {
+      if (tooltipRef.current) {
+        const rect = tooltipRef.current.getBoundingClientRect()
+        setPosition(calculatePosition(rect.width, rect.height))
+      }
+    })
+    
+    observer.observe(tooltipRef.current)
+    return () => observer.disconnect()
+  }, [visible, calculatePosition, isMobile])
+
   // 使用全局配置 - 所有股票共享
   const defaultTab: ChartPeriod = globalChartConfig.tab
   const defaultSubIndicators: SubIndicator[] = globalChartConfig.subIndicators
@@ -154,9 +172,6 @@ function ChartTooltip({
     globalChartConfig = config
     saveGlobalConfig()
   }, [])
-
-  // 检测是否是移动端
-  const isMobile = window.innerWidth <= 768
   
   // 移动端关闭处理
   const handleMobileClose = useCallback(() => {
@@ -189,7 +204,9 @@ function ChartTooltip({
         </button>
       )}
       
-      <SuperChart
+      {/* 关键修复：给 SuperChart 包裹层强制开启交互，解决 pointer-events 死锁 */}
+      <div style={{ pointerEvents: 'auto', height: '100%' }}>
+        <SuperChart
         key={code}
         code={code}
         width={isMobile ? window.innerWidth : 440}
@@ -204,6 +221,7 @@ function ChartTooltip({
         fillContainer={isMobile}
         alertLines={alertLines}
       />
+      </div>
     </div>
   )
 }
