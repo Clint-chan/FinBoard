@@ -16,6 +16,7 @@
               height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
   width: 460px; /* 固定宽度，避免突兀变化 */
+  min-height: 390px; /* 确保 VOL 副图完整显示: header(90) + toolbar(38) + padding(20) + main(150) + gap(15) + sub(72) + padding(12) ≈ 390 */
 }
 
 .chart-tooltip.show {
