@@ -4,7 +4,6 @@ import { useQuotes } from '@/hooks/useQuotes'
 import { useTheme } from '@/hooks/useTheme'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useCloudSync } from '@/hooks/useCloudSync'
-import { useAlertCheck } from '@/hooks/useAlertCheck'
 import { requestNotificationPermission } from '@/utils/format'
 import { runMigration } from '@/services/migrationService'
 import { loadStrategies, saveStrategies, generateStrategyId } from '@/services/strategyService'
@@ -26,7 +25,7 @@ import { StrategyCenter } from '@/components/StrategyCenter'
 import { AnalysisDrawer } from '@/components/AnalysisDrawer'
 import { BossScreen } from '@/components/BossScreen'
 import { DEFAULT_CONFIG } from '@/services/config'
-import type { UserConfig, PageType, ContextMenuState, ChartTooltipState, UserProfile, AlertCondition, StrategyAlertHistoryItem } from '@/types'
+import type { UserConfig, PageType, ContextMenuState, ChartTooltipState, UserProfile, AlertCondition } from '@/types'
 import '@/styles/index.css'
 
 // 在应用启动前执行数据迁移
@@ -114,61 +113,6 @@ function App() {
     setConfig(prev => ({ ...prev, ...updates }))
   }, [setConfig])
 
-  // 预警触发回调 - 标记条件已触发并保存到历史记录
-  const handleAlertTriggered = useCallback((code: string, condIndex: number, price: number) => {
-    const alert = config.alerts[code]
-    if (!alert?.conditions?.[condIndex]) return
-    
-    const condition = alert.conditions[condIndex]
-    
-    // 标记条件已触发
-    const newConditions = [...alert.conditions]
-    if (!newConditions[condIndex].triggered) {
-      const triggeredAt = Date.now()
-      newConditions[condIndex] = {
-        ...newConditions[condIndex],
-        triggered: true,
-        triggeredAt
-      }
-      
-      // 保存到历史记录
-      const stockName = stockData[code]?.name || code
-      const condTypeLabel = condition.type === 'price' ? '价格' : '涨跌幅'
-      const condOpLabel = condition.operator === 'above' ? '突破' : '跌破'
-      const newHistoryItem: StrategyAlertHistoryItem = {
-        id: `alert_${code}_${condIndex}_${triggeredAt}`,
-        type: 'price',
-        title: `${stockName} ${condTypeLabel}${condOpLabel}`,
-        description: `${condTypeLabel}${condOpLabel} ${condition.value}${condition.type === 'pct' ? '%' : ''} (当前: ${price.toFixed(2)})${condition.note ? ` - ${condition.note}` : ''}`,
-        timestamp: triggeredAt,
-        data: {
-          code,
-          stockName,
-          conditionType: condition.type,
-          conditionOperator: condition.operator,
-          conditionValue: condition.value,
-          price,
-          note: condition.note
-        }
-      }
-      
-      const newHistory = [newHistoryItem, ...(config.alertHistory || [])].slice(0, 100)
-      
-      updateConfig({
-        alerts: { ...config.alerts, [code]: { conditions: newConditions } },
-        alertHistory: newHistory
-      })
-    }
-  }, [config.alerts, config.alertHistory, stockData, updateConfig])
-
-  // 预警检查
-  useAlertCheck({
-    stockData,
-    alerts: config.alerts,
-    pctThreshold: config.pctThreshold,
-    onAlertTriggered: handleAlertTriggered
-  })
-
   // 请求通知权限
   useEffect(() => {
     requestNotificationPermission()
@@ -197,15 +141,53 @@ function App() {
     setContextMenu({ open: false, x: 0, y: 0, code: null })
   }, [config, updateConfig])
 
-  // 保存预警（同时同步到策略中心）
-  const saveAlert = useCallback((code: string, conditions: AlertCondition[]) => {
-    // 1. 保存到老的预警系统
-    updateConfig({
-      alerts: { ...config.alerts, [code]: { conditions } }
+  // 从策略中心获取指定股票的预警条件
+  const getAlertConditions = useCallback((code: string): AlertCondition[] => {
+    const strategies = loadStrategies()
+    const strategy = strategies.find(
+      s => s.type === 'price' && (s as PriceAlertStrategy).code === code
+    ) as PriceAlertStrategy | undefined
+    
+    if (!strategy?.conditions) return []
+    
+    return strategy.conditions.map(c => ({
+      type: c.type,
+      operator: c.operator,
+      value: c.value,
+      note: c.note,
+      triggered: c.triggered,
+      triggeredAt: c.triggeredAt
+    }))
+  }, [])
+
+  // 获取所有股票的预警配置（用于图表显示预警线）
+  const getAlertsForChart = useCallback((): Record<string, { conditions: AlertCondition[] }> => {
+    const strategies = loadStrategies()
+    const alerts: Record<string, { conditions: AlertCondition[] }> = {}
+    
+    strategies.forEach(s => {
+      if (s.type === 'price') {
+        const ps = s as PriceAlertStrategy
+        alerts[ps.code] = {
+          conditions: ps.conditions.map(c => ({
+            type: c.type,
+            operator: c.operator,
+            value: c.value,
+            note: c.note,
+            triggered: c.triggered,
+            triggeredAt: c.triggeredAt
+          }))
+        }
+      }
     })
+    
+    return alerts
+  }, [])
+
+  // 保存预警（只写入策略中心）
+  const saveAlert = useCallback((code: string, conditions: AlertCondition[]) => {
     setAlertModal({ open: false, code: null })
     
-    // 2. 同步到策略中心
     const stockName = stockData[code]?.name || code.toUpperCase()
     const existingStrategies = loadStrategies()
     
@@ -225,11 +207,16 @@ function App() {
     }))
     
     if (existingStrategyIndex >= 0) {
-      // 更新现有策略
-      const existingStrategy = existingStrategies[existingStrategyIndex] as PriceAlertStrategy
-      existingStrategy.conditions = strategyConditions
-      existingStrategy.updatedAt = Date.now()
-      existingStrategies[existingStrategyIndex] = existingStrategy
+      if (conditions.length > 0) {
+        // 更新现有策略
+        const existingStrategy = existingStrategies[existingStrategyIndex] as PriceAlertStrategy
+        existingStrategy.conditions = strategyConditions
+        existingStrategy.updatedAt = Date.now()
+        existingStrategies[existingStrategyIndex] = existingStrategy
+      } else {
+        // 如果条件为空，删除策略
+        existingStrategies.splice(existingStrategyIndex, 1)
+      }
     } else if (conditions.length > 0) {
       // 创建新策略（只有有条件时才创建）
       const newStrategy: PriceAlertStrategy = {
@@ -251,12 +238,11 @@ function App() {
     
     // 触发自定义事件通知策略中心刷新
     window.dispatchEvent(new CustomEvent('strategies-updated'))
-  }, [config.alerts, stockData, updateConfig])
+  }, [stockData])
 
   // 从 AI 卡片直接保存多个预警（追加到现有条件）
   const saveAlertsFromAI = useCallback((code: string, alerts: Array<{ price: number; operator: 'above' | 'below'; note: string }>) => {
     // 标准化 code 格式：确保与 config.codes 中的格式一致
-    // AI 可能返回 "sh600233" 或 "600233"，需要匹配到正确的 code
     let normalizedCode = code
     
     // 如果 code 不在 config.codes 中，尝试添加前缀
@@ -286,7 +272,7 @@ function App() {
       note: a.note
     }))
     
-    // === 保存到新的策略系统 ===
+    // 保存到策略中心
     const existingStrategies = loadStrategies()
     
     // 查找该股票是否已有价格预警策略
@@ -331,21 +317,9 @@ function App() {
     
     saveStrategies(existingStrategies)
     
-    // === 同时保存到老的预警系统（保持兼容） ===
-    const existingOldConditions = config.alerts[normalizedCode]?.conditions || []
-    const allOldConditions: AlertCondition[] = [...existingOldConditions]
-    newConditions.forEach(nc => {
-      const exists = allOldConditions.some(ec => 
-        ec.type === nc.type && ec.operator === nc.operator && ec.value === nc.value
-      )
-      if (!exists) {
-        allOldConditions.push(nc as AlertCondition)
-      }
-    })
-    updateConfig({
-      alerts: { ...config.alerts, [normalizedCode]: { conditions: allOldConditions } }
-    })
-  }, [config.alerts, config.codes, stockData, updateConfig])
+    // 触发自定义事件通知策略中心刷新
+    window.dispatchEvent(new CustomEvent('strategies-updated'))
+  }, [config.codes, stockData])
 
   // 保存成本
   const saveCost = useCallback((code: string, cost: number | null) => {
@@ -779,7 +753,7 @@ function App() {
             onOpenAlert={(code, price) => {
               setAlertModal({ open: true, code, initialPrice: price })
             }}
-            alerts={config.alerts}
+            alerts={getAlertsForChart()}
           />
         </div>
       )}
@@ -815,7 +789,7 @@ function App() {
         open={alertModal.open}
         code={alertModal.code}
         stockData={alertModal.code ? stockData[alertModal.code] : undefined}
-        conditions={alertModal.code ? config.alerts[alertModal.code]?.conditions || [] : []}
+        conditions={alertModal.code ? getAlertConditions(alertModal.code) : []}
         onClose={() => setAlertModal({ open: false, code: null })}
         onSave={saveAlert}
         initialPrice={alertModal.initialPrice}
@@ -851,8 +825,8 @@ function App() {
         y={chartTooltip.y}
         onMouseEnter={handleChartMouseEnter}
         onMouseLeave={handleChartMouseLeave}
-        alertLines={chartTooltip.code && config.alerts[chartTooltip.code]
-          ? config.alerts[chartTooltip.code].conditions
+        alertLines={chartTooltip.code 
+          ? getAlertConditions(chartTooltip.code)
               .filter(c => c.type === 'price' && !c.triggered)
               .map(c => ({ price: c.value, operator: c.operator, note: c.note }))
           : []}
@@ -870,7 +844,7 @@ function App() {
           setAlertModal({ open: true, code, initialPrice: price })
         }}
         onSaveAlerts={saveAlertsFromAI}
-        alerts={config.alerts}
+        alerts={getAlertsForChart()}
       />
 
       {/* 老板键遮罩 */}

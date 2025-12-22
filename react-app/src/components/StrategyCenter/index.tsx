@@ -174,9 +174,103 @@ export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHisto
     }
   }, [])
 
-  // 定时检查策略（每30秒）
+  // 价格预警实时检查（跟随 stockData 变化）
   useEffect(() => {
-    if (strategies.length === 0) return
+    if (Object.keys(stockData).length === 0) return
+    if (!isMarketOpen()) return
+    
+    const priceStrategies = strategies.filter(s => s.type === 'price' && s.enabled) as PriceAlertStrategy[]
+    if (priceStrategies.length === 0) return
+    
+    let hasUpdate = false
+    const updatedStrategies = strategies.map(strategy => {
+      if (strategy.type !== 'price' || !strategy.enabled) return strategy
+      
+      const ps = strategy as PriceAlertStrategy
+      const stock = stockData[ps.code]
+      if (!stock) return strategy
+      
+      const price = stock.price
+      const pct = stock.preClose ? ((price - stock.preClose) / stock.preClose * 100) : 0
+      
+      // 检查每个条件
+      let strategyTriggered = false
+      const updatedConditions = ps.conditions.map((cond, condIdx) => {
+        if (cond.triggered) return cond // 已触发的跳过
+        
+        let condTriggered = false
+        if (cond.type === 'price') {
+          condTriggered = cond.operator === 'above' ? price >= cond.value : price <= cond.value
+        } else if (cond.type === 'pct') {
+          const pctAbs = Math.abs(pct)
+          condTriggered = cond.operator === 'above' ? pctAbs >= cond.value : pctAbs <= cond.value
+        }
+        
+        if (condTriggered) {
+          strategyTriggered = true
+          hasUpdate = true
+          
+          // 发送通知（如果未通知过）
+          const alertKey = `${ps.id}_cond${condIdx}`
+          if (!notifiedStrategies.current.has(alertKey)) {
+            notifiedStrategies.current.add(alertKey)
+            
+            const condTypeLabel = cond.type === 'price' ? '价格' : '涨跌幅'
+            const condOpLabel = cond.operator === 'above' ? '突破' : '跌破'
+            const title = cond.note 
+              ? `${ps.stockName || ps.code} - ${cond.note}`
+              : `${ps.stockName || ps.code} ${condTypeLabel}${condOpLabel}`
+            const body = cond.type === 'price'
+              ? `当前价 ${price.toFixed(2)}，${condOpLabel} ${cond.value}`
+              : `当前涨跌幅 ${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%，${condOpLabel} ${cond.value}%`
+            
+            sendNotification(title, body)
+            
+            // 保存到历史记录
+            saveAlertHistory({
+              id: `${ps.id}_cond${condIdx}_${Date.now()}`,
+              type: 'price',
+              title: `${ps.stockName || ps.code} ${condTypeLabel}${condOpLabel}`,
+              description: `${body}${cond.note ? ` (${cond.note})` : ''}`,
+              timestamp: Date.now(),
+              data: {
+                code: ps.code,
+                stockName: ps.stockName,
+                conditionType: cond.type,
+                conditionOperator: cond.operator,
+                conditionValue: cond.value,
+                price,
+                note: cond.note
+              }
+            })
+          }
+          
+          return { ...cond, triggered: true, triggeredAt: Date.now() }
+        }
+        return cond
+      })
+      
+      if (strategyTriggered) {
+        return {
+          ...ps,
+          conditions: updatedConditions,
+          status: 'triggered' as const,
+          triggeredAt: ps.triggeredAt || Date.now()
+        }
+      }
+      return strategy
+    })
+    
+    if (hasUpdate) {
+      setStrategies(updatedStrategies)
+      saveStrategies(updatedStrategies)
+    }
+  }, [stockData, strategies, saveAlertHistory])
+
+  // 定时检查非价格策略（每30秒）- 配对监控、AH溢价等需要请求API
+  useEffect(() => {
+    const nonPriceStrategies = strategies.filter(s => s.type !== 'price')
+    if (nonPriceStrategies.length === 0) return
 
     const check = async () => {
       try {
@@ -278,7 +372,7 @@ export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHisto
 
     const interval = setInterval(check, 30000)
     return () => clearInterval(interval)
-  }, [strategies.length])
+  }, [strategies.filter(s => s.type !== 'price').length, saveAlertHistory])
 
   // 筛选策略
   const filteredStrategies = useMemo(() => {
