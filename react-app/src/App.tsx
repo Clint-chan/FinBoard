@@ -26,7 +26,7 @@ import { StrategyCenter } from '@/components/StrategyCenter'
 import { AnalysisDrawer } from '@/components/AnalysisDrawer'
 import { BossScreen } from '@/components/BossScreen'
 import { DEFAULT_CONFIG } from '@/services/config'
-import type { UserConfig, PageType, ContextMenuState, ChartTooltipState, UserProfile, AlertCondition } from '@/types'
+import type { UserConfig, PageType, ContextMenuState, ChartTooltipState, UserProfile, AlertCondition, StrategyAlertHistoryItem } from '@/types'
 import '@/styles/index.css'
 
 // 在应用启动前执行数据迁移
@@ -114,24 +114,52 @@ function App() {
     setConfig(prev => ({ ...prev, ...updates }))
   }, [setConfig])
 
-  // 预警触发回调 - 标记条件已触发
-  const handleAlertTriggered = useCallback((code: string, condIndex: number, _price: number) => {
+  // 预警触发回调 - 标记条件已触发并保存到历史记录
+  const handleAlertTriggered = useCallback((code: string, condIndex: number, price: number) => {
     const alert = config.alerts[code]
     if (!alert?.conditions?.[condIndex]) return
+    
+    const condition = alert.conditions[condIndex]
     
     // 标记条件已触发
     const newConditions = [...alert.conditions]
     if (!newConditions[condIndex].triggered) {
+      const triggeredAt = Date.now()
       newConditions[condIndex] = {
         ...newConditions[condIndex],
         triggered: true,
-        triggeredAt: Date.now()
+        triggeredAt
       }
+      
+      // 保存到历史记录
+      const stockName = stockData[code]?.name || code
+      const condTypeLabel = condition.type === 'price' ? '价格' : '涨跌幅'
+      const condOpLabel = condition.operator === 'above' ? '突破' : '跌破'
+      const newHistoryItem: StrategyAlertHistoryItem = {
+        id: `alert_${code}_${condIndex}_${triggeredAt}`,
+        type: 'price',
+        title: `${stockName} ${condTypeLabel}${condOpLabel}`,
+        description: `${condTypeLabel}${condOpLabel} ${condition.value}${condition.type === 'pct' ? '%' : ''} (当前: ${price.toFixed(2)})${condition.note ? ` - ${condition.note}` : ''}`,
+        timestamp: triggeredAt,
+        data: {
+          code,
+          stockName,
+          conditionType: condition.type,
+          conditionOperator: condition.operator,
+          conditionValue: condition.value,
+          price,
+          note: condition.note
+        }
+      }
+      
+      const newHistory = [newHistoryItem, ...(config.alertHistory || [])].slice(0, 100)
+      
       updateConfig({
-        alerts: { ...config.alerts, [code]: { conditions: newConditions } }
+        alerts: { ...config.alerts, [code]: { conditions: newConditions } },
+        alertHistory: newHistory
       })
     }
-  }, [config.alerts, updateConfig])
+  }, [config.alerts, config.alertHistory, stockData, updateConfig])
 
   // 预警检查
   useAlertCheck({
