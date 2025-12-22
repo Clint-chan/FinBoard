@@ -11,7 +11,8 @@ export const DEFAULT_CONFIG: UserConfig = {
   alerts: {},
   costs: {},
   theme: 'auto',
-  refreshOnlyInMarketHours: true // 默认仅在交易时间刷新
+  refreshOnlyInMarketHours: true, // 默认仅在交易时间刷新
+  strategyCheckInterval: 30 // 策略检查间隔（秒），默认30秒
 }
 
 // 预设头像列表

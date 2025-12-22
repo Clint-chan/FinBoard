@@ -30,6 +30,7 @@ interface StrategyCenterProps {
   stockData?: Record<string, StockData>
   alertHistory?: StrategyAlertHistoryItem[]
   onAlertHistoryChange?: (history: StrategyAlertHistoryItem[]) => void
+  strategyCheckInterval?: number // 策略检查间隔（秒），默认30秒
 }
 
 // 策略类型 Tab - 使用优化后的 SVG 图标
@@ -108,7 +109,7 @@ const Icons = {
 // 筛选状态类型
 type FilterStatus = 'all' | 'triggered' | 'running'
 
-export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHistoryChange }: StrategyCenterProps) {
+export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHistoryChange, strategyCheckInterval = 30 }: StrategyCenterProps) {
   const [strategies, setStrategies] = useState<Strategy[]>([])
   const [activeTab, setActiveTab] = useState<StrategyType | 'all'>('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -370,9 +371,9 @@ export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHisto
     // 首次加载时检查
     check()
 
-    const interval = setInterval(check, 30000)
+    const interval = setInterval(check, strategyCheckInterval * 1000)
     return () => clearInterval(interval)
-  }, [strategies.filter(s => s.type !== 'price').length, saveAlertHistory])
+  }, [strategies.filter(s => s.type !== 'price').length, saveAlertHistory, strategyCheckInterval])
 
   // 筛选策略
   const filteredStrategies = useMemo(() => {

@@ -22,6 +22,7 @@ interface MobileProfileProps {
     refreshOnlyInMarketHours: boolean
     quoteSource: QuoteSource
     theme: 'light' | 'dark' | 'auto'
+    strategyCheckInterval?: number
   }
   onConfigChange: (updates: {
     interval?: number
@@ -29,6 +30,7 @@ interface MobileProfileProps {
     refreshOnlyInMarketHours?: boolean
     quoteSource?: QuoteSource
     theme?: 'light' | 'dark' | 'auto'
+    strategyCheckInterval?: number
   }) => void
 }
 
@@ -286,6 +288,22 @@ export function MobileProfile({
               <option value="tencent">腾讯财经</option>
               <option value="sina">新浪财经</option>
             </select>
+          </div>
+
+          <div className="mp-setting-item">
+            <div className="mp-setting-label">
+              <span>策略检查间隔</span>
+              <span className="mp-setting-hint">配对监控、AH溢价等策略检查频率</span>
+            </div>
+            <div className="mp-setting-control">
+              <input
+                type="number"
+                value={config.strategyCheckInterval ?? 30}
+                min={10}
+                onChange={e => onConfigChange({ strategyCheckInterval: parseInt(e.target.value) || 30 })}
+              />
+              <span>秒</span>
+            </div>
           </div>
         </div>
 

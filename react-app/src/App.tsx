@@ -604,7 +604,8 @@ function App() {
               pctThreshold: config.pctThreshold,
               refreshOnlyInMarketHours: config.refreshOnlyInMarketHours ?? true,
               quoteSource: config.quoteSource || 'eastmoney',
-              theme: config.theme
+              theme: config.theme,
+              strategyCheckInterval: config.strategyCheckInterval ?? 30
             }}
             onConfigChange={updateConfig}
           />
@@ -722,6 +723,21 @@ function App() {
                   </select>
                 </div>
               </div>
+              <div className="settings-row">
+                <div>
+                  <label>策略检查间隔</label>
+                  <div className="hint">配对监控、AH溢价等策略的检查频率（价格预警跟随行情刷新）</div>
+                </div>
+                <div className="settings-input">
+                  <input
+                    type="number"
+                    value={config.strategyCheckInterval ?? 30}
+                    min={10}
+                    onChange={(e) => updateConfig({ strategyCheckInterval: parseInt(e.target.value) || 30 })}
+                  />
+                  <span>秒</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -733,6 +749,7 @@ function App() {
             stockData={stockData}
             alertHistory={config.alertHistory}
             onAlertHistoryChange={(history) => updateConfig({ alertHistory: history })}
+            strategyCheckInterval={config.strategyCheckInterval ?? 30}
           />
         )}
       </main>
