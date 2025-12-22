@@ -130,17 +130,17 @@ function ChartTooltip({
       if (!tooltipRef.current) return
       const tooltipRect = tooltipRef.current.getBoundingClientRect()
       const tooltipW = tooltipRect.width || 460
-      const tooltipH = tooltipRect.height || 390
+      const tooltipH = tooltipRect.height || 350
       setPosition(calculatePosition(tooltipW, tooltipH))
     })
     
     return () => cancelAnimationFrame(frame)
   }, [visible, x, y, calculatePosition])
   
-  // 初始位置使用估算值 - 高度需要足够容纳 VOL 副图
+  // 初始位置使用估算值
   useLayoutEffect(() => {
     if (visible) {
-      setPosition(calculatePosition(460, 390))
+      setPosition(calculatePosition(460, 350))
     }
   }, [visible, calculatePosition])
 
