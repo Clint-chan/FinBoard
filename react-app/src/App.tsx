@@ -169,13 +169,58 @@ function App() {
     setContextMenu({ open: false, x: 0, y: 0, code: null })
   }, [config, updateConfig])
 
-  // 保存预警
+  // 保存预警（同时同步到策略中心）
   const saveAlert = useCallback((code: string, conditions: AlertCondition[]) => {
+    // 1. 保存到老的预警系统
     updateConfig({
       alerts: { ...config.alerts, [code]: { conditions } }
     })
     setAlertModal({ open: false, code: null })
-  }, [config.alerts, updateConfig])
+    
+    // 2. 同步到策略中心
+    const stockName = stockData[code]?.name || code.toUpperCase()
+    const existingStrategies = loadStrategies()
+    
+    // 查找该股票是否已有价格预警策略
+    const existingStrategyIndex = existingStrategies.findIndex(
+      s => s.type === 'price' && (s as PriceAlertStrategy).code === code
+    )
+    
+    // 转换为策略中心的条件格式
+    const strategyConditions: PriceCondition[] = conditions.map(c => ({
+      type: c.type as 'price' | 'pct',
+      operator: c.operator,
+      value: c.value,
+      note: c.note,
+      triggered: c.triggered,
+      triggeredAt: c.triggeredAt
+    }))
+    
+    if (existingStrategyIndex >= 0) {
+      // 更新现有策略
+      const existingStrategy = existingStrategies[existingStrategyIndex] as PriceAlertStrategy
+      existingStrategy.conditions = strategyConditions
+      existingStrategy.updatedAt = Date.now()
+      existingStrategies[existingStrategyIndex] = existingStrategy
+    } else if (conditions.length > 0) {
+      // 创建新策略（只有有条件时才创建）
+      const newStrategy: PriceAlertStrategy = {
+        id: generateStrategyId(),
+        name: stockName,
+        type: 'price',
+        status: 'running',
+        enabled: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        code,
+        stockName,
+        conditions: strategyConditions
+      }
+      existingStrategies.push(newStrategy)
+    }
+    
+    saveStrategies(existingStrategies)
+  }, [config.alerts, stockData, updateConfig])
 
   // 从 AI 卡片直接保存多个预警（追加到现有条件）
   const saveAlertsFromAI = useCallback((code: string, alerts: Array<{ price: number; operator: 'above' | 'below'; note: string }>) => {

@@ -88,13 +88,14 @@ async function checkIPRegistered(db, ip) {
 }
 
 /**
- * 获取用户今日 AI 使用次数
+ * 获取用户今日 AI 使用次数（北京时间）
  */
 async function getTodayUsageFromDB(db, userId) {
+  const beijingDate = getBeijingDateStr();
   const result = await db.prepare(`
     SELECT COUNT(*) as count FROM ai_usage 
-    WHERE user_id = ? AND date(used_at) = date('now')
-  `).bind(userId).first()
+    WHERE user_id = ? AND date(used_at, '+8 hours') = ?
+  `).bind(userId, beijingDate).first()
   return result?.count || 0
 }
 
@@ -108,9 +109,10 @@ async function recordAIUsage(db, userId, mode, stockCode, stockName) {
 }
 
 /**
- * 获取所有用户（管理员用）
+ * 获取所有用户（管理员用，北京时间统计）
  */
 async function getAllUsersFromDB(db) {
+  const beijingDate = getBeijingDateStr();
   const users = await db.prepare(`
     SELECT 
       u.id,
@@ -118,10 +120,10 @@ async function getAllUsersFromDB(db) {
       u.ai_quota,
       u.register_ip,
       u.created_at,
-      (SELECT COUNT(*) FROM ai_usage WHERE user_id = u.id AND date(used_at) = date('now')) as ai_used_today
+      (SELECT COUNT(*) FROM ai_usage WHERE user_id = u.id AND date(used_at, '+8 hours') = ?) as ai_used_today
     FROM users u
     ORDER BY u.created_at DESC
-  `).all()
+  `).bind(beijingDate).all()
   return users.results || []
 }
 
@@ -665,10 +667,19 @@ function corsHeaders() {
   };
 }
 
-// 获取今天的日期字符串 YYYY-MM-DD
+// 获取北京时间今天的日期字符串 YYYY-MM-DD
 function getTodayStr() {
+  // 使用北京时间 (UTC+8)
   const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  return beijingTime.toISOString().split('T')[0];
+}
+
+// 获取北京时间今天的日期（用于 D1 SQL 查询）
+function getBeijingDateStr() {
+  const now = new Date();
+  const beijingTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  return beijingTime.toISOString().split('T')[0];
 }
 
 function jsonResponse(data, status = 200) {
