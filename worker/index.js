@@ -1,6 +1,26 @@
 // Cloudflare Worker - Market Board 配置同步 API (带登录功能)
 // 支持 KV（配置存储）和 D1（用户管理、AI 统计）
 
+// ============ 价格格式化辅助函数 ============
+
+/**
+ * 判断是否为 ETF（上海51开头，深圳15/16开头）
+ */
+function isETF(symbol) {
+  if (symbol.startsWith('51')) return true  // 上海 ETF
+  if (symbol.startsWith('15') || symbol.startsWith('16')) return true  // 深圳 ETF
+  return false
+}
+
+/**
+ * 格式化价格（ETF 3位小数，其他2位）
+ */
+function fmtPrice(price, symbol) {
+  if (price == null || isNaN(price)) return '--'
+  const digits = isETF(symbol) ? 3 : 2
+  return price.toFixed(digits)
+}
+
 // 管理员账号列表
 const ADMIN_USERS = ['cdg']
 
@@ -951,16 +971,19 @@ async function collectStockData(symbol) {
   const recent3_60min = klines60.slice(-3)
   const recent3_15min = klines15.slice(-3)
   
+  // 使用 fmtPrice 格式化价格（ETF 3位小数，其他2位）
+  const fp = (p) => fmtPrice(p, symbol)
+  
   let text = `## 1. 当前状态
 股票名称: ${rt.name}
 股票代码: ${symbol}
-当前价格: ${price}
+当前价格: ${fp(price)}
 涨跌幅: ${rt.change_pct.toFixed(2)}%
-涨跌额: ${rt.change_amount.toFixed(2)}
-今日最高: ${rt.high}
-今日最低: ${rt.low}
-今日开盘: ${rt.open}
-昨日收盘: ${rt.pre_close}
+涨跌额: ${fp(rt.change_amount)}
+今日最高: ${fp(rt.high)}
+今日最低: ${fp(rt.low)}
+今日开盘: ${fp(rt.open)}
+昨日收盘: ${fp(rt.pre_close)}
 振幅: ${rt.amplitude.toFixed(2)}%
 换手率: ${rt.turnover_rate.toFixed(2)}%
 量比: ${rt.volume_ratio.toFixed(2)}
@@ -1003,13 +1026,13 @@ async function collectStockData(symbol) {
     
     text += `
 ## ${sectionNum}. 分时走势
-昨收: ${intraday.preClose.toFixed(2)}
-当前均价: ${latest.avgPrice.toFixed(2)}
-上午高点: ${morningHigh.toFixed(2)}
-上午低点: ${morningLow.toFixed(2)}
-下午高点: ${afternoonHigh.toFixed(2)}
-下午低点: ${afternoonLow.toFixed(2)}
-当前价格: ${price.toFixed(2)}
+昨收: ${fp(intraday.preClose)}
+当前均价: ${fp(latest.avgPrice)}
+上午高点: ${fp(morningHigh)}
+上午低点: ${fp(morningLow)}
+下午高点: ${fp(afternoonHigh)}
+下午低点: ${fp(afternoonLow)}
+当前价格: ${fp(price)}
 `
     sectionNum++
   }
@@ -1045,16 +1068,16 @@ async function collectStockData(symbol) {
   const atrPct = atr / price * 100
   text += `
 ## ${sectionNum}. 波动率(ATR)
-近3日ATR: ${atr.toFixed(2)}
+近3日ATR: ${fp(atr)}
 ATR百分比: ${atrPct.toFixed(2)}%
 `
   sectionNum++
   
   text += `
 ## ${sectionNum}. 技术指标 - 日K线
-MA5: ${indDaily.ma.ma5.toFixed(2)}
-MA10: ${indDaily.ma.ma10.toFixed(2)}
-MA20: ${indDaily.ma.ma20.toFixed(2)}
+MA5: ${fp(indDaily.ma.ma5)}
+MA10: ${fp(indDaily.ma.ma10)}
+MA20: ${fp(indDaily.ma.ma20)}
 MACD_DIF: ${indDaily.macd.dif.toFixed(4)}
 MACD_DEA: ${indDaily.macd.dea.toFixed(4)}
 MACD: ${indDaily.macd.macd.toFixed(4)}
@@ -1062,8 +1085,8 @@ RSI6: ${indDaily.rsi.rsi6.toFixed(2)}
 RSI12: ${indDaily.rsi.rsi12.toFixed(2)}
 
 ## ${sectionNum + 1}. 技术指标 - 60分钟K线
-MA5: ${ind60.ma.ma5.toFixed(2)}
-MA10: ${ind60.ma.ma10.toFixed(2)}
+MA5: ${fp(ind60.ma.ma5)}
+MA10: ${fp(ind60.ma.ma10)}
 MACD_DIF: ${ind60.macd.dif.toFixed(4)}
 MACD_DEA: ${ind60.macd.dea.toFixed(4)}
 MACD: ${ind60.macd.macd.toFixed(4)}
@@ -1071,8 +1094,8 @@ RSI6: ${ind60.rsi.rsi6.toFixed(2)}
 RSI12: ${ind60.rsi.rsi12.toFixed(2)}
 
 ## ${sectionNum + 2}. 技术指标 - 15分钟K线
-MA5: ${ind15.ma.ma5.toFixed(2)}
-MA10: ${ind15.ma.ma10.toFixed(2)}
+MA5: ${fp(ind15.ma.ma5)}
+MA10: ${fp(ind15.ma.ma10)}
 MACD_DIF: ${ind15.macd.dif.toFixed(4)}
 MACD_DEA: ${ind15.macd.dea.toFixed(4)}
 MACD: ${ind15.macd.macd.toFixed(4)}
