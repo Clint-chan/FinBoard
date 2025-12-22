@@ -270,12 +270,13 @@ export function SuperChart({
   const totalSubH = subCount * subH + (subCount > 0 ? (subCount - 1) * subGap : 0)
   const currentMainSubGap = subCount > 0 ? mainSubGap : 0
   const canvasContentH = padding.top + mainH + currentMainSubGap + totalSubH + padding.bottom
-  const totalContainerH = headerH + toolbarH + canvasContentH
+  // 【关键修改】：加 4px 安全余量，防止底部被 overflow 切掉
+  const totalContainerH = headerH + toolbarH + canvasContentH + 4
 
   // fillContainer 模式：铺满父容器
   const containerStyle = fillContainer 
-    ? { height: '100%', transition: 'height 0.25s cubic-bezier(0.4, 0, 0.2, 1)' }
-    : { height: totalContainerH, transition: 'height 0.25s cubic-bezier(0.4, 0, 0.2, 1)' }
+    ? { height: '100%', transition: 'height 0.2s ease-out' }
+    : { height: totalContainerH, transition: 'height 0.2s ease-out' }
 
   return (
     <div 

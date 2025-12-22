@@ -210,9 +210,9 @@ export function ChartCanvas({
       })
     }
 
-    // 检查是否与预警线太近（Y坐标差小于15px则跳过）
+    // 检查是否与预警线太近（Y坐标差小于18px则跳过）
     const isNearAlert = (yPos: number): boolean => {
-      const minDistance = 15 // 最小间距（像素）
+      const minDistance = 18 // 最小间距（像素）
       return alertYPositions.some(alertY => Math.abs(yPos - alertY) < minDistance)
     }
 
@@ -646,15 +646,37 @@ export function ChartCanvas({
     if (!alerts || alerts.length === 0) return
     
     const axisX = padding.left + chartW
+    const labelH = 14
+    const minLabelGap = 16 // 标签之间的最小间距
     
-    alerts.forEach((alert, index) => {
-      const { price: alertPrice, operator, note } = alert
+    // 第一步：计算所有预警线的原始 Y 坐标
+    const alertsWithY = alerts
+      .map((alert, index) => {
+        const { price: alertPrice } = alert
+        // 检查价格是否在可见范围内
+        if (alertPrice < priceRange.min || alertPrice > priceRange.max) return null
+        
+        const y = padding.top + mainH - ((alertPrice - priceRange.min) / (priceRange.max - priceRange.min)) * mainH
+        return { ...alert, index, y, labelY: y } // labelY 用于标签位置，可能会被调整
+      })
+      .filter((a): a is NonNullable<typeof a> => a !== null)
+      .sort((a, b) => a.y - b.y) // 按 Y 坐标排序
+    
+    // 第二步：处理标签重叠 - 如果两个标签太近，向上或向下偏移
+    for (let i = 1; i < alertsWithY.length; i++) {
+      const prev = alertsWithY[i - 1]
+      const curr = alertsWithY[i]
+      const gap = curr.labelY - prev.labelY
       
-      // 检查价格是否在可见范围内
-      if (alertPrice < priceRange.min || alertPrice > priceRange.max) return
-      
-      // 计算Y坐标
-      const y = padding.top + mainH - ((alertPrice - priceRange.min) / (priceRange.max - priceRange.min)) * mainH
+      if (gap < minLabelGap) {
+        // 标签太近，将当前标签向下偏移
+        curr.labelY = prev.labelY + minLabelGap
+      }
+    }
+    
+    // 第三步：绘制所有预警线
+    alertsWithY.forEach((alertData) => {
+      const { price: alertPrice, operator, note, index, y, labelY } = alertData
       
       const isHovered = hoveredAlertIndex === index
       
@@ -690,13 +712,33 @@ export function ChartCanvas({
       ctx.fill()
       ctx.globalAlpha = 1
       
-      // 右侧价格文字 - 无背景，直接显示
+      // 右侧价格文字 - 添加背景，避免与刻度重叠时看不清
       ctx.font = '10px Inter, -apple-system, sans-serif'
+      const priceText = alertPrice.toFixed(priceDigits)
+      const textMetrics = ctx.measureText(priceText)
+      const labelW = textMetrics.width + 8
+      const labelX = axisX + 4
+      const labelTopY = labelY - labelH / 2
+      
+      // 背景 - 使用半透明背景
+      ctx.fillStyle = colors.bg
+      ctx.globalAlpha = 0.9
+      ctx.fillRect(labelX, labelTopY, labelW, labelH)
+      ctx.globalAlpha = 1
+      
+      // 边框
+      ctx.strokeStyle = colors.textSecondary
+      ctx.lineWidth = 0.5
+      ctx.globalAlpha = isHovered ? 0.8 : 0.4
+      ctx.strokeRect(labelX, labelTopY, labelW, labelH)
+      ctx.globalAlpha = 1
+      
+      // 文字
       ctx.textAlign = 'left'
       ctx.textBaseline = 'middle'
       ctx.fillStyle = colors.textSecondary
-      ctx.globalAlpha = isHovered ? 1 : 0.7
-      ctx.fillText(alertPrice.toFixed(priceDigits), axisX + 6, y)
+      ctx.globalAlpha = isHovered ? 1 : 0.8
+      ctx.fillText(priceText, labelX + 4, labelY)
       ctx.globalAlpha = 1
       
       // 如果有备注，在左侧显示
@@ -904,7 +946,7 @@ export function ChartCanvas({
       // 分时图
       drawIntradayMain(ctx, padding.left, padding.top, chartW, dynamicMainH, intradayData)
       // 分隔线在主图和副图之间
-      drawDivider(ctx, padding.left, subStartY - currentMainSubGap / 2, width - padding.left)
+      drawDivider(ctx, padding.left, subStartY - currentMainSubGap / 2, chartW)
       // 副图固定在底部
       drawSingleSubChart(ctx, padding.left, subStartY, chartW, subH, 'vol', crosshair?.x ?? null)
     } else if (klineData) {
@@ -912,7 +954,7 @@ export function ChartCanvas({
       drawKlineMain(ctx, padding.left, padding.top, chartW, dynamicMainH, klineData)
       // 分隔线在主图和副图之间
       if (subCount > 0) {
-        drawDivider(ctx, padding.left, subStartY - currentMainSubGap / 2, width - padding.left)
+        drawDivider(ctx, padding.left, subStartY - currentMainSubGap / 2, chartW)
       }
       
       // 副图固定在底部
@@ -923,7 +965,7 @@ export function ChartCanvas({
         // 副图分割线
         if (i < subIndicators.length - 1) {
           const lineY = subY + subH + (subGap / 2)
-          drawDivider(ctx, padding.left, lineY, width - padding.left)
+          drawDivider(ctx, padding.left, lineY, chartW)
         }
       })
     }

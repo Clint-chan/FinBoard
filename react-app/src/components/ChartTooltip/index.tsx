@@ -2,7 +2,7 @@
  * ChartTooltip - 分时图悬浮组件
  * 完全对照原版 js/view.js 的 moveChart 函数实现位置计算
  */
-import { useState, useCallback, useRef, useLayoutEffect, useEffect } from 'react'
+import { useState, useCallback, useRef, useLayoutEffect } from 'react'
 import { SuperChart } from '@/components/SuperChart'
 import type { ChartConfig, ChartPeriod, SubIndicator } from '@/components/SuperChart/types'
 import './ChartTooltip.css'
@@ -147,14 +147,16 @@ function ChartTooltip({
   // 检测是否是移动端 - 提前定义，供后续 hooks 使用
   const isMobile = window.innerWidth <= 768
 
-  // 监听内部尺寸变化（如添加副图指标导致高度变化），实现自适应定位
-  useEffect(() => {
+  // 【关键修复】：监听内部内容大小变化
+  // 解决：点开 MACD 后图表变高，但 Tooltip 没跟着变，导致显示不全的问题
+  useLayoutEffect(() => {
     if (!tooltipRef.current || !visible || isMobile) return
     
-    const observer = new ResizeObserver(() => {
-      if (tooltipRef.current) {
-        const rect = tooltipRef.current.getBoundingClientRect()
-        setPosition(calculatePosition(rect.width, rect.height))
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        // 获取最新的高度，重新计算位置（确保变高后不会超出屏幕底部）
+        const { width, height } = entry.contentRect
+        setPosition(calculatePosition(width, height))
       }
     })
     
@@ -205,22 +207,22 @@ function ChartTooltip({
       )}
       
       {/* 关键修复：给 SuperChart 包裹层强制开启交互，解决 pointer-events 死锁 */}
-      <div style={{ pointerEvents: 'auto', height: '100%' }}>
+      <div style={{ pointerEvents: 'auto' }}>
         <SuperChart
-        key={code}
-        code={code}
-        width={isMobile ? window.innerWidth : 440}
-        isDark={isDark}
-        defaultTab={defaultTab}
-        defaultSubIndicators={defaultSubIndicators}
-        showBoll={defaultShowBoll}
-        initialName={stockName}
-        initialPrice={stockPrice}
-        initialPreClose={stockPreClose}
-        onConfigChange={handleConfigChange}
-        fillContainer={isMobile}
-        alertLines={alertLines}
-      />
+          key={code}
+          code={code}
+          width={isMobile ? window.innerWidth : 460}
+          isDark={isDark}
+          defaultTab={defaultTab}
+          defaultSubIndicators={defaultSubIndicators}
+          showBoll={defaultShowBoll}
+          initialName={stockName}
+          initialPrice={stockPrice}
+          initialPreClose={stockPreClose}
+          onConfigChange={handleConfigChange}
+          fillContainer={isMobile}
+          alertLines={alertLines}
+        />
       </div>
     </div>
   )

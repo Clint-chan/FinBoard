@@ -2,8 +2,9 @@
 .super-chart {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  /* 移除 height: 100%，让 inline style 控制高度 */
   background: var(--bg-surface);
+  overflow: visible; /* 确保内容不被裁剪 */
 }
 
 .sc-header {
@@ -221,8 +222,8 @@
   flex: 1;
   padding: 0;
   position: relative;
-  overflow: hidden;
-  transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: visible; /* 改为 visible，避免副图被截断 */
+  transition: height 0.2s ease-out;
 }
 
 .sc-canvas {
