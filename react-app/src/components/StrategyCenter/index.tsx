@@ -10,7 +10,8 @@ import type {
   SectorArbStrategy,
   AHPremiumStrategy,
   FakeBreakoutStrategy,
-  PriceAlertStrategy
+  PriceAlertStrategy,
+  PriceCondition
 } from '@/types/strategy'
 import type { StockData, StrategyAlertHistoryItem } from '@/types'
 import {
@@ -360,6 +361,50 @@ export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHisto
     setModalOpen(true)
   }, [])
 
+  // 确认价格预警条件 - 标记为已确认并加入历史记录
+  const handleConfirmCondition = useCallback((strategyId: string, conditionIndex: number, condition: PriceCondition) => {
+    // 找到对应的策略
+    const strategy = strategies.find(s => s.id === strategyId) as PriceAlertStrategy | undefined
+    if (!strategy) return
+
+    // 更新条件状态为已确认
+    const newConditions = [...(strategy.conditions || [])]
+    if (newConditions[conditionIndex]) {
+      newConditions[conditionIndex] = {
+        ...newConditions[conditionIndex],
+        confirmed: true,
+        confirmedAt: Date.now()
+      }
+    }
+
+    // 更新策略
+    const updatedStrategy = { ...strategy, conditions: newConditions }
+    setStrategies(prev => {
+      const updated = prev.map(s => s.id === strategyId ? updatedStrategy : s)
+      saveStrategies(updated)
+      return updated
+    })
+
+    // 保存到历史记录
+    const condTypeLabel = condition.type === 'price' ? '价格' : '涨跌幅'
+    const condOpLabel = condition.operator === 'above' ? '突破' : '跌破'
+    saveAlertHistory({
+      id: `${strategyId}_cond${conditionIndex}_${Date.now()}`,
+      type: 'price',
+      title: `${strategy.stockName || strategy.code} ${condTypeLabel}${condOpLabel}`,
+      description: `${condTypeLabel}${condOpLabel} ${condition.value}${condition.type === 'pct' ? '%' : ''}${condition.note ? ` (${condition.note})` : ''}`,
+      timestamp: condition.triggeredAt || Date.now(),
+      data: {
+        code: strategy.code,
+        stockName: strategy.stockName,
+        conditionType: condition.type,
+        conditionOperator: condition.operator,
+        conditionValue: condition.value,
+        note: condition.note
+      }
+    })
+  }, [strategies, saveAlertHistory])
+
   return (
     <div className="strategy-center">
       {/* 头部 */}
@@ -475,6 +520,7 @@ export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHisto
                   onEdit={(conditionIndex) => handleEditStrategy(strategy, conditionIndex)}
                   onDelete={() => handleDeleteStrategy(strategy.id)}
                   onToggle={() => handleToggleStrategy(strategy.id)}
+                  onConfirmCondition={handleConfirmCondition}
                 />
               ))}
             </div>
@@ -488,6 +534,7 @@ export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHisto
                   onEdit={(conditionIndex) => handleEditStrategy(strategy, conditionIndex)}
                   onDelete={() => handleDeleteStrategy(strategy.id)}
                   onToggle={() => handleToggleStrategy(strategy.id)}
+                  onConfirmCondition={handleConfirmCondition}
                 />
               ))}
             </div>
@@ -531,6 +578,7 @@ interface StrategyCardProps {
   onEdit: (conditionIndex?: number) => void
   onDelete: () => void
   onToggle: () => void
+  onConfirmCondition?: (strategyId: string, conditionIndex: number, condition: PriceCondition) => void
 }
 
 // 获取策略标签文字
@@ -577,7 +625,7 @@ function getStrategyDisplayName(strategy: Strategy): string {
   }
 }
 
-function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: StrategyCardProps) {
+function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle, onConfirmCondition }: StrategyCardProps) {
   const isTriggered = strategy.status === 'triggered'
   const isPriceAlert = strategy.type === 'price'
 
@@ -685,6 +733,7 @@ function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle }: 
               onEdit={onEdit}
               onDelete={onDelete}
               onToggle={onToggle}
+              onConfirmCondition={onConfirmCondition ? (idx, cond) => onConfirmCondition(strategy.id, idx, cond) : undefined}
             />
           )}
         </div>
@@ -847,9 +896,10 @@ interface PriceAlertContentProps {
   onEdit?: (conditionIndex?: number) => void
   onDelete?: () => void
   onToggle?: () => void
+  onConfirmCondition?: (conditionIndex: number, condition: PriceCondition) => void
 }
 
-function PriceAlertContent({ strategy, onEdit, onDelete, onToggle }: PriceAlertContentProps) {
+function PriceAlertContent({ strategy, onEdit, onDelete, onToggle, onConfirmCondition }: PriceAlertContentProps) {
   const [expanded, setExpanded] = useState(false)
   const conditions = strategy.conditions || []
 
@@ -896,8 +946,10 @@ function PriceAlertContent({ strategy, onEdit, onDelete, onToggle }: PriceAlertC
 
   const handleConfirm = (idx: number, e: React.MouseEvent) => {
     e.stopPropagation()
-    console.log('确认条件', idx)
-    // TODO: 标记为已确认，加入历史记录
+    const cond = conditions[idx]
+    if (cond && onConfirmCondition) {
+      onConfirmCondition(idx, cond)
+    }
   }
 
   return (
@@ -907,11 +959,12 @@ function PriceAlertContent({ strategy, onEdit, onDelete, onToggle }: PriceAlertC
         // 判断是上涨还是下跌条件
         const isUpCondition = cond.operator === 'above'
         const isHidden = !expanded && idx >= MAX_VISIBLE
+        const isConfirmed = cond.confirmed
         
         return (
           <div 
             key={idx} 
-            className={`alert-item ${cond.triggered ? 'triggered' : ''} ${isHidden ? 'collapsed' : ''}`}
+            className={`alert-item ${cond.triggered ? 'triggered' : ''} ${isConfirmed ? 'confirmed' : ''} ${isHidden ? 'collapsed' : ''}`}
           >
             <div className="condition-info">
               <TrendIcon isUp={isUpCondition} />
@@ -922,6 +975,8 @@ function PriceAlertContent({ strategy, onEdit, onDelete, onToggle }: PriceAlertC
               </span>
               {/* 备注 - 同一行显示，hover时淡入，不省略 */}
               {cond.note && <span className="remark-inline">{cond.note}</span>}
+              {/* 已确认标记 */}
+              {isConfirmed && <span className="confirmed-badge">✓ 已确认</span>}
             </div>
             <div className="item-actions">
               <button className="action-btn" onClick={(e) => handleEditCondition(idx, e)} title="编辑">
@@ -936,8 +991,9 @@ function PriceAlertContent({ strategy, onEdit, onDelete, onToggle }: PriceAlertC
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                 </svg>
               </button>
-              {cond.triggered && (
-                <button className="action-btn confirm" onClick={(e) => handleConfirm(idx, e)} title="确认">
+              {/* 只在触发但未确认时显示确认按钮 */}
+              {cond.triggered && !isConfirmed && (
+                <button className="action-btn confirm" onClick={(e) => handleConfirm(idx, e)} title="确认并加入历史记录">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>

@@ -38,6 +38,8 @@ export interface PriceCondition {
   note?: string // 备注（用于浏览器通知）
   triggered?: boolean
   triggeredAt?: number
+  confirmed?: boolean    // 是否已确认
+  confirmedAt?: number   // 确认时间
 }
 
 // 监控逻辑模式
