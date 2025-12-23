@@ -38,3 +38,22 @@ FROM users u
 LEFT JOIN ai_usage a ON u.id = a.user_id 
   AND date(a.used_at) = date('now')
 GROUP BY u.id;
+
+-- ============ Daily News 模块 ============
+
+-- 每日新闻表
+CREATE TABLE IF NOT EXISTS daily_news (
+  id TEXT PRIMARY KEY,              -- 基于标题和时间的哈希 ID
+  title TEXT NOT NULL,              -- 新闻标题
+  summary TEXT,                     -- 内容摘要
+  source TEXT,                      -- 来源（如 Reuters, Washington Post）
+  source_url TEXT,                  -- 原文链接
+  published_at DATETIME,            -- 发布时间（UTC）
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP  -- 入库时间
+);
+
+-- 新闻时间索引（按发布时间倒序查询）
+CREATE INDEX IF NOT EXISTS idx_news_published ON daily_news(published_at DESC);
+
+-- 新闻日期索引（按日期筛选）
+CREATE INDEX IF NOT EXISTS idx_news_date ON daily_news(date(published_at));

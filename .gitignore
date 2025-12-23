@@ -5,3 +5,5 @@ AGENTS.md
 .kiro/steering/you_must_read.md
 /react-app/dist
 *.xlsx
+/worker-news/.wrangler/state/v3
+/worker-news/node_modules
