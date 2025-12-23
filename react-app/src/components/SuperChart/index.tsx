@@ -273,10 +273,21 @@ export function SuperChart({
   // 【关键修改】：加 4px 安全余量，防止底部被 overflow 切掉
   const totalContainerH = headerH + toolbarH + canvasContentH + 4
 
+  // 【动画修复】：使用 state 来延迟高度变化，确保展开/收缩都有动画
+  const [animatedHeight, setAnimatedHeight] = useState(totalContainerH)
+  
+  useEffect(() => {
+    // 使用 requestAnimationFrame 确保在下一帧更新高度，触发 CSS transition
+    const frame = requestAnimationFrame(() => {
+      setAnimatedHeight(totalContainerH)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [totalContainerH])
+
   // fillContainer 模式：铺满父容器
   const containerStyle = fillContainer 
     ? { height: '100%', transition: 'height 0.2s ease-out' }
-    : { height: totalContainerH, transition: 'height 0.2s ease-out' }
+    : { height: animatedHeight, transition: 'height 0.2s ease-out' }
 
   return (
     <div 
