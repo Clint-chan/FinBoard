@@ -5,7 +5,6 @@ import pandas as pd
 # 目标网址
 url = "https://china.buzzing.cc/"
 
-# 伪装浏览器头
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
@@ -15,11 +14,9 @@ def scrape_buzzing():
     try:
         response = requests.get(url, headers=headers)
         response.raise_for_status()
-        response.encoding = 'utf-8' # 确保中文不乱码
+        response.encoding = 'utf-8'
         
         soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # 1. 找到所有 article 标签 (根据你提供的 HTML，class包含 card)
         articles = soup.find_all('article', class_='card')
         
         print(f"找到 {len(articles)} 条新闻，开始解析...")
@@ -28,49 +25,29 @@ def scrape_buzzing():
         
         for item in articles:
             try:
-                # --- 解析标题 ---
-                # 找到 class 为 p-name 的 a 标签
+                # --- 标题 ---
                 title_tag = item.find('a', class_='p-name')
-                if title_tag:
-                    # 获取文本，例如 "7. 中国将在年底..."
-                    full_title = title_tag.get_text(strip=True)
-                    # 获取链接
-                    link = title_tag.get('href')
-                else:
-                    full_title = "无标题"
-                    link = ""
-
-                # --- 解析内容 (英文摘要) ---
-                # 找到 class 为 p-summary 的 div，再找它里面的第一个 div (避开 footer)
+                full_title = title_tag.get_text(strip=True) if title_tag else "无标题"
+                
+                # --- 内容 ---
                 summary_container = item.find('div', class_='p-summary')
                 if summary_container and summary_container.find('div'):
                     content = summary_container.find('div').get_text(strip=True)
                 else:
                     content = ""
 
-                # --- 解析时间 ---
-                # 找到 time 标签
+                # --- 时间 (只抓取 ISO 原始时间，后续统一处理) ---
                 time_tag = item.find('time')
-                if time_tag:
-                    # 优先获取 datetime 属性 (标准时间: 2025-12-22T...)
-                    raw_time = time_tag.get('datetime')
-                    # 也可以获取显示的时间文本 (04:10)
-                    display_time = time_tag.get_text(strip=True)
-                else:
-                    raw_time = ""
-                    display_time = ""
+                raw_time = time_tag.get('datetime') if time_tag else None
 
-                # --- 存入列表 ---
-                news_data.append({
-                    "标题": full_title,
-                    "发布时间(ISO)": raw_time,
-                    "显示时间": display_time,
-                    "内容摘要": content,
-                    "链接": link
-                })
+                if raw_time:
+                    news_data.append({
+                        "raw_time": raw_time, # 临时存储，稍后转换
+                        "标题": full_title,
+                        "内容摘要": content
+                    })
                 
             except Exception as e:
-                print(f"解析某条数据时出错: {e}")
                 continue
 
         return news_data
@@ -79,24 +56,37 @@ def scrape_buzzing():
         print(f"请求失败: {e}")
         return []
 
-# 执行脚本
 if __name__ == "__main__":
     data = scrape_buzzing()
     
     if data:
-        # 使用 Pandas 保存为 Excel
         df = pd.DataFrame(data)
         
-        # 简单清洗一下：把时间里的 T 和 Z 去掉，或者保留原样
-        # df['发布时间(ISO)'] = df['发布时间(ISO)'].str.replace('T', ' ').str.replace('Z', '')
+        # ================== 核心优化部分 ==================
+        
+        # 1. 将字符串转换为 datetime 对象 (自动识别 UTC 的 'Z')
+        df['temp_dt'] = pd.to_datetime(df['raw_time'])
+        
+        # 2. 转换时区：从 UTC 转为 Asia/Shanghai (北京时间)
+        df['temp_dt'] = df['temp_dt'].dt.tz_convert('Asia/Shanghai')
+        
+        # 3. 格式化为易读的字符串 (例如: 2025-12-23 15:08:00)
+        df['北京时间'] = df['temp_dt'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        
+        # 4. 只筛选需要的列，去掉 raw_time 和 temp_dt
+        final_df = df[['北京时间', '标题', '内容摘要']]
+        
+        # ==================================================
 
-        filename = "buzzing_news_data.xlsx"
-        df.to_excel(filename, index=False)
+        filename = "buzzing_news_optimized.xlsx"
+        final_df.to_excel(filename, index=False)
         
         print("-" * 30)
-        print(f"成功！已抓取 {len(data)} 条数据")
-        print(f"文件已保存为: {filename}")
-        print("前3条数据预览：")
-        print(df[['发布时间(ISO)', '标题']].head(3))
+        print(f"处理完成！文件已保存为: {filename}")
+        print("数据预览：")
+        # 设置显示宽度，防止预览时换行
+        pd.set_option('display.max_columns', None)
+        pd.set_option('display.width', 1000)
+        print(final_df.head())
     else:
         print("未获取到数据。")
