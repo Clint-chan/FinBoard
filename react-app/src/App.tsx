@@ -24,6 +24,7 @@ import { AdminPage } from '@/components/AdminPage'
 import { StrategyCenter } from '@/components/StrategyCenter'
 import { AnalysisDrawer } from '@/components/AnalysisDrawer'
 import { BossScreen } from '@/components/BossScreen'
+import { DailyReport } from '@/components/DailyReport'
 import { DEFAULT_CONFIG } from '@/services/config'
 import type { UserConfig, PageType, ContextMenuState, ChartTooltipState, UserProfile, AlertCondition } from '@/types'
 import '@/styles/index.css'
@@ -743,6 +744,13 @@ function App() {
         )}
         
         {activePage === 'admin' && isAdmin && <AdminPage />}
+        
+        {activePage === 'daily' && (
+          <DailyReport 
+            isAdmin={isAdmin} 
+            token={localStorage.getItem('cloud_token')} 
+          />
+        )}
         
         {activePage === 'strategies' && (
           <StrategyCenter 

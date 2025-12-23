@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fintell - Deep Market Research</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { 
+                            DEFAULT: '#7c3aed', 
+                            dark: '#5b21b6',
+                            light: '#ddd6fe',
+                            bg: '#f5f3ff'
+                        },
+                        bull: { text: '#dc2626', bg: '#fef2f2', border: '#fca5a5' },
+                        bear: { text: '#059669', bg: '#ecfdf5', border: '#6ee7b7' },
+                        category: { tech: '#3b82f6', fin: '#10b981', geo: '#f59e0b', soc: '#6366f1' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #f8fafc; color: #1e293b; }
+        .section-title {
+            font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 8px;
+        }
+        .section-title::after { content: ''; flex: 1; height: 1px; background: #e2e8f0; }
+        
+        .card { background: white; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+        .intel-cell { padding: 10px; border-bottom: 1px solid #f1f5f9; }
+        .intel-cell:last-child { border-bottom: none; }
+        
+        .tag { font-size: 0.6rem; padding: 1px 5px; border-radius: 3px; font-weight: 600; border: 1px solid transparent; }
+        .tag-red { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
+        .tag-green { color: #059669; background: #ecfdf5; border-color: #a7f3d0; }
+        .tag-gray { color: #475569; background: #f1f5f9; border-color: #e2e8f0; }
+
+        .scenario-step { position: relative; padding-left: 24px; padding-bottom: 20px; }
+        .scenario-step:last-child { padding-bottom: 0; }
+        .scenario-line { position: absolute; left: 7px; top: 8px; bottom: 0; width: 2px; background: #e2e8f0; }
+        .scenario-step:last-child .scenario-line { display: none; }
+        .scenario-dot { position: absolute; left: 0; top: 0; width: 16px; height: 16px; border-radius: 50%; background: white; border: 4px solid #cbd5e1; }
+        .scenario-step.active .scenario-dot { border-color: #7c3aed; }
+    </style>
+</head>
+<body class="min-h-screen pb-12">
+
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-6 h-14 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-brand-DEFAULT rounded-lg flex items-center justify-center text-white font-bold shadow-sm">F</div>
+                <h1 class="font-bold text-gray-900 text-lg">每日早报 <span class="text-gray-400 font-normal text-sm ml-2">2025.12.05</span></h1>
+            </div>
+
+            <a href="#" class="group flex items-center gap-2 px-3 py-1.5 rounded-full border border-transparent hover:border-gray-200 hover:bg-gray-50 transition-all cursor-pointer">
+                <svg class="w-4 h-4 text-gray-400 group-hover:text-brand-DEFAULT transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span class="text-xs font-medium text-gray-500 group-hover:text-gray-900 transition-colors">往期回顾</span>
+                <svg class="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </a>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-6 py-8 space-y-8">
+
+        <section>
+            <div class="section-title">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
+                全球情报矩阵 Intelligence Matrix
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                <div class="card border-t-4 border-t-category-tech">
+                    <div class="p-3 bg-blue-50/30 font-bold text-xs text-category-tech flex justify-between">
+                        科技与航天
+                    </div>
+                    <div class="intel-cell">
+                        <div class="flex justify-between items-start mb-1"><span class="text-xs font-bold">火箭回收失败</span><span class="tag tag-green">利空</span></div>
+                        <p class="text-[10px] text-gray-500 leading-tight">长征12A实验失败，打击商业航天情绪。但“青州号”飞船亮相。</p>
+                    </div>
+                    <div class="intel-cell">
+                        <div class="flex justify-between items-start mb-1"><span class="text-xs font-bold">AI博弈与国产</span><span class="tag tag-red">替代</span></div>
+                        <p class="text-[10px] text-gray-500 leading-tight">英伟达H200受审；国产GPU“伊露维塔”亮相+闻泰保供，催化自主可控。</p>
+                    </div>
+                    <div class="intel-cell">
+                        <div class="flex justify-between items-start mb-1"><span class="text-xs font-bold">无人机禁令</span><span class="tag tag-green">打击</span></div>
+                        <p class="text-[10px] text-gray-500 leading-tight">美禁止大疆新机型；自动驾驶量产推迟，智能驾驶板块承压。</p>
+                    </div>
+                </div>
+
+                <div class="card border-t-4 border-t-category-fin">
+                    <div class="p-3 bg-emerald-50/30 font-bold text-xs text-category-fin flex justify-between">
+                        经济与金融
+                    </div>
+                    <div class="intel-cell">
+                        <div class="flex justify-between items-start mb-1"><span class="text-xs font-bold">影子银行风暴</span><span class="tag tag-green">高压</span></div>
+                        <p class="text-[10px] text-gray-500 leading-tight">亿万富翁涉案被拘，监管层零容忍，非银金融风险偏好下降。</p>
+                    </div>
+                    <div class="intel-cell">
+                        <div class="flex justify-between items-start mb-1"><span class="text-xs font-bold">宏观增速预期</span><span class="tag tag-gray">低迷</span></div>
+                        <p class="text-[10px] text-gray-500 leading-tight">GDP预期<3%，万科危机持续。2026年才发力，远水不解近渴。</p>
+                    </div>
+                    <div class="intel-cell">
+                        <div class="flex justify-between items-start mb-1"><span class="text-xs font-bold">关税与人民币</span><span class="tag tag-red">利好</span></div>
+                        <p class="text-[10px] text-gray-500 leading-tight">对欧乳制品征税42.7%（利好国产乳业）；人民币中亚强势。</p>
+                    </div>
+                </div>
+
+                <div class="card border-t-4 border-t-category-geo">
+                    <div class="p-3 bg-amber-50/30 font-bold text-xs text-category-geo flex justify-between">
+                        地缘政治
+                    </div>
+                    <div class="intel-cell">
+                        <div class="flex justify-between items-start mb-1"><span class="text-xs font-bold">中俄购金互动</span><span class="tag tag-red">避险</span></div>
+                        <p class="text-[10px] text-gray-500 leading-tight">单月购入10亿美元俄黄金，联合抗美。地缘紧张推升黄金属性。</p>
+                    </div>
+                    <div class="intel-cell">
+                        <div class="flex justify-between items-start mb-1"><span class="text-xs font-bold">中美司法交锋</span><span class="tag tag-gray">摩擦</span></div>
+                        <p class="text-[10px] text-gray-500 leading-tight">美起诉英伟达伙伴芯片走私，前官员通中案流审。摩擦常态化。</p>
+                    </div>
+                    <div class="intel-cell">
+                        <div class="flex justify-between items-start mb-1"><span class="text-xs font-bold">中日关系紧张</span><span class="tag tag-green">利空</span></div>
+                        <p class="text-[10px] text-gray-500 leading-tight">航空出行需求下降，中国航司在中日航线上盈利前景黯淡。</p>
+                    </div>
+                </div>
+
+                <div class="card border-t-4 border-t-category-soc">
+                    <div class="p-3 bg-indigo-50/30 font-bold text-xs text-category-soc flex justify-between">
+                        社会与民生
+                    </div>
+                    <div class="intel-cell">
+                        <div class="flex justify-between items-start mb-1"><span class="text-xs font-bold">消费新趋势</span><span class="tag tag-red">出海</span></div>
+                        <p class="text-[10px] text-gray-500 leading-tight">新茶饮进军美国；鱼子酱等奢侈食品产量大增，关注农业出海。</p>
+                    </div>
+                    <div class="intel-cell">
+                        <div class="flex justify-between items-start mb-1"><span class="text-xs font-bold">黄金展品意外</span><span class="tag tag-gray">热议</span></div>
+                        <p class="text-[10px] text-gray-500 leading-tight">男童打碎28万美元皇冠。提升黄金珠宝社会关注度。</p>
+                    </div>
+                    <div class="intel-cell">
+                        <div class="flex justify-between items-start mb-1"><span class="text-xs font-bold">宗教与治理</span><span class="tag tag-gray">风险</span></div>
+                        <p class="text-[10px] text-gray-500 leading-tight">媒体关注非官方教会治理，可能引发ESG评级关注。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <div class="section-title">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                大盘核心研判 Core Prediction
+            </div>
+            
+            <div class="card overflow-hidden bg-white">
+                <div class="p-6 md:flex items-stretch">
+                    <div class="md:w-1/3 border-b md:border-b-0 md:border-r border-gray-100 pr-6 flex flex-col justify-center">
+                        <span class="inline-block px-2 py-1 bg-gray-100 text-gray-500 text-[10px] font-bold uppercase tracking-wide rounded mb-2 w-fit">Market Tone</span>
+                        <h2 class="text-2xl font-extrabold text-gray-900 mb-2">震荡偏弱</h2>
+                        <h3 class="text-sm font-semibold text-gray-600 mb-3">情绪防御为主，结构性分化明显</h3>
+                        <p class="text-xs text-gray-500 leading-relaxed text-justify">
+                            由于宏观层面存在“GDP增速预期低（<3%）”和“影子银行丑闻”的双重压制，市场整体风险偏好下降。资金将从高风险板块撤出，流向防御性或消息驱动领域。
+                        </p>
+                    </div>
+                    
+                    <div class="md:w-2/3 md:pl-6 pt-4 md:pt-0">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
+                            <div class="space-y-3">
+                                <h4 class="text-xs font-bold text-gray-400 uppercase">资金与情绪面</h4>
+                                <div class="bg-gray-50 p-3 rounded border border-gray-100">
+                                    <div class="text-xs font-bold text-gray-700 mb-1">北向资金/外资</div>
+                                    <div class="text-[10px] text-gray-500 leading-snug">
+                                        受美对英伟达审查及地缘摩擦影响，外资情绪偏向<span class="text-bear-text font-bold">谨慎流出</span>。
+                                    </div>
+                                </div>
+                                <div class="bg-gray-50 p-3 rounded border border-gray-100">
+                                    <div class="text-xs font-bold text-gray-700 mb-1">成交量预期</div>
+                                    <div class="text-[10px] text-gray-500 leading-snug">
+                                        缺乏重磅利好且年底资金紧，预计<span class="text-gray-900 font-bold">难以有效放大</span>，呈“缩量博弈”特征。
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="space-y-3">
+                                <h4 class="text-xs font-bold text-gray-400 uppercase">A股全天剧本推演</h4>
+                                <div class="pl-2">
+                                    <div class="scenario-step active">
+                                        <div class="scenario-line"></div><div class="scenario-dot"></div>
+                                        <div class="text-xs font-bold text-gray-800">开盘：低开</div>
+                                        <div class="text-[10px] text-gray-500">受GDP预测和美科技限制影响，指数大概率低开。</div>
+                                    </div>
+                                    <div class="scenario-step active">
+                                        <div class="scenario-line"></div><div class="scenario-dot"></div>
+                                        <div class="text-xs font-bold text-gray-800">盘中：分化抵抗</div>
+                                        <div class="text-[10px] text-gray-500">地产、自动驾驶领跌；资金抱团黄金/国产算力。</div>
+                                    </div>
+                                    <div class="scenario-step">
+                                        <div class="scenario-line"></div><div class="scenario-dot"></div>
+                                        <div class="text-xs font-bold text-gray-800">收盘：小阴线/十字星</div>
+                                        <div class="text-[10px] text-gray-500">除非国家队强力护盘，否则防御属性明显。</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <div class="section-title">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+                板块逻辑深度推演 Sector Analysis
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <div class="card border-t-4 border-bull-border overflow-hidden">
+                    <div class="bg-bull-bg/50 px-4 py-3 border-b border-bull-bg flex justify-between items-center">
+                        <h3 class="font-bold text-bull-text text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                            避险与利好板块
+                        </h3>
+                        <span class="text-[10px] font-medium bg-white px-2 py-0.5 rounded text-bull-text border border-bull-border">可能上涨</span>
+                    </div>
+                    <div class="p-4 space-y-4">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm font-bold text-gray-800">黄金与贵金属</span>
+                                <span class="tag tag-red">强利好</span>
+                            </div>
+                            <p class="text-xs text-gray-600 leading-snug mb-1">新闻显示中国单月从俄罗斯购入10亿美元黄金，叠加地缘紧张与经济预期不佳，避险属性放大。</p>
+                            <div class="text-[10px] text-gray-400">关注：黄金股、贵金属回收</div>
+                        </div>
+                        <div class="h-px bg-gray-100"></div>
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm font-bold text-gray-800">国产芯片 / 算力</span>
+                                <span class="tag tag-red">局部利好</span>
+                            </div>
+                            <p class="text-xs text-gray-600 leading-snug mb-1">虽面临美审查（英伟达H200），但国产GPU“伊露维塔”亮相及闻泰保供谈判，刺激“国产替代”炒作。</p>
+                            <div class="text-[10px] text-gray-400">关注：GPGPU概念、半导体设备、闻泰科技</div>
+                        </div>
+                        <div class="h-px bg-gray-100"></div>
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm font-bold text-gray-800">乳制品 & 跨境支付</span>
+                                <span class="tag tag-red">政策利好</span>
+                            </div>
+                            <p class="text-xs text-gray-600 leading-snug mb-1">对欧征收42.7%关税利好国产乳业；人民币中亚强势地位带动CIPS概念。</p>
+                            <div class="text-[10px] text-gray-400">关注：液体乳龙头、数字货币、跨境结算</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-t-4 border-bear-border overflow-hidden">
+                    <div class="bg-bear-bg/50 px-4 py-3 border-b border-bear-bg flex justify-between items-center">
+                        <h3 class="font-bold text-bear-text text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6 6"></path></svg>
+                            承压与利空板块
+                        </h3>
+                        <span class="text-[10px] font-medium bg-white px-2 py-0.5 rounded text-bear-text border border-bear-border">可能下跌</span>
+                    </div>
+                    <div class="p-4 space-y-4">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm font-bold text-gray-800">房地产及产业链</span>
+                                <span class="tag tag-green">利空</span>
+                            </div>
+                            <p class="text-xs text-gray-600 leading-snug mb-1">万科危机+GDP预期低+2026年才稳市场（远水不解近渴），情绪低迷。</p>
+                            <div class="text-[10px] text-gray-400">避雷：开发商、建材</div>
+                        </div>
+                        <div class="h-px bg-gray-100"></div>
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm font-bold text-gray-800">自动驾驶 & 商业航天</span>
+                                <span class="tag tag-green">情绪打击</span>
+                            </div>
+                            <p class="text-xs text-gray-600 leading-snug mb-1">事故致量产推迟（利空智驾）；长征12A回收失败（打击航天热情）。</p>
+                            <div class="text-[10px] text-gray-400">避雷：激光雷达、卫星互联网</div>
+                        </div>
+                        <div class="h-px bg-gray-100"></div>
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm font-bold text-gray-800">无人机 & 大金融</span>
+                                <span class="tag tag-green">监管/制裁</span>
+                            </div>
+                            <p class="text-xs text-gray-600 leading-snug mb-1">美禁大疆新机型打击出口；亿万富翁涉影子银行案引发监管担忧。</p>
+                            <div class="text-[10px] text-gray-400">避雷：无人机出口、多元金融</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <div class="relative overflow-hidden rounded-xl border border-brand-DEFAULT/20 bg-gradient-to-r from-brand-bg via-white to-white p-1">
+            <div class="flex flex-col md:flex-row justify-between items-center p-5 bg-white/60 backdrop-blur-sm rounded-lg">
+                
+                <div class="flex items-start gap-4 mb-4 md:mb-0 w-full md:w-auto">
+                    <div class="p-2 bg-brand-bg rounded-lg text-brand-DEFAULT flex-shrink-0">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-brand-dark uppercase tracking-widest mb-1">Actionable Summary</h4>
+                        <div class="text-base font-bold text-gray-900">明日交易策略关键词</div>
+                    </div>
+                </div>
+        
+                <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                    
+                    <div class="flex items-center bg-white border border-gray-200 rounded-lg shadow-sm px-4 py-2.5">
+                        <div class="flex items-center gap-2 pr-3 border-r border-gray-200">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                            <span class="text-sm font-bold text-gray-700">防守避雷</span>
+                        </div>
+                        <div class="pl-3 text-xs font-medium text-gray-500">
+                            地产 · 智驾
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center bg-brand-bg/50 border border-brand-DEFAULT/30 rounded-lg shadow-sm px-4 py-2.5">
+                        <div class="flex items-center gap-2 pr-3 border-r border-brand-DEFAULT/20">
+                            <svg class="w-4 h-4 text-brand-DEFAULT" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            <span class="text-sm font-bold text-brand-dark">关注替代</span>
+                        </div>
+                        <div class="pl-3 text-xs font-bold text-brand-DEFAULT">
+                            芯片 · 乳业
+                        </div>
+                    </div>
+
+                </div>
+        
+            </div>
+            
+            <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-brand-DEFAULT/5 rounded-full blur-2xl pointer-events-none"></div>
+        </div>
+
+    </main>
+</body>
+</html>

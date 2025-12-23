@@ -13,6 +13,12 @@ interface UserInfo {
   registerIp?: string
 }
 
+interface DailyReportInfo {
+  report_date: string
+  news_count: number
+  created_at: string
+}
+
 const SYNC_API = 'https://market-api.newestgpt.com'
 
 // 获取存储的 token
@@ -52,6 +58,11 @@ export function AdminPage() {
   })
   const [aiConfigLoading, setAiConfigLoading] = useState(false)
   const [aiConfigSaving, setAiConfigSaving] = useState(false)
+  
+  // 日报管理
+  const [dailyReports, setDailyReports] = useState<DailyReportInfo[]>([])
+  const [dailyLoading, setDailyLoading] = useState(false)
+  const [generating, setGenerating] = useState(false)
 
   // 加载用户列表
   const loadUsers = useCallback(async () => {
@@ -106,7 +117,50 @@ export function AdminPage() {
   useEffect(() => {
     loadUsers()
     loadAIConfig()
+    loadDailyReports()
   }, [loadUsers, loadAIConfig])
+  
+  // 加载日报列表
+  const loadDailyReports = async () => {
+    setDailyLoading(true)
+    try {
+      const res = await fetch(`${SYNC_API}/api/daily/list?limit=10`)
+      if (res.ok) {
+        const data = await res.json()
+        setDailyReports(data.reports || [])
+      }
+    } catch (err) {
+      console.error('Failed to load daily reports:', err)
+    } finally {
+      setDailyLoading(false)
+    }
+  }
+  
+  // 生成日报
+  const generateDailyReport = async () => {
+    if (!token || generating) return
+    setGenerating(true)
+    setError('')
+    
+    try {
+      const res = await fetch(`${SYNC_API}/api/daily/generate`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      
+      const data = await res.json()
+      if (data.success) {
+        alert(`日报生成成功！日期: ${data.date}, 新闻数: ${data.newsCount}`)
+        loadDailyReports()
+      } else {
+        throw new Error(data.error || '生成失败')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '生成日报失败')
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   // 更新用户配额
   const updateUserQuota = async (username: string, quota: number) => {
@@ -242,6 +296,64 @@ export function AdminPage() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* 日报管理 */}
+      <div className="admin-section">
+        <div className="section-header">
+          <h2>日报管理</h2>
+          <div className="section-actions">
+            <button 
+              className="refresh-btn"
+              onClick={loadDailyReports}
+              disabled={dailyLoading}
+            >
+              {dailyLoading ? '加载中...' : '刷新'}
+            </button>
+            <button 
+              className="generate-btn"
+              onClick={generateDailyReport}
+              disabled={generating}
+            >
+              {generating ? '生成中...' : '生成今日日报'}
+            </button>
+          </div>
+        </div>
+        
+        <div className="daily-info">
+          <p className="daily-hint">
+            💡 日报会在每天北京时间 6:00 自动生成，也可以手动触发生成/重新生成
+          </p>
+        </div>
+        
+        <div className="daily-list">
+          {dailyLoading ? (
+            <div className="admin-loading">加载中...</div>
+          ) : dailyReports.length === 0 ? (
+            <div className="table-empty">暂无日报记录</div>
+          ) : (
+            <table className="user-table">
+              <thead>
+                <tr>
+                  <th>日期</th>
+                  <th>新闻数量</th>
+                  <th>生成时间</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dailyReports.map(report => (
+                  <tr key={report.report_date}>
+                    <td>
+                      <span className="date-badge">{report.report_date}</span>
+                    </td>
+                    <td>{report.news_count} 条</td>
+                    <td>{new Date(report.created_at).toLocaleString('zh-CN')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
       {/* 用户管理 */}

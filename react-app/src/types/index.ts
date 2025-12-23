@@ -103,7 +103,7 @@ export interface IntradayData {
 export type LoadingStatus = 'loading' | 'success' | 'error' | 'closed'
 
 // 页面类型
-export type PageType = 'watchlist' | 'strategies' | 'settings' | 'admin'
+export type PageType = 'watchlist' | 'strategies' | 'settings' | 'admin' | 'daily'
 
 // 右键菜单状态
 export interface ContextMenuState {
@@ -125,4 +125,76 @@ export interface ChartTooltipState {
 export interface ModalState<T = null> {
   open: boolean
   data: T
+}
+
+
+// ============ Daily Report 类型 ============
+
+// 情报项
+export interface IntelItem {
+  title: string
+  tag: 'bullish' | 'bearish' | 'neutral'
+  tagText: string
+  summary: string
+}
+
+// 情报分类
+export interface IntelCategory {
+  category: string
+  color: 'tech' | 'fin' | 'geo' | 'soc' | 'other'
+  items: IntelItem[]
+}
+
+// 剧本步骤
+export interface ScenarioStep {
+  title: string
+  desc: string
+  active: boolean
+}
+
+// 大盘研判
+export interface MarketPrediction {
+  tone: string
+  subtitle: string
+  summary: string
+  northbound: string
+  volume: string
+  scenarios: ScenarioStep[]
+}
+
+// 板块分析项
+export interface SectorItem {
+  name: string
+  tag: 'bullish' | 'bearish' | 'neutral'
+  tagText: string
+  reason: string
+  focus: string
+}
+
+// 板块分析
+export interface SectorAnalysis {
+  bullish: SectorItem[]
+  bearish: SectorItem[]
+}
+
+// 交易策略
+export interface ActionableSummary {
+  avoid: string
+  focus: string
+}
+
+// 日报内容
+export interface DailyReportContent {
+  date: string
+  intelligence: IntelCategory[]
+  prediction: MarketPrediction
+  sectors: SectorAnalysis
+  actionable: ActionableSummary
+}
+
+// 日报列表项
+export interface DailyReportListItem {
+  report_date: string
+  news_count: number
+  created_at: string
 }

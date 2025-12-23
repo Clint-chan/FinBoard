@@ -54,8 +54,17 @@ async function initDB(db) {
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
     
+    CREATE TABLE IF NOT EXISTS daily_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      report_date TEXT UNIQUE NOT NULL,
+      content TEXT NOT NULL,
+      news_count INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    
     CREATE INDEX IF NOT EXISTS idx_ai_usage_user_date ON ai_usage(user_id, used_at);
     CREATE INDEX IF NOT EXISTS idx_users_register_ip ON users(register_ip);
+    CREATE INDEX IF NOT EXISTS idx_daily_reports_date ON daily_reports(report_date DESC);
   `)
 }
 
@@ -599,10 +608,86 @@ export default {
         }
       }
 
+      // ============ Daily Report API ============
+      
+      // GET /api/daily/list - 获取日报列表
+      if (path === '/api/daily/list' && request.method === 'GET') {
+        if (!env.DB) {
+          return jsonResponse({ error: '数据库未配置' }, 500);
+        }
+        try {
+          await initDB(env.DB);
+          const limit = parseInt(url.searchParams.get('limit') || '30');
+          const result = await env.DB.prepare(`
+            SELECT report_date, news_count, created_at 
+            FROM daily_reports 
+            ORDER BY report_date DESC 
+            LIMIT ?
+          `).bind(limit).all();
+          return jsonResponse({ reports: result.results || [] });
+        } catch (e) {
+          return jsonResponse({ error: e.message }, 500);
+        }
+      }
+      
+      // GET /api/daily/:date - 获取指定日期的日报
+      if (path.startsWith('/api/daily/') && request.method === 'GET') {
+        const date = path.split('/').pop();
+        if (!date || date === 'list' || date === 'generate') {
+          return jsonResponse({ error: '日期格式错误' }, 400);
+        }
+        if (!env.DB) {
+          return jsonResponse({ error: '数据库未配置' }, 500);
+        }
+        try {
+          await initDB(env.DB);
+          const result = await env.DB.prepare(`
+            SELECT report_date, content, news_count, created_at 
+            FROM daily_reports 
+            WHERE report_date = ?
+          `).bind(date).first();
+          
+          if (!result) {
+            return jsonResponse({ error: '日报不存在' }, 404);
+          }
+          
+          return jsonResponse({
+            date: result.report_date,
+            content: JSON.parse(result.content),
+            newsCount: result.news_count,
+            createdAt: result.created_at
+          });
+        } catch (e) {
+          return jsonResponse({ error: e.message }, 500);
+        }
+      }
+      
+      // POST /api/daily/generate - 手动生成日报（管理员）
+      if (path === '/api/daily/generate' && request.method === 'POST') {
+        const username = await verifyToken(request, env);
+        if (!username || !ADMIN_USERS.includes(username)) {
+          return jsonResponse({ error: '无权限' }, 403);
+        }
+        
+        try {
+          const result = await generateDailyReport(env);
+          return jsonResponse(result);
+        } catch (e) {
+          console.error('生成日报失败:', e);
+          return jsonResponse({ error: e.message }, 500);
+        }
+      }
+
       return jsonResponse({ error: 'Not found' }, 404);
     } catch (err) {
       return jsonResponse({ error: err.message }, 500);
     }
+  },
+  
+  // 定时任务 - 每日北京时间6点生成日报
+  async scheduled(event, env, ctx) {
+    console.log('Daily report cron triggered:', event.cron, new Date().toISOString());
+    ctx.waitUntil(generateDailyReport(env));
   }
 };
 
@@ -1481,4 +1566,219 @@ async function handleAIConfig(request, env) {
   }
 
   return jsonResponse({ error: 'Method not allowed' }, 405)
+}
+
+// ============ Daily Report 生成功能 ============
+
+/**
+ * 生成每日早报
+ * 读取过去24小时的新闻，调用 LLM 生成结构化日报
+ */
+async function generateDailyReport(env) {
+  if (!env.DB) {
+    throw new Error('数据库未配置');
+  }
+  
+  console.log('开始生成日报...');
+  
+  // 计算时间范围：昨天6点到今天6点（北京时间）
+  const now = new Date();
+  const beijingNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  const today = beijingNow.toISOString().split('T')[0];
+  
+  // 结束时间：今天6点 UTC = 今天 -2 小时 = 昨天 22:00 UTC
+  const endTime = new Date(Date.UTC(
+    beijingNow.getUTCFullYear(),
+    beijingNow.getUTCMonth(),
+    beijingNow.getUTCDate(),
+    -2, 0, 0 // 北京6点 = UTC -2小时（前一天22点）
+  ));
+  // 开始时间：昨天6点
+  const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
+  
+  console.log(`时间范围: ${startTime.toISOString()} ~ ${endTime.toISOString()}`);
+  
+  // 从 daily_news 表读取新闻
+  await initDB(env.DB);
+  const newsResult = await env.DB.prepare(`
+    SELECT title, summary FROM daily_news 
+    WHERE published_at >= ? AND published_at < ?
+    ORDER BY published_at DESC
+  `).bind(startTime.toISOString(), endTime.toISOString()).all();
+  
+  const newsList = newsResult.results || [];
+  console.log(`获取到 ${newsList.length} 条新闻`);
+  
+  if (newsList.length === 0) {
+    return { success: false, error: '没有新闻数据' };
+  }
+  
+  // 构建精简的新闻输入
+  const newsInput = newsList.map((n, i) => `${i + 1}. ${n.title}`).join('\n');
+  
+  // 获取 AI 配置
+  let config = AI_DEFAULT_CONFIG;
+  if (env.CONFIG_KV) {
+    const saved = await env.CONFIG_KV.get('ai_config', 'json');
+    if (saved) config = { ...AI_DEFAULT_CONFIG, ...saved };
+  }
+  
+  // 构建提示词
+  const systemPrompt = buildDailyReportPrompt();
+  const userPrompt = `今天是 ${today}，以下是过去24小时的中国相关新闻标题：\n\n${newsInput}\n\n请根据以上新闻生成今日早报。`;
+  
+  // 调用 LLM
+  console.log('调用 LLM 生成日报...');
+  const llmResponse = await fetch(config.apiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.apiKey}`
+    },
+    body: JSON.stringify({
+      model: config.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 4000
+    })
+  });
+  
+  if (!llmResponse.ok) {
+    const errText = await llmResponse.text();
+    throw new Error(`LLM 调用失败: ${llmResponse.status} ${errText}`);
+  }
+  
+  const llmData = await llmResponse.json();
+  const content = llmData.choices?.[0]?.message?.content;
+  
+  if (!content) {
+    throw new Error('LLM 返回内容为空');
+  }
+  
+  // 解析 JSON
+  let reportJson;
+  try {
+    // 尝试提取 JSON 块
+    const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
+    reportJson = JSON.parse(jsonStr);
+  } catch (e) {
+    console.error('JSON 解析失败:', content);
+    throw new Error('日报 JSON 解析失败');
+  }
+  
+  // 存入数据库
+  await env.DB.prepare(`
+    INSERT OR REPLACE INTO daily_reports (report_date, content, news_count)
+    VALUES (?, ?, ?)
+  `).bind(today, JSON.stringify(reportJson), newsList.length).run();
+  
+  console.log(`日报生成成功: ${today}`);
+  return { success: true, date: today, newsCount: newsList.length };
+}
+
+/**
+ * 构建日报生成的系统提示词
+ */
+function buildDailyReportPrompt() {
+  return `你是一位专业的A股市场分析师，负责生成每日早报。
+
+## 任务
+根据提供的新闻标题，生成结构化的每日早报 JSON。
+
+## 输出格式
+严格按照以下 JSON 结构输出，不要添加任何其他内容：
+
+\`\`\`json
+{
+  "date": "2025.12.05",
+  "intelligence": [
+    {
+      "category": "科技与航天",
+      "color": "tech",
+      "items": [
+        {
+          "title": "火箭回收失败",
+          "tag": "bearish",
+          "tagText": "利空",
+          "summary": "长征12A实验失败，打击商业航天情绪。"
+        }
+      ]
+    }
+  ],
+  "prediction": {
+    "tone": "震荡偏弱",
+    "subtitle": "情绪防御为主，结构性分化明显",
+    "summary": "由于宏观层面存在...",
+    "northbound": "受美对英伟达审查及地缘摩擦影响，外资情绪偏向<span class=\\"text-bear-text font-bold\\">谨慎流出</span>。",
+    "volume": "缺乏重磅利好且年底资金紧，预计<span class=\\"font-bold\\">难以有效放大</span>，呈"缩量博弈"特征。",
+    "scenarios": [
+      { "title": "开盘：低开", "desc": "受GDP预测和美科技限制影响，指数大概率低开。", "active": true },
+      { "title": "盘中：分化抵抗", "desc": "地产、自动驾驶领跌；资金抱团黄金/国产算力。", "active": true },
+      { "title": "收盘：小阴线/十字星", "desc": "除非国家队强力护盘，否则防御属性明显。", "active": false }
+    ]
+  },
+  "sectors": {
+    "bullish": [
+      {
+        "name": "黄金与贵金属",
+        "tag": "bullish",
+        "tagText": "强利好",
+        "reason": "新闻显示中国单月从俄罗斯购入10亿美元黄金，叠加地缘紧张与经济预期不佳，避险属性放大。",
+        "focus": "关注：黄金股、贵金属回收"
+      }
+    ],
+    "bearish": [
+      {
+        "name": "房地产及产业链",
+        "tag": "bearish",
+        "tagText": "利空",
+        "reason": "万科危机+GDP预期低+2026年才稳市场（远水不解近渴），情绪低迷。",
+        "focus": "避雷：开发商、建材"
+      }
+    ]
+  },
+  "actionable": {
+    "avoid": "地产 · 智驾",
+    "focus": "芯片 · 乳业"
+  }
+}
+\`\`\`
+
+## 字段说明
+
+### intelligence（情报矩阵）
+- 根据新闻内容自由划分 3-5 个分类（如科技、金融、地缘、社会等）
+- color 可选值：tech(蓝)、fin(绿)、geo(橙)、soc(紫)、other(灰)
+- 每个分类 2-4 条情报
+- tag 可选值：
+  - bullish（红色标签）：利好、替代、避险、出海、政策利好、强利好、局部利好
+  - bearish（绿色标签）：利空、打击、高压、情绪打击、监管/制裁
+  - neutral（灰色标签）：低迷、摩擦、热议、风险、观望
+
+### prediction（大盘研判）
+- tone：一句话定调，如"震荡偏弱"、"谨慎乐观"
+- northbound 和 volume 字段支持 HTML 标签高亮关键词：
+  - 利空关键词用 <span class="text-bear-text font-bold">关键词</span>
+  - 利好关键词用 <span class="text-bull-text font-bold">关键词</span>
+  - 中性强调用 <span class="font-bold">关键词</span>
+- scenarios：3 步剧本推演，active=true 表示高亮
+
+### sectors（板块分析）
+- bullish：2-4 个利好板块
+- bearish：2-4 个利空板块
+- focus 字段：利好板块用"关注：xxx"，利空板块用"避雷：xxx"
+
+### actionable（交易策略）
+- avoid：需要规避的板块关键词，用 · 分隔
+- focus：值得关注的板块关键词，用 · 分隔
+
+## 注意事项
+1. 只输出 JSON，不要有任何解释文字
+2. 所有分析必须基于提供的新闻，不要编造
+3. 保持客观专业，语言简洁有力
+4. 标签文字要简短（2-4字）`;
 }
