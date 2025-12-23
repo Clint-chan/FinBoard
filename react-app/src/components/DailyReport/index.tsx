@@ -6,7 +6,7 @@ import type { DailyReportContent, DailyReportListItem, IntelCategory, SectorItem
 import './DailyReport.css'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'https://api.newestgpt.com'
+const API_BASE = (import.meta as any).env?.VITE_API_URL || 'https://market-api.newestgpt.com'
 
 interface DailyReportProps {
   isAdmin?: boolean
