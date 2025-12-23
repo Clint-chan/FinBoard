@@ -4,3 +4,4 @@
 AGENTS.md
 .kiro/steering/you_must_read.md
 /react-app/dist
+*.xlsx
