@@ -98,6 +98,7 @@ async function fetchAndStoreNews(env) {
  */
 function parseNewsFromHTML(html) {
   const news = [];
+  const seen = new Set(); // 用于去重：time + summary
   
   // 匹配 article 块（class 包含 card 和 article）
   const articleRegex = /<article[^>]*class="[^"]*card[^"]*article[^"]*"[^>]*>([\s\S]*?)<\/article>/gi;
@@ -115,6 +116,8 @@ function parseNewsFromHTML(html) {
       // 标题可能包含 <span>序号</span>，需要清理
       let title = titleMatch[2].replace(/<[^>]*>/g, '').trim();
       title = decodeHTMLEntities(title);
+      // 去掉标题前的序号（如 "1. "、"12. "）
+      title = title.replace(/^\d+\.\s*/, '');
       
       // 提取摘要 - p-summary 内的第一个 div
       let summary = '';
@@ -131,17 +134,18 @@ function parseNewsFromHTML(html) {
       const timeMatch = articleHtml.match(/<time[^>]*datetime="([^"]*)"[^>]*>/i);
       const publishedAt = timeMatch ? timeMatch[1] : null;
       
-      // 提取来源（从标题中解析，格式：标题 - 来源）
-      let source = '';
-      const sourceMatch = title.match(/\s-\s([^-]+)$/);
-      if (sourceMatch) {
-        source = sourceMatch[1].trim();
+      // 去重：time + summary 相同则跳过
+      const dedupeKey = `${publishedAt}|${summary}`;
+      if (seen.has(dedupeKey)) {
+        continue;
       }
+      seen.add(dedupeKey);
       
-      const id = generateNewsId(title, publishedAt);
+      // 用 time + summary 生成唯一 ID（更稳定的去重）
+      const id = generateNewsId(summary, publishedAt);
       
       if (title && publishedAt) {
-        news.push({ id, title, summary, source, sourceUrl, publishedAt });
+        news.push({ id, title, summary, publishedAt });
       }
     } catch (e) {
       continue;
@@ -152,10 +156,10 @@ function parseNewsFromHTML(html) {
 }
 
 /**
- * 生成新闻唯一 ID
+ * 生成新闻唯一 ID（基于 summary + time）
  */
-function generateNewsId(title, publishedAt) {
-  const str = `${title}-${publishedAt}`;
+function generateNewsId(summary, publishedAt) {
+  const str = `${summary}-${publishedAt}`;
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
@@ -202,6 +206,27 @@ function utcToBeijing(utcStr) {
   }
 }
 
+/**
+ * 北京时间转 UTC ISO 格式
+ * 输入: "2025-12-23 18:02:06" (北京时间)
+ * 输出: "2025-12-23T10:02:06.000Z" (UTC)
+ */
+function beijingToUtc(beijingStr) {
+  if (!beijingStr) return '';
+  try {
+    // 解析北京时间字符串
+    const [datePart, timePart] = beijingStr.split(' ');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hours, minutes, seconds] = (timePart || '00:00:00').split(':').map(Number);
+    
+    // 创建 UTC 时间（北京时间减8小时）
+    const utcDate = new Date(Date.UTC(year, month - 1, day, hours - 8, minutes, seconds || 0));
+    return utcDate.toISOString();
+  } catch (e) {
+    return beijingStr;
+  }
+}
+
 // CORS 头
 function corsHeaders() {
   return {
@@ -231,10 +256,12 @@ export default {
     const path = url.pathname;
     
     // GET /news - 获取新闻列表
+    // 参数: limit, offset, date(按日期), since(最早时间，北京时间格式)
     if (path === '/news' && request.method === 'GET') {
       const limit = parseInt(url.searchParams.get('limit') || '50');
       const offset = parseInt(url.searchParams.get('offset') || '0');
-      const date = url.searchParams.get('date');
+      const date = url.searchParams.get('date'); // 按日期筛选 YYYY-MM-DD
+      const since = url.searchParams.get('since'); // 最早时间 YYYY-MM-DD HH:mm:ss (北京时间)
       
       if (!env.DB) {
         return jsonResponse({ error: '数据库未配置' }, 500);
@@ -245,6 +272,7 @@ export default {
         
         let query, params;
         if (date) {
+          // 按日期筛选
           query = `
             SELECT title, summary, published_at
             FROM daily_news 
@@ -253,6 +281,18 @@ export default {
             LIMIT ? OFFSET ?
           `;
           params = [date, limit, offset];
+        } else if (since) {
+          // 按最早时间筛选（since 是北京时间，需要转为 UTC 比较）
+          // 北京时间减8小时 = UTC
+          const sinceUtc = beijingToUtc(since);
+          query = `
+            SELECT title, summary, published_at
+            FROM daily_news 
+            WHERE published_at >= ?
+            ORDER BY published_at DESC 
+            LIMIT ? OFFSET ?
+          `;
+          params = [sinceUtc, limit, offset];
         } else {
           query = `
             SELECT title, summary, published_at
