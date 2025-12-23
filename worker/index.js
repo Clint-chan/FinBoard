@@ -29,48 +29,58 @@ const DEFAULT_AI_QUOTA = 3
 
 // ============ D1 数据库操作 ============
 
+// 缓存标记，避免重复初始化
+let dbInitialized = false
+let dbInitError = null
+
 /**
  * 初始化数据库表（如果不存在）
  */
 async function initDB(db) {
-  // 分开执行，避免 db.exec 多语句问题
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      ai_quota INTEGER DEFAULT 3,
-      register_ip TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `).run()
-
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS ai_usage (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      mode TEXT NOT NULL,
-      stock_code TEXT,
-      stock_name TEXT,
-      used_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id)
-    )
-  `).run()
-
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS daily_reports (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      report_date TEXT UNIQUE NOT NULL,
-      content TEXT NOT NULL,
-      news_count INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `).run()
-
-  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_ai_usage_user_date ON ai_usage(user_id, used_at)`).run()
-  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_users_register_ip ON users(register_ip)`).run()
-  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_daily_reports_date ON daily_reports(report_date DESC)`).run()
+  if (dbInitialized) return
+  if (dbInitError) {
+    console.log('跳过初始化，之前有错误:', dbInitError)
+    return // 之前初始化失败过，不再重试
+  }
+  
+  try {
+    // 创建 daily_reports 表
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS daily_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        report_date TEXT UNIQUE NOT NULL,
+        content TEXT NOT NULL,
+        news_count INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run()
+    
+    // 创建 daily_news 表（与 worker-news 共享）
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS daily_news (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        summary TEXT,
+        published_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run()
+    
+    // 尝试创建索引（如果已存在会忽略）
+    try {
+      await db.prepare(`CREATE INDEX IF NOT EXISTS idx_daily_reports_date ON daily_reports(report_date DESC)`).run()
+      await db.prepare(`CREATE INDEX IF NOT EXISTS idx_news_published ON daily_news(published_at DESC)`).run()
+    } catch (e) {
+      // 索引可能已存在，忽略
+    }
+    
+    dbInitialized = true
+    console.log('数据库初始化成功')
+  } catch (e) {
+    console.error('initDB error:', e)
+    dbInitError = e.message
+    // 不抛出错误，让后续查询自己处理
+  }
 }
 
 /**
@@ -646,24 +656,38 @@ export default {
         }
         try {
           await initDB(env.DB);
+          console.log('查询日报:', date);
+          
           const result = await env.DB.prepare(`
             SELECT report_date, content, news_count, created_at 
             FROM daily_reports 
             WHERE report_date = ?
           `).bind(date).first();
           
+          console.log('查询结果:', result ? '找到' : '未找到');
+          
           if (!result) {
-            return jsonResponse({ error: '日报不存在' }, 404);
+            return jsonResponse({ error: '日报不存在', date }, 404);
+          }
+          
+          // 安全解析 JSON
+          let content;
+          try {
+            content = JSON.parse(result.content);
+          } catch (parseErr) {
+            console.error('日报内容解析失败:', parseErr);
+            return jsonResponse({ error: '日报内容格式错误' }, 500);
           }
           
           return jsonResponse({
             date: result.report_date,
-            content: JSON.parse(result.content),
+            content,
             newsCount: result.news_count,
             createdAt: result.created_at
           });
         } catch (e) {
-          return jsonResponse({ error: e.message }, 500);
+          console.error('获取日报失败:', e);
+          return jsonResponse({ error: e.message, stack: e.stack?.substring(0, 200) }, 500);
         }
       }
       
@@ -1677,22 +1701,53 @@ async function generateDailyReport(env, isScheduled = false) {
   }
   
   const llmData = await llmResponse.json();
-  const content = llmData.choices?.[0]?.message?.content;
+  
+  // 处理 thinking 模型的输出格式
+  let content = llmData.choices?.[0]?.message?.content;
+  
+  // 如果有 thinking 字段，忽略它，只取 content
+  if (llmData.choices?.[0]?.message?.thinking) {
+    console.log('检测到 thinking 模型输出，忽略 thinking 部分');
+  }
   
   if (!content) {
     throw new Error('LLM 返回内容为空');
   }
   
-  // 解析 JSON
+  // 解析 JSON - 加强提取逻辑
   let reportJson;
   try {
-    // 尝试提取 JSON 块
-    const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
+    // 1. 先尝试提取 ```json ... ``` 代码块
+    let jsonStr = null;
+    const codeBlockMatch = content.match(/```json\s*([\s\S]*?)\s*```/);
+    if (codeBlockMatch) {
+      jsonStr = codeBlockMatch[1].trim();
+    }
+    
+    // 2. 如果没有代码块，尝试找到第一个 { 和最后一个 } 之间的内容
+    if (!jsonStr) {
+      const firstBrace = content.indexOf('{');
+      const lastBrace = content.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        jsonStr = content.substring(firstBrace, lastBrace + 1);
+      }
+    }
+    
+    // 3. 清理可能的干扰字符
+    if (jsonStr) {
+      // 移除可能的 BOM 或其他不可见字符
+      jsonStr = jsonStr.replace(/^\uFEFF/, '').trim();
+    }
+    
+    if (!jsonStr) {
+      throw new Error('未找到有效的 JSON 内容');
+    }
+    
     reportJson = JSON.parse(jsonStr);
   } catch (e) {
-    console.error('JSON 解析失败:', content);
-    throw new Error('日报 JSON 解析失败');
+    console.error('JSON 解析失败:', e.message);
+    console.error('原始内容前500字符:', content.substring(0, 500));
+    throw new Error(`日报 JSON 解析失败: ${e.message}`);
   }
   
   // 存入数据库
