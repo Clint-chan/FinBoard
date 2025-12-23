@@ -33,7 +33,8 @@ const DEFAULT_AI_QUOTA = 3
  * 初始化数据库表（如果不存在）
  */
 async function initDB(db) {
-  await db.exec(`
+  // 分开执行，避免 db.exec 多语句问题
+  await db.prepare(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
@@ -42,8 +43,10 @@ async function initDB(db) {
       register_ip TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-    
+    )
+  `).run()
+
+  await db.prepare(`
     CREATE TABLE IF NOT EXISTS ai_usage (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -52,20 +55,22 @@ async function initDB(db) {
       stock_name TEXT,
       used_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id)
-    );
-    
+    )
+  `).run()
+
+  await db.prepare(`
     CREATE TABLE IF NOT EXISTS daily_reports (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       report_date TEXT UNIQUE NOT NULL,
       content TEXT NOT NULL,
       news_count INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-    
-    CREATE INDEX IF NOT EXISTS idx_ai_usage_user_date ON ai_usage(user_id, used_at);
-    CREATE INDEX IF NOT EXISTS idx_users_register_ip ON users(register_ip);
-    CREATE INDEX IF NOT EXISTS idx_daily_reports_date ON daily_reports(report_date DESC);
-  `)
+    )
+  `).run()
+
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_ai_usage_user_date ON ai_usage(user_id, used_at)`).run()
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_users_register_ip ON users(register_ip)`).run()
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_daily_reports_date ON daily_reports(report_date DESC)`).run()
 }
 
 /**
@@ -687,7 +692,7 @@ export default {
   // 定时任务 - 每日北京时间6点生成日报
   async scheduled(event, env, ctx) {
     console.log('Daily report cron triggered:', event.cron, new Date().toISOString());
-    ctx.waitUntil(generateDailyReport(env));
+    ctx.waitUntil(generateDailyReport(env, true)); // isScheduled = true
   }
 };
 
@@ -1572,29 +1577,49 @@ async function handleAIConfig(request, env) {
 
 /**
  * 生成每日早报
- * 读取过去24小时的新闻，调用 LLM 生成结构化日报
+ * @param {Object} env - Worker 环境
+ * @param {boolean} isScheduled - 是否是定时任务触发（6点自动）
+ * 
+ * 手动触发：读取过去24小时的新闻
+ * 定时触发：读取昨天6点到今天6点的新闻
  */
-async function generateDailyReport(env) {
+async function generateDailyReport(env, isScheduled = false) {
   if (!env.DB) {
     throw new Error('数据库未配置');
   }
   
-  console.log('开始生成日报...');
+  console.log(`开始生成日报... (${isScheduled ? '定时任务' : '手动触发'})`);
   
-  // 计算时间范围：昨天6点到今天6点（北京时间）
   const now = new Date();
   const beijingNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
   const today = beijingNow.toISOString().split('T')[0];
   
-  // 结束时间：今天6点 UTC = 今天 -2 小时 = 昨天 22:00 UTC
-  const endTime = new Date(Date.UTC(
-    beijingNow.getUTCFullYear(),
-    beijingNow.getUTCMonth(),
-    beijingNow.getUTCDate(),
-    -2, 0, 0 // 北京6点 = UTC -2小时（前一天22点）
-  ));
-  // 开始时间：昨天6点
-  const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
+  let startTime, endTime;
+  
+  if (isScheduled) {
+    // 定时任务（6点触发）：昨天6点到今天6点
+    // 今天6点 UTC = 今天北京6点 - 8小时 = 昨天 22:00 UTC
+    endTime = new Date(Date.UTC(
+      beijingNow.getUTCFullYear(),
+      beijingNow.getUTCMonth(),
+      beijingNow.getUTCDate() - 1, // 昨天
+      22, 0, 0 // UTC 22:00 = 北京 6:00
+    ));
+    // 如果当前已经过了6点，endTime 应该是今天
+    if (beijingNow.getUTCHours() >= 22 || (beijingNow.getUTCHours() < 6)) {
+      endTime = new Date(Date.UTC(
+        beijingNow.getUTCFullYear(),
+        beijingNow.getUTCMonth(),
+        beijingNow.getUTCDate(),
+        22, 0, 0
+      ));
+    }
+    startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
+  } else {
+    // 手动触发：过去24小时
+    endTime = now;
+    startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  }
   
   console.log(`时间范围: ${startTime.toISOString()} ~ ${endTime.toISOString()}`);
   
