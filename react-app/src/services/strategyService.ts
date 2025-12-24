@@ -37,6 +37,8 @@ export function saveStrategies(strategies: Strategy[]): void {
       lastUpdated: Date.now()
     }
     localStorage.setItem(STRATEGY_STORAGE_KEY, JSON.stringify(config))
+    // 触发策略更新事件，通知云同步
+    window.dispatchEvent(new CustomEvent('strategies-updated'))
   } catch (e) {
     console.warn('Failed to save strategies:', e)
   }
