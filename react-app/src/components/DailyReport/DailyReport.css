@@ -606,10 +606,11 @@
   background: linear-gradient(to right, rgba(124, 58, 237, 0.05), transparent);
   border: 1px solid rgba(124, 58, 237, 0.2);
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
+  overflow: hidden;
 }
 
 @media (min-width: 768px) {
@@ -622,33 +623,36 @@
 
 .actionable-header {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .actionable-icon {
-  padding: 8px;
+  padding: 6px;
   background: rgba(124, 58, 237, 0.1);
-  border-radius: 8px;
+  border-radius: 6px;
   color: #7c3aed;
+  flex-shrink: 0;
 }
 
 .actionable-icon svg {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
 }
 
 .actionable-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: #5b21b6;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: 4px;
+  letter-spacing: 0.08em;
+  margin-bottom: 2px;
+  white-space: nowrap;
 }
 
 .actionable-title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
   white-space: nowrap;
@@ -656,8 +660,10 @@
 
 .actionable-actions {
   display: flex;
-  gap: 12px;
-  flex-shrink: 0;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .actionable-box {
@@ -665,32 +671,39 @@
   align-items: center;
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
-  border-radius: 8px;
-  padding: 10px 16px;
-  white-space: nowrap;
+  border-radius: 6px;
+  padding: 8px 12px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .actionable-box-label {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding-right: 12px;
+  gap: 6px;
+  padding-right: 10px;
   border-right: 1px solid var(--border-light);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .actionable-box-label svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .actionable-box-value {
-  padding-left: 12px;
-  font-size: 12px;
+  padding-left: 10px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .actionable-box.focus {
@@ -922,6 +935,7 @@
   background: var(--bg-body);
   padding: 24px 28px 20px;
   border-radius: 12px;
+  position: relative;
 }
 
 /* 截图时的样式优化 */
@@ -934,15 +948,32 @@
   margin-bottom: 24px;
 }
 
-/* 水印样式 - 低调不影响阅读 */
+/* 中间水印 - 斜向半透明 */
+.daily-watermark-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-25deg);
+  font-size: 48px;
+  font-weight: 800;
+  color: var(--text-tertiary);
+  opacity: 0.04;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  letter-spacing: 0.1em;
+  z-index: 1;
+}
+
+/* 底部水印 - 低调不影响阅读 */
 .daily-watermark {
   text-align: center;
-  padding-top: 20px;
+  padding-top: 16px;
   margin-top: 8px;
   font-size: 11px;
   font-weight: 500;
   color: var(--text-tertiary);
-  opacity: 0.5;
+  opacity: 0.45;
   letter-spacing: 0.05em;
   border-top: 1px solid var(--border-lighter);
 }

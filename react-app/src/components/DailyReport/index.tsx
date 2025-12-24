@@ -191,6 +191,9 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
     <div className="daily-report">
       {/* 日报内容 - 用于截图（包含标题） */}
       <div ref={reportRef} className="daily-content">
+        {/* 中间水印 */}
+        <div className="daily-watermark-center">Fintell</div>
+        
         {/* Header - 包含在截图中 */}
         <header className="daily-header">
           <div className="daily-title">
