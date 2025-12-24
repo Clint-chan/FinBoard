@@ -1598,7 +1598,7 @@ export default {
     }
   },
   
-  // 定时任务 - 每日北京时间6点生成日报
+  // 定时任务 - 每日北京时间6点生成日报，邮件7点推送
   async scheduled(event, env, ctx) {
     console.log('Daily report cron triggered:', event.cron, new Date().toISOString());
     ctx.waitUntil(generateDailyReport(env, true)); // isScheduled = true
@@ -2487,7 +2487,7 @@ async function handleAIConfig(request, env) {
 /**
  * 生成每日早报
  * @param {Object} env - Worker 环境
- * @param {boolean} isScheduled - 是否是定时任务触发（6点自动）
+ * @param {boolean} isScheduled - 是否是定时任务触发（6点自动生成，邮件7点推送）
  * 
  * 手动触发：读取过去24小时的新闻
  * 定时触发：读取昨天6点到今天6点的新闻
@@ -2507,7 +2507,7 @@ async function generateDailyReport(env, isScheduled = false) {
   
   if (isScheduled) {
     // 定时任务（6点触发）：昨天6点到今天6点
-    // 今天6点 UTC = 今天北京6点 - 8小时 = 昨天 22:00 UTC
+    // 今天北京6点 = UTC 22:00（前一天）
     endTime = new Date(Date.UTC(
       beijingNow.getUTCFullYear(),
       beijingNow.getUTCMonth(),

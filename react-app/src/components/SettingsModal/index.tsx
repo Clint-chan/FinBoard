@@ -84,6 +84,22 @@ const NavIcons = {
   )
 }
 
+// 辅助函数：获取当前有效的 token
+function getAuthToken(): string | null {
+  // 优先从 market_board_auth 获取（登录时存储的位置）
+  try {
+    const authStr = localStorage.getItem('market_board_auth')
+    if (authStr) {
+      const auth = JSON.parse(authStr)
+      if (auth?.token) return auth.token
+    }
+  } catch {
+    // 忽略解析错误
+  }
+  // 回退到 cloud_token（换绑邮箱时可能存储在这里）
+  return localStorage.getItem('cloud_token')
+}
+
 export function SettingsModal({
   open,
   onClose,
@@ -130,7 +146,7 @@ export function SettingsModal({
   useEffect(() => {
     if (open && isLoggedIn) {
       // 优先使用 props 传入的 token，否则从 localStorage 获取
-      const currentToken = token || localStorage.getItem('cloud_token')
+      const currentToken = token || getAuthToken()
       if (currentToken) {
         getUserInfo(currentToken)
           .then(info => setUserEmail(info.email))
@@ -175,7 +191,7 @@ export function SettingsModal({
     }
 
     // 优先使用 props 传入的 token，否则从 localStorage 获取
-    const currentToken = token || localStorage.getItem('cloud_token')
+    const currentToken = token || getAuthToken()
     if (!currentToken) {
       setEmailError('请先登录')
       return
@@ -215,7 +231,7 @@ export function SettingsModal({
     }
 
     // 优先使用 props 传入的 token，否则从 localStorage 获取
-    const currentToken = token || localStorage.getItem('cloud_token')
+    const currentToken = token || getAuthToken()
     if (!currentToken) {
       setEmailError('请先登录')
       return
@@ -231,7 +247,17 @@ export function SettingsModal({
         setEmailSuccess('邮箱绑定成功')
       } else {
         const result = await changeEmail(currentToken, newEmail.trim(), emailCode.trim())
-        localStorage.setItem('cloud_token', result.token)
+        // 更新 market_board_auth 中的 token
+        try {
+          const authStr = localStorage.getItem('market_board_auth')
+          if (authStr) {
+            const auth = JSON.parse(authStr)
+            auth.token = result.token
+            localStorage.setItem('market_board_auth', JSON.stringify(auth))
+          }
+        } catch {
+          // 忽略
+        }
         setUserEmail(newEmail.trim())
         onLoginSuccess?.(result.token, result.username)
         setEmailSuccess('邮箱换绑成功')
@@ -266,7 +292,7 @@ export function SettingsModal({
     }
 
     // 优先使用 props 传入的 token，否则从 localStorage 获取
-    const currentToken = token || localStorage.getItem('cloud_token')
+    const currentToken = token || getAuthToken()
     if (!currentToken) {
       setPasswordError('请先登录')
       return
@@ -318,7 +344,7 @@ export function SettingsModal({
 
   // 处理日报订阅切换
   const handleDailySubscribeToggle = useCallback(async (subscribe: boolean) => {
-    const currentToken = token || localStorage.getItem('cloud_token')
+    const currentToken = token || getAuthToken()
     if (!currentToken) {
       setDailySubscribeError('请先登录')
       return
@@ -587,18 +613,6 @@ export function SettingsModal({
             </button>
           </div>
         )}
-      </div>
-
-      <div className="settings-form-section">
-        <div className="settings-form-section-title">推送说明</div>
-        <div className="settings-binding-status">
-          <div className="settings-binding-info">
-            <div className="settings-binding-title">📰 每日早报</div>
-            <div className="settings-binding-desc">
-              每个交易日早上 6:00 自动发送，包含市场概览、今日预判、利好/利空板块分析
-            </div>
-          </div>
-        </div>
       </div>
     </>
   )
