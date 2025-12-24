@@ -345,6 +345,17 @@ async function initDB(db) {
       )
     `).run()
     
+    // 创建验证码表（替代 KV 存储）
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS verify_codes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code_key TEXT UNIQUE NOT NULL,
+        code TEXT NOT NULL,
+        expires_at DATETIME NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run()
+    
     // 尝试添加 daily_subscribe 字段到 users 表（如果不存在）
     try {
       await db.prepare(`ALTER TABLE users ADD COLUMN daily_subscribe INTEGER DEFAULT 0`).run()
@@ -357,6 +368,8 @@ async function initDB(db) {
     try {
       await db.prepare(`CREATE INDEX IF NOT EXISTS idx_daily_reports_date ON daily_reports(report_date DESC)`).run()
       await db.prepare(`CREATE INDEX IF NOT EXISTS idx_news_published ON daily_news(published_at DESC)`).run()
+      await db.prepare(`CREATE INDEX IF NOT EXISTS idx_verify_codes_key ON verify_codes(code_key)`).run()
+      await db.prepare(`CREATE INDEX IF NOT EXISTS idx_verify_codes_expires ON verify_codes(expires_at)`).run()
     } catch (e) {
       // 索引可能已存在，忽略
     }
@@ -376,6 +389,51 @@ async function initDB(db) {
 async function getUserFromDB(db, username) {
   const result = await db.prepare('SELECT * FROM users WHERE username = ?').bind(username).first()
   return result
+}
+
+/**
+ * 存储验证码到 D1（替代 KV）
+ * @param {D1Database} db - D1 数据库
+ * @param {string} codeKey - 验证码 key
+ * @param {string} code - 验证码
+ * @param {number} ttlSeconds - 过期时间（秒）
+ */
+async function saveVerifyCode(db, codeKey, code, ttlSeconds = 300) {
+  const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString()
+  await db.prepare(`
+    INSERT OR REPLACE INTO verify_codes (code_key, code, expires_at)
+    VALUES (?, ?, ?)
+  `).bind(codeKey, code, expiresAt).run()
+}
+
+/**
+ * 从 D1 获取验证码
+ * @param {D1Database} db - D1 数据库
+ * @param {string} codeKey - 验证码 key
+ * @returns {string|null} 验证码或 null（已过期或不存在）
+ */
+async function getVerifyCode(db, codeKey) {
+  const result = await db.prepare(`
+    SELECT code FROM verify_codes 
+    WHERE code_key = ? AND expires_at > datetime('now')
+  `).bind(codeKey).first()
+  return result ? result.code : null
+}
+
+/**
+ * 删除验证码
+ * @param {D1Database} db - D1 数据库
+ * @param {string} codeKey - 验证码 key
+ */
+async function deleteVerifyCode(db, codeKey) {
+  await db.prepare('DELETE FROM verify_codes WHERE code_key = ?').bind(codeKey).run()
+}
+
+/**
+ * 清理过期验证码（可选，定期调用）
+ */
+async function cleanExpiredCodes(db) {
+  await db.prepare("DELETE FROM verify_codes WHERE expires_at <= datetime('now')").run()
 }
 
 /**
@@ -495,11 +553,14 @@ export default {
           return jsonResponse({ error: '邮箱格式不正确' }, 400);
         }
         
-        // 检查是否频繁发送（1分钟内只能发一次）
-        const rateLimitKey = `code_rate:${email}`;
-        const lastSent = await env.CONFIG_KV.get(rateLimitKey);
-        if (lastSent) {
-          return jsonResponse({ error: '发送太频繁，请稍后再试' }, 429);
+        // 检查是否频繁发送（使用 D1）
+        if (env.DB) {
+          await initDB(env.DB);
+          const rateLimitKey = `code_rate:${email}`;
+          const lastSent = await getVerifyCode(env.DB, rateLimitKey);
+          if (lastSent) {
+            return jsonResponse({ error: '发送太频繁，请稍后再试' }, 429);
+          }
         }
         
         // 生成验证码
@@ -513,16 +574,18 @@ export default {
           return jsonResponse({ error: '邮件发送失败，请稍后重试', detail: e.message }, 500);
         }
 
-        // 存储验证码到 KV（5分钟过期）
+        // 存储验证码到 D1（5分钟过期）
         try {
-          const codeKey = `verify_code:${email}`;
-          await env.CONFIG_KV.put(codeKey, code, { expirationTtl: CODE_EXPIRE_SECONDS });
-
-          // 设置发送频率限制（1分钟）
-          await env.CONFIG_KV.put(rateLimitKey, '1', { expirationTtl: 60 });
-        } catch (kvError) {
-          console.error('KV put error:', kvError);
-          // KV 写入失败不影响用户体验，验证码已发送
+          if (env.DB) {
+            const codeKey = `verify_code:${email}`;
+            await saveVerifyCode(env.DB, codeKey, code, CODE_EXPIRE_SECONDS);
+            // 设置发送频率限制（1分钟）
+            const rateLimitKey = `code_rate:${email}`;
+            await saveVerifyCode(env.DB, rateLimitKey, '1', 60);
+          }
+        } catch (dbError) {
+          console.error('D1 save code error:', dbError);
+          // 写入失败不影响用户体验，验证码已发送
         }
 
         return jsonResponse({ success: true, message: '验证码已发送' });
@@ -546,9 +609,13 @@ export default {
           return jsonResponse({ error: '密码至少 6 位' }, 400);
         }
         
-        // 验证验证码
+        // 验证验证码（使用 D1）
+        let storedCode = null;
         const codeKey = `verify_code:${email}`;
-        const storedCode = await env.CONFIG_KV.get(codeKey);
+        if (env.DB) {
+          await initDB(env.DB);
+          storedCode = await getVerifyCode(env.DB, codeKey);
+        }
         if (!storedCode) {
           return jsonResponse({ error: '验证码已过期，请重新获取' }, 400);
         }
@@ -583,7 +650,7 @@ export default {
             await createUserInDB(env.DB, email, passwordHash, clientIP);
             
             // 注册成功后删除验证码
-            await env.CONFIG_KV.delete(codeKey);
+            await deleteVerifyCode(env.DB, codeKey);
             
             return jsonResponse({ success: true, message: '注册成功' });
           } catch (e) {
@@ -617,8 +684,10 @@ export default {
         // 记录 IP
         await env.CONFIG_KV.put(ipKey, email);
         
-        // 注册成功后删除验证码
-        await env.CONFIG_KV.delete(codeKey);
+        // 注册成功后删除验证码（D1）
+        if (env.DB) {
+          await deleteVerifyCode(env.DB, codeKey);
+        }
 
         return jsonResponse({ success: true, message: '注册成功' });
       }
@@ -782,11 +851,14 @@ export default {
           }
         }
 
-        // 检查发送频率
-        const rateLimitKey = `reset_rate:${email}`;
-        const lastSent = await env.CONFIG_KV.get(rateLimitKey);
-        if (lastSent) {
-          return jsonResponse({ error: '发送太频繁，请稍后再试' }, 429);
+        // 检查发送频率（使用 D1）
+        if (env.DB) {
+          await initDB(env.DB);
+          const rateLimitKey = `reset_rate:${email}`;
+          const lastSent = await getVerifyCode(env.DB, rateLimitKey);
+          if (lastSent) {
+            return jsonResponse({ error: '发送太频繁，请稍后再试' }, 429);
+          }
         }
 
         // 生成验证码
@@ -800,12 +872,14 @@ export default {
           return jsonResponse({ error: '邮件发送失败，请稍后重试' }, 500);
         }
 
-        // 存储验证码（5分钟过期）
-        const codeKey = `reset_code:${email}`;
-        await env.CONFIG_KV.put(codeKey, code, { expirationTtl: CODE_EXPIRE_SECONDS });
-
-        // 设置发送频率限制（1分钟）
-        await env.CONFIG_KV.put(rateLimitKey, '1', { expirationTtl: 60 });
+        // 存储验证码到 D1（5分钟过期）
+        if (env.DB) {
+          const codeKey = `reset_code:${email}`;
+          await saveVerifyCode(env.DB, codeKey, code, CODE_EXPIRE_SECONDS);
+          // 设置发送频率限制（1分钟）
+          const rateLimitKey = `reset_rate:${email}`;
+          await saveVerifyCode(env.DB, rateLimitKey, '1', 60);
+        }
 
         return jsonResponse({ success: true, message: '验证码已发送' });
       }
@@ -822,9 +896,13 @@ export default {
           return jsonResponse({ error: '新密码至少 6 位' }, 400);
         }
 
-        // 验证验证码
+        // 验证验证码（使用 D1）
         const codeKey = `reset_code:${email}`;
-        const storedCode = await env.CONFIG_KV.get(codeKey);
+        let storedCode = null;
+        if (env.DB) {
+          await initDB(env.DB);
+          storedCode = await getVerifyCode(env.DB, codeKey);
+        }
         if (!storedCode) {
           return jsonResponse({ error: '验证码已过期，请重新获取' }, 400);
         }
@@ -839,7 +917,7 @@ export default {
           try {
             await updatePasswordInDB(env.DB, email, newPasswordHash);
             // 删除验证码
-            await env.CONFIG_KV.delete(codeKey);
+            await deleteVerifyCode(env.DB, codeKey);
             return jsonResponse({ success: true, message: '密码重置成功' });
           } catch (e) {
             console.error('Reset password error:', e);
@@ -870,17 +948,20 @@ export default {
 
         // 检查新邮箱是否已被使用
         if (env.DB) {
+          await initDB(env.DB);
           const existingUser = await getUserByEmailFromDB(env.DB, newEmail);
           if (existingUser) {
             return jsonResponse({ error: '该邮箱已被其他账号使用' }, 400);
           }
         }
 
-        // 检查发送频率
-        const rateLimitKey = `change_email_rate:${username}`;
-        const lastSent = await env.CONFIG_KV.get(rateLimitKey);
-        if (lastSent) {
-          return jsonResponse({ error: '发送太频繁，请稍后再试' }, 429);
+        // 检查发送频率（使用 D1）
+        if (env.DB) {
+          const rateLimitKey = `change_email_rate:${username}`;
+          const lastSent = await getVerifyCode(env.DB, rateLimitKey);
+          if (lastSent) {
+            return jsonResponse({ error: '发送太频繁，请稍后再试' }, 429);
+          }
         }
 
         // 生成验证码
@@ -894,12 +975,14 @@ export default {
           return jsonResponse({ error: '邮件发送失败，请稍后重试' }, 500);
         }
 
-        // 存储验证码（5分钟过期），key 包含用户名防止冲突
-        const codeKey = `change_email_code:${username}:${newEmail}`;
-        await env.CONFIG_KV.put(codeKey, code, { expirationTtl: CODE_EXPIRE_SECONDS });
-
-        // 设置发送频率限制（1分钟）
-        await env.CONFIG_KV.put(rateLimitKey, '1', { expirationTtl: 60 });
+        // 存储验证码到 D1（5分钟过期），key 包含用户名防止冲突
+        if (env.DB) {
+          const codeKey = `change_email_code:${username}:${newEmail}`;
+          await saveVerifyCode(env.DB, codeKey, code, CODE_EXPIRE_SECONDS);
+          // 设置发送频率限制（1分钟）
+          const rateLimitKey = `change_email_rate:${username}`;
+          await saveVerifyCode(env.DB, rateLimitKey, '1', 60);
+        }
 
         return jsonResponse({ success: true, message: '验证码已发送到新邮箱' });
       }
@@ -917,9 +1000,13 @@ export default {
           return jsonResponse({ error: '新邮箱和验证码不能为空' }, 400);
         }
 
-        // 验证验证码
+        // 验证验证码（使用 D1）
         const codeKey = `change_email_code:${username}:${newEmail}`;
-        const storedCode = await env.CONFIG_KV.get(codeKey);
+        let storedCode = null;
+        if (env.DB) {
+          await initDB(env.DB);
+          storedCode = await getVerifyCode(env.DB, codeKey);
+        }
         if (!storedCode) {
           return jsonResponse({ error: '验证码已过期，请重新获取' }, 400);
         }
@@ -939,7 +1026,7 @@ export default {
             await updateEmailInDB(env.DB, user.email || username, newEmail);
 
             // 删除验证码
-            await env.CONFIG_KV.delete(codeKey);
+            await deleteVerifyCode(env.DB, codeKey);
 
             // 生成新 token（因为 username 变了）
             const newToken = await generateToken(newEmail);
@@ -1005,17 +1092,20 @@ export default {
 
         // 检查邮箱是否已被使用
         if (env.DB) {
+          await initDB(env.DB);
           const existingUser = await getUserByEmailFromDB(env.DB, email);
           if (existingUser && existingUser.username !== username) {
             return jsonResponse({ error: '该邮箱已被其他账号使用' }, 400);
           }
         }
 
-        // 检查发送频率
-        const rateLimitKey = `bind_email_rate:${username}`;
-        const lastSent = await env.CONFIG_KV.get(rateLimitKey);
-        if (lastSent) {
-          return jsonResponse({ error: '发送太频繁，请稍后再试' }, 429);
+        // 检查发送频率（使用 D1）
+        if (env.DB) {
+          const rateLimitKey = `bind_email_rate:${username}`;
+          const lastSent = await getVerifyCode(env.DB, rateLimitKey);
+          if (lastSent) {
+            return jsonResponse({ error: '发送太频繁，请稍后再试' }, 429);
+          }
         }
 
         // 生成验证码
@@ -1029,12 +1119,14 @@ export default {
           return jsonResponse({ error: '邮件发送失败，请稍后重试' }, 500);
         }
 
-        // 存储验证码
-        const codeKey = `bind_email_code:${username}:${email}`;
-        await env.CONFIG_KV.put(codeKey, code, { expirationTtl: CODE_EXPIRE_SECONDS });
-
-        // 设置发送频率限制
-        await env.CONFIG_KV.put(rateLimitKey, '1', { expirationTtl: 60 });
+        // 存储验证码到 D1
+        if (env.DB) {
+          const codeKey = `bind_email_code:${username}:${email}`;
+          await saveVerifyCode(env.DB, codeKey, code, CODE_EXPIRE_SECONDS);
+          // 设置发送频率限制
+          const rateLimitKey = `bind_email_rate:${username}`;
+          await saveVerifyCode(env.DB, rateLimitKey, '1', 60);
+        }
 
         return jsonResponse({ success: true, message: '验证码已发送' });
       }
@@ -1052,9 +1144,13 @@ export default {
           return jsonResponse({ error: '邮箱和验证码不能为空' }, 400);
         }
 
-        // 验证验证码
+        // 验证验证码（使用 D1）
         const codeKey = `bind_email_code:${username}:${email}`;
-        const storedCode = await env.CONFIG_KV.get(codeKey);
+        let storedCode = null;
+        if (env.DB) {
+          await initDB(env.DB);
+          storedCode = await getVerifyCode(env.DB, codeKey);
+        }
         if (!storedCode) {
           return jsonResponse({ error: '验证码已过期，请重新获取' }, 400);
         }
@@ -1069,7 +1165,7 @@ export default {
               .bind(email, username).run();
 
             // 删除验证码
-            await env.CONFIG_KV.delete(codeKey);
+            await deleteVerifyCode(env.DB, codeKey);
 
             return jsonResponse({ success: true, message: '邮箱绑定成功', email });
           } catch (e) {
@@ -1588,6 +1684,57 @@ export default {
           return jsonResponse(result);
         } catch (e) {
           console.error('生成日报失败:', e);
+          return jsonResponse({ error: e.message }, 500);
+        }
+      }
+      
+      // POST /api/admin/test-daily-email - 测试发送日报邮件（管理员）
+      if (path === '/api/admin/test-daily-email' && request.method === 'POST') {
+        const username = await verifyToken(request, env);
+        if (!username || !ADMIN_USERS.includes(username)) {
+          return jsonResponse({ error: '无权限' }, 403);
+        }
+        
+        const { email } = await request.json();
+        if (!email) {
+          return jsonResponse({ error: '邮箱不能为空' }, 400);
+        }
+        
+        // 邮箱格式验证
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          return jsonResponse({ error: '邮箱格式不正确' }, 400);
+        }
+        
+        try {
+          if (!env.DB) {
+            return jsonResponse({ error: '数据库未配置' }, 500);
+          }
+          
+          await initDB(env.DB);
+          
+          // 获取最新日报
+          const result = await env.DB.prepare(`
+            SELECT report_date, content FROM daily_reports 
+            ORDER BY report_date DESC LIMIT 1
+          `).first();
+          
+          if (!result) {
+            return jsonResponse({ error: '暂无日报，请先生成日报' }, 404);
+          }
+          
+          const reportContent = JSON.parse(result.content);
+          
+          // 发送测试邮件
+          await sendDailyReportEmail(email, result.report_date, reportContent, env);
+          
+          return jsonResponse({ 
+            success: true, 
+            message: `测试邮件已发送到 ${email}`,
+            date: result.report_date
+          });
+        } catch (e) {
+          console.error('发送测试邮件失败:', e);
           return jsonResponse({ error: e.message }, 500);
         }
       }
