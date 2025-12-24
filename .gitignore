@@ -7,3 +7,4 @@ AGENTS.md
 *.xlsx
 /worker-news/.wrangler/state/v3
 /worker-news/node_modules
+/worker/.wrangler
