@@ -331,6 +331,11 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
           </div>
         </div>
       </div>
+
+        {/* 水印 - 底部居中 */}
+        <div className="daily-watermark">
+          Fintell | board.newestgpt.com
+        </div>
       </div>{/* 结束 daily-content */}
 
       {/* 浮动工具栏 - 不包含在截图中 */}

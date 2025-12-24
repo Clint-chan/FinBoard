@@ -920,6 +920,8 @@
 /* 日报内容容器 - 用于截图 */
 .daily-content {
   background: var(--bg-body);
+  padding: 24px 28px 20px;
+  border-radius: 12px;
 }
 
 /* 截图时的样式优化 */
@@ -930,4 +932,17 @@
 /* 截图中的 header */
 .daily-content .daily-header {
   margin-bottom: 24px;
+}
+
+/* 水印样式 - 低调不影响阅读 */
+.daily-watermark {
+  text-align: center;
+  padding-top: 20px;
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  opacity: 0.5;
+  letter-spacing: 0.05em;
+  border-top: 1px solid var(--border-lighter);
 }
