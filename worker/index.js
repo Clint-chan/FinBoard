@@ -392,22 +392,27 @@ export default {
         
         // 生成验证码
         const code = generateVerifyCode();
-        
+
         // 发送邮件
         try {
           await sendVerifyCodeEmail(email, code, env);
         } catch (e) {
           console.error('Send email error:', e);
-          return jsonResponse({ error: '邮件发送失败，请稍后重试' }, 500);
+          return jsonResponse({ error: '邮件发送失败，请稍后重试', detail: e.message }, 500);
         }
-        
+
         // 存储验证码到 KV（5分钟过期）
-        const codeKey = `verify_code:${email}`;
-        await env.CONFIG_KV.put(codeKey, code, { expirationTtl: CODE_EXPIRE_SECONDS });
-        
-        // 设置发送频率限制（1分钟）
-        await env.CONFIG_KV.put(rateLimitKey, '1', { expirationTtl: 60 });
-        
+        try {
+          const codeKey = `verify_code:${email}`;
+          await env.CONFIG_KV.put(codeKey, code, { expirationTtl: CODE_EXPIRE_SECONDS });
+
+          // 设置发送频率限制（1分钟）
+          await env.CONFIG_KV.put(rateLimitKey, '1', { expirationTtl: 60 });
+        } catch (kvError) {
+          console.error('KV put error:', kvError);
+          // KV 写入失败不影响用户体验，验证码已发送
+        }
+
         return jsonResponse({ success: true, message: '验证码已发送' });
       }
 
