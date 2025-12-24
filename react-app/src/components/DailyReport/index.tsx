@@ -284,7 +284,7 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
           </div>
           <div>
             <div className="actionable-label">Actionable Summary</div>
-            <div className="actionable-title">明日交易策略关键词</div>
+            <div className="actionable-title">今日交易策略关键词</div>
           </div>
         </div>
         <div className="actionable-actions">
