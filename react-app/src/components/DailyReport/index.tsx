@@ -189,25 +189,6 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
 
   return (
     <div className="daily-report">
-      {/* 操作按钮 - 不包含在截图中 */}
-      <div className="daily-actions">
-        <button className="share-btn" onClick={handleShare} disabled={sharing}>
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          <span>{sharing ? '生成中...' : '分享图片'}</span>
-        </button>
-        <button className="history-btn" onClick={() => setHistoryOpen(true)}>
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>往期回顾</span>
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: 12, height: 12 }}>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      </div>
-
       {/* 日报内容 - 用于截图（包含标题） */}
       <div ref={reportRef} className="daily-content">
         {/* Header - 包含在截图中 */}
@@ -351,6 +332,35 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
         </div>
       </div>
       </div>{/* 结束 daily-content */}
+
+      {/* 浮动工具栏 - 不包含在截图中 */}
+      <div className="daily-fab-toolbar">
+        <button 
+          className="fab-btn fab-history" 
+          onClick={() => setHistoryOpen(true)}
+          title="往期回顾"
+        >
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+        <button 
+          className="fab-btn fab-share" 
+          onClick={handleShare} 
+          disabled={sharing}
+          title={sharing ? '生成中...' : '分享图片'}
+        >
+          {sharing ? (
+            <svg className="fab-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 12a9 9 0 11-6.219-8.56" />
+            </svg>
+          ) : (
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+          )}
+        </button>
+      </div>
 
       {/* History Modal */}
       {historyOpen && (

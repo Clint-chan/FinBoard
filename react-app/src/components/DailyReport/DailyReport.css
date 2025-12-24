@@ -651,12 +651,13 @@
   font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .actionable-actions {
   display: flex;
-  flex-wrap: wrap;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .actionable-box {
@@ -666,6 +667,7 @@
   border: 1px solid var(--border-light);
   border-radius: 8px;
   padding: 10px 16px;
+  white-space: nowrap;
 }
 
 .actionable-box-label {
@@ -826,49 +828,98 @@
 /* History Modal 样式保持不变 */
 
 
-/* 操作按钮区域 - 不包含在截图中 */
-.daily-actions {
+/* 操作按钮区域 - 浮动工具栏设计 */
+.daily-fab-toolbar {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-bottom: 16px;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 100;
 }
 
-.share-btn {
+.fab-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.fab-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.fab-btn:hover {
+  transform: scale(1.1);
+}
+
+.fab-btn:active {
+  transform: scale(0.95);
+}
+
+/* 往期回顾按钮 - 次要样式 */
+.fab-history {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+}
+
+.fab-history:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* 分享按钮 - 主要样式 */
+.fab-share {
   background: linear-gradient(135deg, #7c3aed, #5b21b6);
   color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
 }
 
-.share-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+.fab-share:hover:not(:disabled) {
+  box-shadow: 0 6px 24px rgba(124, 58, 237, 0.4);
 }
 
-.share-btn:disabled {
+.fab-share:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+  transform: none;
 }
 
-.share-btn svg {
-  width: 16px;
-  height: 16px;
+/* 加载动画 */
+.fab-spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* 移动端适配 */
+@media (max-width: 640px) {
+  .daily-fab-toolbar {
+    right: 16px;
+    bottom: 80px; /* 避开底部导航栏 */
+  }
+  
+  .fab-btn {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .fab-btn svg {
+    width: 20px;
+    height: 20px;
+  }
 }
 
 /* 日报内容容器 - 用于截图 */
 .daily-content {
   background: var(--bg-body);
-  padding: 24px;
-  border-radius: 12px;
 }
 
 /* 截图时的样式优化 */
@@ -876,7 +927,7 @@
   margin-bottom: 24px;
 }
 
-/* 截图中的 header 不需要右侧按钮 */
+/* 截图中的 header */
 .daily-content .daily-header {
-  justify-content: flex-start;
+  margin-bottom: 24px;
 }
