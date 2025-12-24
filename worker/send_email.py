@@ -14,7 +14,7 @@ USERNAME = "YOUR_SMTP_LOGIN"  # 替换为你的 SMTP Login
 PASSWORD = "YOUR_SMTP_KEY"    # 替换为你的 SMTP Key
 
 SENDER_EMAIL = "admin@newestgpt.com"
-SENDER_NAME = "GPT Admin"
+SENDER_NAME = "Fintell"
 RECEIVER_EMAIL = "test@example.com"
 # =========================================================
 
