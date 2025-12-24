@@ -54,10 +54,19 @@ export interface ChartData {
 
 /**
  * 获取市场代码
+ * 上海: 6开头股票、sh前缀、指数(000001上证指数等)
+ * 深圳: 0/3开头股票、sz前缀
  */
 function getMarketCode(code: string): string {
+  // 如果有明确的 sh/sz 前缀，直接使用
+  if (code.startsWith('sh')) return '1'
+  if (code.startsWith('sz')) return '0'
+  
   const symbol = code.replace(/^(sh|sz)/, '')
-  return symbol.startsWith('6') ? '1' : '0'
+  // 6开头是上海股票
+  if (symbol.startsWith('6')) return '1'
+  // 0/3开头是深圳股票
+  return '0'
 }
 
 /**
@@ -183,8 +192,8 @@ export async function fetchKlineData(
   period = '60', 
   limit = 120
 ): Promise<KlineData> {
-  const symbol = code.replace(/^(sh|sz)/, '')
-  const marketCode = symbol.startsWith('6') ? '1' : '0'
+  const symbol = getSymbol(code)
+  const marketCode = getMarketCode(code)
   
   const url = 'https://push2his.eastmoney.com/api/qt/stock/kline/get'
   const params = new URLSearchParams({
