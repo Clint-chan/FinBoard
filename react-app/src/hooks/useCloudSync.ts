@@ -132,25 +132,16 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
     }, 2000)
   }, [auth?.token, config])
 
-  // 手动同步（双向：先拉取云端，再保存本地）
+  // 手动同步（先保存本地到云端，确保本地修改不丢失）
   const sync = useCallback(async () => {
     if (!auth?.token) return
 
     setSyncing(true)
     try {
-      // 1. 先从云端加载最新配置
-      const cloudConfig = await cloudLoadConfig(auth.token)
-      console.log('[CloudSync] 云端配置:', cloudConfig)
-      
-      if (cloudConfig) {
-        // 迁移旧版数据格式
-        const migratedConfig = migrateConfig(cloudConfig)
-        console.log('[CloudSync] 迁移后配置:', migratedConfig)
-        console.log('[CloudSync] 迁移后 strategies:', migratedConfig.strategies?.length || 0, '个策略')
-        // 同步策略到本地
-        syncStrategiesToLocal(migratedConfig)
-        onConfigLoaded(migratedConfig)
-      }
+      // 1. 先把本地配置（包括策略）保存到云端
+      const configWithStrategies = addStrategiesToConfig(config)
+      console.log('[CloudSync] 上传本地配置到云端，策略数:', configWithStrategies.strategies?.length || 0)
+      await cloudSaveConfig(auth.token, configWithStrategies)
       
       setLastSyncTime(new Date())
     } catch (err) {
@@ -159,7 +150,7 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
     } finally {
       setSyncing(false)
     }
-  }, [auth?.token, onConfigLoaded])
+  }, [auth?.token, config])
 
   // 验证 Token 有效性
   useEffect(() => {
