@@ -1,6 +1,14 @@
 // Cloudflare Worker - Market Board 配置同步 API (带登录功能)
 // 支持 KV（配置存储）和 D1（用户管理、AI 统计）
 
+// ============ Brevo 邮件配置 ============
+const BREVO_API_KEY = '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'
+const SENDER_EMAIL = 'admin@newestgpt.com'
+const SENDER_NAME = 'Fintell'
+
+// 验证码有效期（5分钟）
+const CODE_EXPIRE_SECONDS = 300
+
 // ============ 价格格式化辅助函数 ============
 
 /**
@@ -26,6 +34,55 @@ const ADMIN_USERS = ['cdg']
 
 // 默认 AI 配额（每日）
 const DEFAULT_AI_QUOTA = 3
+
+// ============ 邮件发送函数 ============
+
+/**
+ * 生成6位数字验证码
+ */
+function generateVerifyCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString()
+}
+
+/**
+ * 通过 Brevo API 发送验证码邮件
+ */
+async function sendVerifyCodeEmail(email, code) {
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': BREVO_API_KEY,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { name: SENDER_NAME, email: SENDER_EMAIL },
+      to: [{ email: email }],
+      subject: 'Fintell 注册验证码',
+      htmlContent: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #333;">欢迎注册 Fintell</h2>
+          <p style="color: #666; font-size: 16px;">您的验证码是：</p>
+          <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+            <span style="font-size: 32px; font-weight: bold; color: #1890ff; letter-spacing: 8px;">${code}</span>
+          </div>
+          <p style="color: #999; font-size: 14px;">验证码有效期 5 分钟，请尽快完成注册。</p>
+          <p style="color: #999; font-size: 14px;">如果这不是您的操作，请忽略此邮件。</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+          <p style="color: #ccc; font-size: 12px;">Fintell - 智能股票监控平台</p>
+        </div>
+      `
+    })
+  })
+  
+  if (!response.ok) {
+    const error = await response.text()
+    console.error('Brevo API error:', error)
+    throw new Error('邮件发送失败')
+  }
+  
+  return true
+}
 
 // ============ D1 数据库操作 ============
 
@@ -170,18 +227,74 @@ export default {
     const path = url.pathname;
 
     try {
-      // POST /api/register - 注册（优先 D1，回退 KV）
-      if (path === '/api/register' && request.method === 'POST') {
-        const { username, password } = await request.json();
+      // POST /api/send-code - 发送注册验证码
+      if (path === '/api/send-code' && request.method === 'POST') {
+        const { email } = await request.json();
         
-        if (!username || !password) {
-          return jsonResponse({ error: '用户名和密码不能为空' }, 400);
+        if (!email) {
+          return jsonResponse({ error: '邮箱不能为空' }, 400);
         }
-        if (username.length < 3 || username.length > 20) {
-          return jsonResponse({ error: '用户名长度 3-20 字符' }, 400);
+        
+        // 简单的邮箱格式验证
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          return jsonResponse({ error: '邮箱格式不正确' }, 400);
         }
+        
+        // 检查是否频繁发送（1分钟内只能发一次）
+        const rateLimitKey = `code_rate:${email}`;
+        const lastSent = await env.CONFIG_KV.get(rateLimitKey);
+        if (lastSent) {
+          return jsonResponse({ error: '发送太频繁，请稍后再试' }, 429);
+        }
+        
+        // 生成验证码
+        const code = generateVerifyCode();
+        
+        // 发送邮件
+        try {
+          await sendVerifyCodeEmail(email, code);
+        } catch (e) {
+          console.error('Send email error:', e);
+          return jsonResponse({ error: '邮件发送失败，请稍后重试' }, 500);
+        }
+        
+        // 存储验证码到 KV（5分钟过期）
+        const codeKey = `verify_code:${email}`;
+        await env.CONFIG_KV.put(codeKey, code, { expirationTtl: CODE_EXPIRE_SECONDS });
+        
+        // 设置发送频率限制（1分钟）
+        await env.CONFIG_KV.put(rateLimitKey, '1', { expirationTtl: 60 });
+        
+        return jsonResponse({ success: true, message: '验证码已发送' });
+      }
+
+      // POST /api/register - 注册（需要验证码）
+      if (path === '/api/register' && request.method === 'POST') {
+        const { email, password, code } = await request.json();
+        
+        if (!email || !password || !code) {
+          return jsonResponse({ error: '邮箱、密码和验证码不能为空' }, 400);
+        }
+        
+        // 邮箱格式验证
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          return jsonResponse({ error: '邮箱格式不正确' }, 400);
+        }
+        
         if (password.length < 6) {
           return jsonResponse({ error: '密码至少 6 位' }, 400);
+        }
+        
+        // 验证验证码
+        const codeKey = `verify_code:${email}`;
+        const storedCode = await env.CONFIG_KV.get(codeKey);
+        if (!storedCode) {
+          return jsonResponse({ error: '验证码已过期，请重新获取' }, 400);
+        }
+        if (storedCode !== code) {
+          return jsonResponse({ error: '验证码错误' }, 400);
         }
 
         // 获取客户端 IP
@@ -196,10 +309,10 @@ export default {
           try {
             await initDB(env.DB);
             
-            // 检查用户名是否存在
-            const existing = await getUserFromDB(env.DB, username);
+            // 检查邮箱是否已注册（用 email 作为 username）
+            const existing = await getUserFromDB(env.DB, email);
             if (existing) {
-              return jsonResponse({ error: '用户名已存在' }, 400);
+              return jsonResponse({ error: '该邮箱已注册' }, 400);
             }
             
             // 检查 IP 是否已注册过
@@ -208,7 +321,11 @@ export default {
               return jsonResponse({ error: '该 IP 已注册过账号' }, 400);
             }
             
-            await createUserInDB(env.DB, username, passwordHash, clientIP);
+            await createUserInDB(env.DB, email, passwordHash, clientIP);
+            
+            // 注册成功后删除验证码
+            await env.CONFIG_KV.delete(codeKey);
+            
             return jsonResponse({ success: true, message: '注册成功' });
           } catch (e) {
             console.error('D1 register error:', e);
@@ -217,9 +334,9 @@ export default {
         }
 
         // KV 回退
-        const existing = await env.CONFIG_KV.get(`user:${username}`);
+        const existing = await env.CONFIG_KV.get(`user:${email}`);
         if (existing) {
-          return jsonResponse({ error: '用户名已存在' }, 400);
+          return jsonResponse({ error: '该邮箱已注册' }, 400);
         }
         
         // KV 中也检查 IP（简单实现）
@@ -229,7 +346,7 @@ export default {
           return jsonResponse({ error: '该 IP 已注册过账号' }, 400);
         }
         
-        await env.CONFIG_KV.put(`user:${username}`, JSON.stringify({
+        await env.CONFIG_KV.put(`user:${email}`, JSON.stringify({
           passwordHash,
           registerIp: clientIP,
           createdAt: Date.now(),
@@ -239,7 +356,10 @@ export default {
         }));
         
         // 记录 IP
-        await env.CONFIG_KV.put(ipKey, username);
+        await env.CONFIG_KV.put(ipKey, email);
+        
+        // 注册成功后删除验证码
+        await env.CONFIG_KV.delete(codeKey);
 
         return jsonResponse({ success: true, message: '注册成功' });
       }
