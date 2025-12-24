@@ -1,7 +1,8 @@
 /**
  * DailyReport - 每日早报组件
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import html2canvas from 'html2canvas'
 import type { DailyReportContent, DailyReportListItem, IntelCategory, SectorItem } from '@/types'
 import './DailyReport.css'
 
@@ -16,10 +17,12 @@ interface DailyReportProps {
 export function DailyReport({ isAdmin, token }: DailyReportProps) {
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  const [sharing, setSharing] = useState(false)
   const [report, setReport] = useState<DailyReportContent | null>(null)
   const [currentDate, setCurrentDate] = useState<string>('')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [historyList, setHistoryList] = useState<DailyReportListItem[]>([])
+  const reportRef = useRef<HTMLDivElement>(null)
 
   // 获取今日日报
   const fetchTodayReport = useCallback(async () => {
@@ -111,6 +114,33 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
     }
   }
 
+  // 分享为图片
+  const handleShare = async () => {
+    if (!reportRef.current || sharing) return
+    setSharing(true)
+
+    try {
+      const canvas = await html2canvas(reportRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2, // 高清
+        useCORS: true,
+        logging: false,
+        windowWidth: 1200, // 固定宽度
+      })
+
+      // 转换为图片并下载
+      const link = document.createElement('a')
+      link.download = `Fintell早报_${currentDate}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (e) {
+      console.error('生成图片失败:', e)
+      alert('生成图片失败')
+    } finally {
+      setSharing(false)
+    }
+  }
+
   useEffect(() => {
     fetchTodayReport()
   }, [fetchTodayReport])
@@ -168,16 +198,27 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
             <span className="daily-date">{currentDate?.replace(/-/g, '.')}</span>
           </h1>
         </div>
-        <button className="history-btn" onClick={() => setHistoryOpen(true)}>
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>往期回顾</span>
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: 12, height: 12 }}>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
+        <div className="daily-header-actions">
+          <button className="share-btn" onClick={handleShare} disabled={sharing}>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span>{sharing ? '生成中...' : '分享图片'}</span>
+          </button>
+          <button className="history-btn" onClick={() => setHistoryOpen(true)}>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>往期回顾</span>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: 12, height: 12 }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
       </header>
+
+      {/* 日报内容 - 用于截图 */}
+      <div ref={reportRef} className="daily-content">
 
       {/* Intelligence Matrix */}
       <section>
@@ -308,6 +349,7 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
           </div>
         </div>
       </div>
+      </div>{/* 结束 daily-content */}
 
       {/* History Modal */}
       {historyOpen && (

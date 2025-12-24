@@ -824,3 +824,52 @@
 }
 
 /* History Modal 样式保持不变 */
+
+
+/* 分享按钮 */
+.daily-header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.share-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.share-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.share-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.share-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* 日报内容容器 - 用于截图 */
+.daily-content {
+  background: var(--bg-body);
+  padding: 20px;
+  border-radius: 12px;
+}
+
+/* 截图时的样式优化 */
+.daily-content section {
+  margin-bottom: 24px;
+}
