@@ -219,7 +219,10 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
               <span className="prediction-label">Market Tone</span>
               <h2 className="prediction-tone">{report.prediction.tone}</h2>
               <h3 className="prediction-subtitle">{report.prediction.subtitle}</h3>
-              <p className="prediction-summary">{report.prediction.summary}</p>
+              <p 
+                className="prediction-summary"
+                dangerouslySetInnerHTML={{ __html: report.prediction.summary }}
+              />
             </div>
             <div className="prediction-details">
               <div className="prediction-section">
