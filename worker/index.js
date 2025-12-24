@@ -1819,7 +1819,7 @@ function buildDailyReportPrompt() {
   - 示例2：“长征12A实验失败，打击商业航天情绪。但“青州号”飞船亮相。”
 
 ### 大盘研判 prediction
-- northbound 和 volume：自由分析，简练而有深度，一两句话点明核心判断
+- northbound 和 volume：自由分析，简练而有深度，点明核心判断
 - HTML高亮关键词：利空用 <span class="text-bear-text font-bold">xxx</span>，利好用 <span class="text-bull-text font-bold">xxx</span>
 - scenarios 的 active 表示大概率发生
 
