@@ -244,7 +244,7 @@ export default {
         return jsonResponse({ success: true, message: '注册成功' });
       }
 
-      // POST /api/login - 登录（优先 D1，回退 KV）
+      // POST /api/login - 登录（优先 D1，回退 KV，自动迁移）
       if (path === '/api/login' && request.method === 'POST') {
         const { username, password } = await request.json();
         
@@ -254,6 +254,7 @@ export default {
 
         let userData = null;
         let fromD1 = false;
+        let kvData = null; // 保存 KV 原始数据用于迁移
 
         // 优先从 D1 查询
         if (env.DB) {
@@ -270,7 +271,8 @@ export default {
 
         // 回退到 KV
         if (!userData) {
-          userData = await env.CONFIG_KV.get(`user:${username}`, 'json');
+          kvData = await env.CONFIG_KV.get(`user:${username}`, 'json');
+          userData = kvData;
         }
 
         if (!userData) {
@@ -281,6 +283,27 @@ export default {
         const valid = await verifyPassword(password, userData.passwordHash);
         if (!valid) {
           return jsonResponse({ error: '用户名或密码错误' }, 401);
+        }
+
+        // 如果用户在 KV 但不在 D1，自动迁移到 D1
+        if (!fromD1 && kvData && env.DB) {
+          try {
+            await initDB(env.DB);
+            await env.DB.prepare(`
+              INSERT INTO users (username, password_hash, ai_quota, register_ip, created_at)
+              VALUES (?, ?, ?, ?, datetime(?, 'unixepoch'))
+            `).bind(
+              username,
+              kvData.passwordHash,
+              kvData.aiQuota || DEFAULT_AI_QUOTA,
+              kvData.registerIp || '',
+              Math.floor((kvData.createdAt || Date.now()) / 1000)
+            ).run();
+            console.log(`[Auto-migrate] 用户 ${username} 已从 KV 迁移到 D1`);
+          } catch (e) {
+            // 迁移失败不影响登录，只记录日志
+            console.error(`[Auto-migrate] 用户 ${username} 迁移失败:`, e.message);
+          }
         }
 
         // 生成 token
@@ -506,7 +529,7 @@ export default {
         });
       }
 
-      // GET /api/admin/users - 管理员获取用户列表（优先 D1）
+      // GET /api/admin/users - 管理员获取用户列表（合并 D1 和 KV）
       if (path === '/api/admin/users' && request.method === 'GET') {
         const username = await verifyToken(request, env);
         if (!username) {
@@ -518,46 +541,63 @@ export default {
           return jsonResponse({ error: '无权限' }, 403);
         }
 
-        // 优先从 D1 查询
+        const allUsers = [];
+        const usernames = new Set(); // 用于去重
+        const today = getTodayStr();
+
+        // 从 D1 查询
         if (env.DB) {
           try {
             await initDB(env.DB);
             const dbUsers = await getAllUsersFromDB(env.DB);
-            const users = dbUsers.map(u => ({
-              username: u.username,
-              createdAt: new Date(u.created_at).getTime(),
-              aiQuota: u.ai_quota || DEFAULT_AI_QUOTA,
-              aiUsedToday: u.ai_used_today || 0
-            }));
-            return jsonResponse({ users, source: 'd1' });
+            for (const u of dbUsers) {
+              usernames.add(u.username);
+              allUsers.push({
+                username: u.username,
+                createdAt: new Date(u.created_at).getTime(),
+                registerIp: u.register_ip || '',
+                aiQuota: u.ai_quota || DEFAULT_AI_QUOTA,
+                aiUsedToday: u.ai_used_today || 0,
+                source: 'd1'
+              });
+            }
           } catch (e) {
             console.error('D1 admin users error:', e);
           }
         }
 
-        // 回退到 KV
-        const userList = await env.CONFIG_KV.list({ prefix: 'user:' });
-        const users = [];
-        const today = getTodayStr();
-
-        for (const key of userList.keys) {
-          const userData = await env.CONFIG_KV.get(key.name, 'json');
-          if (userData) {
+        // 从 KV 查询（补充 D1 中没有的用户）
+        try {
+          const userList = await env.CONFIG_KV.list({ prefix: 'user:' });
+          for (const key of userList.keys) {
             const uname = key.name.replace('user:', '');
-            let aiUsedToday = userData.aiUsedToday || 0;
-            if (userData.aiUsedDate !== today) {
-              aiUsedToday = 0;
+            // 跳过已在 D1 中的用户
+            if (usernames.has(uname)) continue;
+            
+            const userData = await env.CONFIG_KV.get(key.name, 'json');
+            if (userData) {
+              let aiUsedToday = userData.aiUsedToday || 0;
+              if (userData.aiUsedDate !== today) {
+                aiUsedToday = 0;
+              }
+              allUsers.push({
+                username: uname,
+                createdAt: userData.createdAt,
+                registerIp: userData.registerIp || '',
+                aiQuota: userData.aiQuota || DEFAULT_AI_QUOTA,
+                aiUsedToday,
+                source: 'kv'
+              });
             }
-            users.push({
-              username: uname,
-              createdAt: userData.createdAt,
-              aiQuota: userData.aiQuota || DEFAULT_AI_QUOTA,
-              aiUsedToday
-            });
           }
+        } catch (e) {
+          console.error('KV admin users error:', e);
         }
 
-        return jsonResponse({ users });
+        // 按创建时间倒序排列
+        allUsers.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+        return jsonResponse({ users: allUsers });
       }
 
       // POST /api/admin/user/quota - 管理员设置用户配额（优先 D1）
@@ -601,6 +641,84 @@ export default {
         await env.CONFIG_KV.put(`user:${username}`, JSON.stringify(userData));
 
         return jsonResponse({ success: true });
+      }
+
+      // POST /api/admin/migrate-users - 管理员迁移 KV 用户到 D1
+      if (path === '/api/admin/migrate-users' && request.method === 'POST') {
+        const adminUsername = await verifyToken(request, env);
+        if (!adminUsername) {
+          return jsonResponse({ error: '未登录' }, 401);
+        }
+
+        if (!ADMIN_USERS.includes(adminUsername)) {
+          return jsonResponse({ error: '无权限' }, 403);
+        }
+
+        if (!env.DB) {
+          return jsonResponse({ error: 'D1 数据库未配置' }, 500);
+        }
+
+        try {
+          await initDB(env.DB);
+          
+          // 获取 KV 中所有用户
+          const userList = await env.CONFIG_KV.list({ prefix: 'user:' });
+          const results = { migrated: [], skipped: [], failed: [] };
+
+          for (const key of userList.keys) {
+            const username = key.name.replace('user:', '');
+            
+            try {
+              // 检查 D1 中是否已存在
+              const existingUser = await getUserFromDB(env.DB, username);
+              if (existingUser) {
+                results.skipped.push({ username, reason: '已存在于 D1' });
+                continue;
+              }
+
+              // 获取 KV 用户数据
+              const kvData = await env.CONFIG_KV.get(key.name, 'json');
+              if (!kvData || !kvData.passwordHash) {
+                results.skipped.push({ username, reason: '数据不完整' });
+                continue;
+              }
+
+              // 插入到 D1
+              await env.DB.prepare(`
+                INSERT INTO users (username, password_hash, ai_quota, register_ip, created_at)
+                VALUES (?, ?, ?, ?, datetime(?, 'unixepoch'))
+              `).bind(
+                username,
+                kvData.passwordHash,
+                kvData.aiQuota || DEFAULT_AI_QUOTA,
+                kvData.registerIp || '',
+                Math.floor((kvData.createdAt || Date.now()) / 1000)
+              ).run();
+
+              results.migrated.push({ username, quota: kvData.aiQuota || DEFAULT_AI_QUOTA });
+              
+              // 可选：迁移成功后删除 KV 中的用户数据（保留配置）
+              // await env.CONFIG_KV.delete(key.name);
+              
+            } catch (e) {
+              results.failed.push({ username, error: e.message });
+            }
+          }
+
+          return jsonResponse({
+            success: true,
+            summary: {
+              total: userList.keys.length,
+              migrated: results.migrated.length,
+              skipped: results.skipped.length,
+              failed: results.failed.length
+            },
+            details: results
+          });
+        } catch (e) {
+          console.error('Migration error:', e);
+          return jsonResponse({ error: '迁移失败: ' + e.message }, 500);
+        }
       }
 
       // DELETE /api/alerts/:code - 删除预警（通过配置接口实现）
