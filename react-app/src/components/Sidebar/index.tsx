@@ -104,6 +104,7 @@ interface SidebarProps {
   onProfileSave: (profile: UserProfile) => void
   onSync?: () => void | Promise<void>
   token?: string | null
+  onProfileClick?: () => void  // 新增：点击用户头像时的回调
 }
 
 function Sidebar({
@@ -122,6 +123,7 @@ function Sidebar({
   onProfileSave,
   onSync,
   token,
+  onProfileClick,
 }: SidebarProps) {
   const [expanded, setExpanded] = useState(false)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
@@ -392,7 +394,7 @@ function Sidebar({
           ))}
         </nav>
 
-        <div className="sidebar-user" onClick={displayUsername ? openProfileModal : onLoginClick}>
+        <div className="sidebar-user" onClick={displayUsername ? (onProfileClick || openProfileModal) : onLoginClick}>
           {/* 同步按钮 - 小图标 */}
           {isLoggedIn && onSync && (
             <button 

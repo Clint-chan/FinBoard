@@ -9,6 +9,7 @@ import { runMigration } from '@/services/migrationService'
 import { loadStrategies, saveStrategies, generateStrategyId } from '@/services/strategyService'
 import type { PriceAlertStrategy, PriceCondition } from '@/types/strategy'
 import Sidebar from '@/components/Sidebar'
+import { SettingsModal } from '@/components/SettingsModal'
 import { MobileHeader } from '@/components/MobileHeader'
 import { MobileTabBar, type MobileTab } from '@/components/MobileTabBar'
 import { MobileStockList } from '@/components/MobileStockList'
@@ -46,6 +47,7 @@ function App() {
   const [analysisDrawer, setAnalysisDrawer] = useState<{ open: boolean; code: string }>({ open: false, code: '' })
   const [bossMode, setBossMode] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   
   // 移动端状态
@@ -434,9 +436,11 @@ function App() {
 
   // ESC 键处理
   const handleEscape = useCallback(() => {
-    // 优先级：Fintell > 弹窗 > 分析大屏 > 移动端行情详情 > 老板键
+    // 优先级：Fintell > 设置弹窗 > 弹窗 > 分析大屏 > 移动端行情详情 > 老板键
     if (fintellOpen) {
       setFintellOpen(false)
+    } else if (settingsModalOpen) {
+      setSettingsModalOpen(false)
     } else if (authModalOpen) {
       setAuthModalOpen(false)
     } else if (addStockOpen) {
@@ -453,7 +457,7 @@ function App() {
     } else {
       setBossMode(prev => !prev)
     }
-  }, [fintellOpen, authModalOpen, addStockOpen, alertModal.open, costModal.open, analysisDrawer.open, isMobile, mobileStockCode])
+  }, [fintellOpen, settingsModalOpen, authModalOpen, addStockOpen, alertModal.open, costModal.open, analysisDrawer.open, isMobile, mobileStockCode])
 
   // 处理登录成功
   const handleAuthSuccess = useCallback((token: string, username: string) => {
@@ -562,6 +566,7 @@ function App() {
           }
         }}
         token={localStorage.getItem('cloud_token')}
+        onProfileClick={() => setSettingsModalOpen(true)}
       />
       )}
       
@@ -884,6 +889,32 @@ function App() {
         open={authModalOpen}
         onClose={() => setAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
+      />
+
+      {/* 用户设置中心弹窗 */}
+      <SettingsModal
+        open={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+        isLoggedIn={isLoggedIn}
+        username={cloudUsername || undefined}
+        avatar={user?.avatar}
+        token={localStorage.getItem('cloud_token')}
+        config={{
+          interval: config.interval,
+          pctThreshold: config.pctThreshold,
+          refreshOnlyInMarketHours: config.refreshOnlyInMarketHours ?? true,
+          quoteSource: config.quoteSource || 'eastmoney',
+          theme: config.theme,
+          strategyCheckInterval: config.strategyCheckInterval ?? 30
+        }}
+        onConfigChange={updateConfig}
+        onLogout={handleLogout}
+        onAvatarChange={(avatar) => {
+          const newProfile = { ...user, username: cloudUsername || user?.username || '', avatar }
+          setUser(newProfile)
+          updateConfig({ userProfile: newProfile })
+        }}
+        onLoginSuccess={handleAuthSuccess}
       />
     </div>
   )
