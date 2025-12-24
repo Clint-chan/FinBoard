@@ -103,7 +103,7 @@ export interface IntradayData {
 export type LoadingStatus = 'loading' | 'success' | 'error' | 'closed'
 
 // 页面类型
-export type PageType = 'watchlist' | 'strategies' | 'settings' | 'admin' | 'daily'
+export type PageType = 'watchlist' | 'strategies' | 'admin' | 'daily'
 
 // 右键菜单状态
 export interface ContextMenuState {

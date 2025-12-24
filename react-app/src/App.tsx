@@ -479,7 +479,7 @@ function App() {
   // 快捷键系统
   useKeyboardShortcuts({
     onRefresh: refresh,
-    onSettings: () => setActivePage('settings'),
+    onSettings: () => setSettingsModalOpen(true),
     onAddStock: () => setAddStockOpen(true),
     onEscape: handleEscape
   })
@@ -502,7 +502,7 @@ function App() {
     // 同步到桌面端页面
     if (tab === 'watchlist') setActivePage('watchlist')
     else if (tab === 'strategies') setActivePage('strategies')
-    else if (tab === 'profile') setActivePage('settings')
+    // profile 页面不需要同步，因为移动端有独立的 MobileProfile 组件
   }, [mobileStockCode, config.codes])
 
   // 获取移动端标题
@@ -530,7 +530,7 @@ function App() {
       {/* 移动端顶部导航 - 在行情详情页和 Fintell 对话时隐藏 */}
       {(!isMobile || (mobileTab !== 'market' || !mobileStockCode)) && !fintellOpen && (
         <MobileHeader 
-          title={isMobile ? getMobileTitle() : (activePage === 'watchlist' ? '行情看板' : activePage === 'strategies' ? '策略中心' : activePage === 'settings' ? '设置' : '管理')}
+          title={isMobile ? getMobileTitle() : (activePage === 'watchlist' ? '行情看板' : activePage === 'strategies' ? '策略中心' : activePage === 'daily' ? '日报' : '管理')}
         />
       )}
       
@@ -647,103 +647,6 @@ function App() {
                 status={status}
                 lastUpdate={lastUpdate}
               />
-            </div>
-          </div>
-        )}
-        
-        
-        {activePage === 'settings' && (
-          <div className="page">
-            <header className="page-header">
-              <h1>设置</h1>
-              <p>个性化你的看板</p>
-            </header>
-            <div className="settings-card">
-              <div className="settings-row">
-                <div>
-                  <label>刷新间隔</label>
-                  <div className="hint">数据自动刷新的时间间隔</div>
-                </div>
-                <div className="settings-input">
-                  <input
-                    type="number"
-                    value={config.interval}
-                    min={3}
-                    onChange={(e) => updateConfig({ interval: parseInt(e.target.value) || 5 })}
-                  />
-                  <span>秒</span>
-                </div>
-              </div>
-              <div className="settings-row">
-                <div>
-                  <label>涨跌幅预警阈值</label>
-                  <div className="hint">超过此阈值时触发通知</div>
-                </div>
-                <div className="settings-input">
-                  <input
-                    type="number"
-                    value={config.pctThreshold}
-                    min={1}
-                    onChange={(e) => updateConfig({ pctThreshold: parseFloat(e.target.value) || 5 })}
-                  />
-                  <span>%</span>
-                </div>
-              </div>
-              <div className="settings-row">
-                <div>
-                  <label>仅交易时间刷新</label>
-                  <div className="hint">开启后，非交易时间（周末、盘前盘后）不会请求行情数据</div>
-                </div>
-                <div className="settings-input">
-                  <label className="switch">
-                    <input
-                      type="checkbox"
-                      checked={config.refreshOnlyInMarketHours ?? true}
-                      onChange={(e) => updateConfig({ refreshOnlyInMarketHours: e.target.checked })}
-                    />
-                    <span className="slider"></span>
-                  </label>
-                </div>
-              </div>
-              <div className="settings-row">
-                <div>
-                  <label>数据源</label>
-                  <div className="hint">选择行情数据来源（东方财富支持市盈率等更多指标）</div>
-                </div>
-                <div className="settings-input">
-                  <select
-                    value={config.quoteSource || 'eastmoney'}
-                    onChange={(e) => updateConfig({ quoteSource: e.target.value as any })}
-                    style={{ 
-                      padding: '6px 12px', 
-                      borderRadius: '6px', 
-                      border: '1px solid var(--border-light)',
-                      background: 'var(--bg-surface)',
-                      color: 'var(--text-primary)',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value="eastmoney">东方财富（推荐）</option>
-                    <option value="tencent">腾讯财经</option>
-                    <option value="sina">新浪财经</option>
-                  </select>
-                </div>
-              </div>
-              <div className="settings-row">
-                <div>
-                  <label>策略检查间隔</label>
-                  <div className="hint">配对监控、AH溢价等策略的检查频率（价格预警跟随行情刷新）</div>
-                </div>
-                <div className="settings-input">
-                  <input
-                    type="number"
-                    value={config.strategyCheckInterval ?? 30}
-                    min={10}
-                    onChange={(e) => updateConfig({ strategyCheckInterval: parseInt(e.target.value) || 30 })}
-                  />
-                  <span>秒</span>
-                </div>
-              </div>
             </div>
           </div>
         )}

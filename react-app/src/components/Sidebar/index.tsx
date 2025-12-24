@@ -158,12 +158,16 @@ function Sidebar({
     }
   }, [isLoggedIn, token])
 
-  const navItems: { id: PageType | 'insight'; label: string; icon: JSX.Element; adminOnly?: boolean }[] = [
+  const navItems: {
+    id: PageType | 'insight'
+    label: string
+    icon: JSX.Element
+    adminOnly?: boolean
+  }[] = [
     { id: 'watchlist', label: 'Watchlist', icon: Icons.watchlist },
     { id: 'daily', label: 'Daily', icon: Icons.daily },
     { id: 'insight', label: 'Insight', icon: Icons.analysis },
     { id: 'strategies', label: 'Strategies', icon: Icons.strategies },
-    { id: 'settings', label: 'Settings', icon: Icons.settings },
     { id: 'admin', label: 'Admin', icon: Icons.admin, adminOnly: true },
   ]
 
@@ -385,7 +389,7 @@ function Sidebar({
             .map(item => (
             <div
               key={item.id}
-              className={`sidebar-item ${activePage === item.id ? 'active' : ''}`}
+              className={`sidebar-item ${item.id !== 'insight' && activePage === item.id ? 'active' : ''}`}
               onClick={() => handleNavClick(item.id)}
             >
               <span className="sidebar-icon">{item.icon}</span>
