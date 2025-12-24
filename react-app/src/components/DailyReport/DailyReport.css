@@ -826,10 +826,12 @@
 /* History Modal 样式保持不变 */
 
 
-/* 分享按钮 */
-.daily-header-actions {
+/* 操作按钮区域 - 不包含在截图中 */
+.daily-actions {
   display: flex;
+  justify-content: flex-end;
   gap: 10px;
+  margin-bottom: 16px;
 }
 
 .share-btn {
@@ -865,11 +867,16 @@
 /* 日报内容容器 - 用于截图 */
 .daily-content {
   background: var(--bg-body);
-  padding: 20px;
+  padding: 24px;
   border-radius: 12px;
 }
 
 /* 截图时的样式优化 */
 .daily-content section {
   margin-bottom: 24px;
+}
+
+/* 截图中的 header 不需要右侧按钮 */
+.daily-content .daily-header {
+  justify-content: flex-start;
 }
