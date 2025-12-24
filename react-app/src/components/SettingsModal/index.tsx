@@ -10,7 +10,9 @@ import {
   bindEmail,
   sendChangeEmailCode,
   changeEmail,
-  cloudChangePassword
+  cloudChangePassword,
+  getDailySubscribeStatus,
+  setDailySubscribe
 } from '@/services/cloudService'
 import './SettingsModal.css'
 
@@ -119,6 +121,11 @@ export function SettingsModal({
   const [passwordError, setPasswordError] = useState('')
   const [passwordSuccess, setPasswordSuccess] = useState('')
 
+  // 日报订阅状态
+  const [dailySubscribed, setDailySubscribed] = useState(false)
+  const [dailySubscribeLoading, setDailySubscribeLoading] = useState(false)
+  const [dailySubscribeError, setDailySubscribeError] = useState('')
+
   // 获取用户邮箱
   useEffect(() => {
     if (open && isLoggedIn) {
@@ -128,6 +135,11 @@ export function SettingsModal({
         getUserInfo(currentToken)
           .then(info => setUserEmail(info.email))
           .catch(() => setUserEmail(null))
+        
+        // 获取日报订阅状态
+        getDailySubscribeStatus(currentToken)
+          .then(status => setDailySubscribed(status.subscribed))
+          .catch(() => setDailySubscribed(false))
       }
     }
   }, [open, isLoggedIn, token])
@@ -303,6 +315,34 @@ export function SettingsModal({
     onClose()
     onLogout()
   }
+
+  // 处理日报订阅切换
+  const handleDailySubscribeToggle = useCallback(async (subscribe: boolean) => {
+    const currentToken = token || localStorage.getItem('cloud_token')
+    if (!currentToken) {
+      setDailySubscribeError('请先登录')
+      return
+    }
+
+    if (subscribe && !userEmail) {
+      setDailySubscribeError('请先绑定邮箱')
+      return
+    }
+
+    setDailySubscribeLoading(true)
+    setDailySubscribeError('')
+
+    try {
+      const result = await setDailySubscribe(currentToken, subscribe)
+      setDailySubscribed(result.subscribed)
+    } catch (err) {
+      setDailySubscribeError(err instanceof Error ? err.message : '操作失败')
+      // 恢复原状态
+      setDailySubscribed(!subscribe)
+    } finally {
+      setDailySubscribeLoading(false)
+    }
+  }, [token, userEmail])
 
   if (!open) return null
 
@@ -507,11 +547,56 @@ export function SettingsModal({
       </div>
 
       <div className="settings-form-section">
-        <div className="settings-form-section-title">通知设置</div>
+        <div className="settings-form-section-title">邮件订阅</div>
+
+        {dailySubscribeError && <div className="settings-message error">{dailySubscribeError}</div>}
+
+        <div className="settings-item-row">
+          <div className="settings-item-label">
+            <span>每日早报推送</span>
+            <div className="settings-item-hint">
+              {userEmail 
+                ? `每日早报将发送至 ${userEmail}` 
+                : '需要先绑定邮箱才能订阅'}
+            </div>
+          </div>
+          <div className="settings-item-control">
+            <label className="settings-switch">
+              <input
+                type="checkbox"
+                checked={dailySubscribed}
+                onChange={e => handleDailySubscribeToggle(e.target.checked)}
+                disabled={dailySubscribeLoading || !userEmail}
+              />
+              <span className="settings-switch-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        {!userEmail && (
+          <div className="settings-binding-status" style={{ marginTop: 12 }}>
+            <div className="settings-binding-info">
+              <div className="settings-binding-title">未绑定邮箱</div>
+              <div className="settings-binding-desc">请先在「个人资料」中绑定邮箱</div>
+            </div>
+            <button
+              className="settings-btn-outline"
+              onClick={() => setActiveTab('profile')}
+            >
+              去绑定
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="settings-form-section">
+        <div className="settings-form-section-title">推送说明</div>
         <div className="settings-binding-status">
           <div className="settings-binding-info">
-            <div className="settings-binding-title">暂无可配置项</div>
-            <div className="settings-binding-desc">消息通知功能正在开发中，敬请期待</div>
+            <div className="settings-binding-title">📰 每日早报</div>
+            <div className="settings-binding-desc">
+              每个交易日早上 6:00 自动发送，包含市场概览、今日预判、利好/利空板块分析
+            </div>
           </div>
         </div>
       </div>

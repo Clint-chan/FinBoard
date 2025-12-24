@@ -202,6 +202,110 @@ async function sendBindEmailCode(email, code, env) {
   return true
 }
 
+/**
+ * 发送日报订阅邮件
+ * @param {string} email - 收件人邮箱
+ * @param {string} date - 日报日期
+ * @param {object} reportContent - 日报内容
+ * @param {object} env - 环境变量
+ */
+async function sendDailyReportEmail(email, date, reportContent, env) {
+  // 构建日报邮件 HTML
+  const formattedDate = date.replace(/-/g, '.')
+  
+  // 提取关键信息
+  const marketSummary = reportContent.marketSummary || '暂无市场概览'
+  const prediction = reportContent.prediction || {}
+  const bullishSectors = reportContent.bullishSectors || []
+  const bearishSectors = reportContent.bearishSectors || []
+  
+  // 构建板块列表 HTML
+  const buildSectorList = (sectors, isBullish) => {
+    if (!sectors.length) return '<p style="color: #999;">暂无数据</p>'
+    return sectors.slice(0, 3).map(s => `
+      <div style="margin-bottom: 12px; padding: 12px; background: ${isBullish ? '#f0fdf4' : '#fef2f2'}; border-radius: 8px;">
+        <div style="font-weight: 600; color: ${isBullish ? '#16a34a' : '#dc2626'}; margin-bottom: 4px;">${s.name}</div>
+        <div style="font-size: 13px; color: #666;">${s.reason}</div>
+      </div>
+    `).join('')
+  }
+  
+  const htmlContent = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
+      <div style="background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 24px; text-align: center;">
+          <div style="display: inline-block; width: 48px; height: 48px; background: white; border-radius: 12px; line-height: 48px; font-size: 24px; font-weight: bold; color: #6366f1; margin-bottom: 12px;">F</div>
+          <h1 style="color: white; margin: 0; font-size: 24px;">Fintell 每日早报</h1>
+          <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">${formattedDate}</p>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding: 24px;">
+          <!-- 市场概览 -->
+          <div style="margin-bottom: 24px;">
+            <h2 style="font-size: 16px; color: #374151; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">📊 市场概览</h2>
+            <p style="color: #4b5563; line-height: 1.6; margin: 0;">${marketSummary}</p>
+          </div>
+          
+          <!-- 今日预判 -->
+          ${prediction.overall ? `
+          <div style="margin-bottom: 24px;">
+            <h2 style="font-size: 16px; color: #374151; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">🎯 今日预判</h2>
+            <p style="color: #4b5563; line-height: 1.6; margin: 0;">${prediction.overall}</p>
+          </div>
+          ` : ''}
+          
+          <!-- 利好板块 -->
+          <div style="margin-bottom: 24px;">
+            <h2 style="font-size: 16px; color: #16a34a; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #dcfce7;">📈 利好板块</h2>
+            ${buildSectorList(bullishSectors, true)}
+          </div>
+          
+          <!-- 利空板块 -->
+          <div style="margin-bottom: 24px;">
+            <h2 style="font-size: 16px; color: #dc2626; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #fee2e2;">📉 承压板块</h2>
+            ${buildSectorList(bearishSectors, false)}
+          </div>
+        </div>
+        
+        <!-- Footer -->
+        <div style="padding: 16px 24px; background: #f9fafb; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+            查看完整日报请访问 <a href="https://fintell.newestgpt.com" style="color: #6366f1;">Fintell</a>
+          </p>
+          <p style="color: #d1d5db; font-size: 11px; margin: 8px 0 0;">
+            如需取消订阅，请在 Fintell 设置中关闭日报推送
+          </p>
+        </div>
+      </div>
+    </div>
+  `
+  
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': env.BREVO_API_KEY,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { name: env.BREVO_SENDER_NAME, email: env.BREVO_SENDER_EMAIL },
+      to: [{ email: email }],
+      subject: `Fintell 每日早报 ${formattedDate}`,
+      htmlContent
+    })
+  })
+
+  if (!response.ok) {
+    const error = await response.text()
+    console.error('发送日报邮件失败:', error)
+    throw new Error('邮件发送失败')
+  }
+
+  return true
+}
+
 // ============ D1 数据库操作 ============
 
 // 缓存标记，避免重复初始化
@@ -240,6 +344,14 @@ async function initDB(db) {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `).run()
+    
+    // 尝试添加 daily_subscribe 字段到 users 表（如果不存在）
+    try {
+      await db.prepare(`ALTER TABLE users ADD COLUMN daily_subscribe INTEGER DEFAULT 0`).run()
+      console.log('已添加 daily_subscribe 字段')
+    } catch (e) {
+      // 字段可能已存在，忽略
+    }
     
     // 尝试创建索引（如果已存在会忽略）
     try {
@@ -1325,6 +1437,74 @@ export default {
         } catch (error) {
           console.error('股票数据采集错误:', error);
           return jsonResponse({ error: error.message, code }, 500);
+        }
+      }
+
+      // ============ Daily Subscribe API ============
+      
+      // GET /api/daily/subscribe - 获取订阅状态
+      if (path === '/api/daily/subscribe' && request.method === 'GET') {
+        const username = await verifyToken(request, env);
+        if (!username) {
+          return jsonResponse({ error: '未登录' }, 401);
+        }
+
+        if (env.DB) {
+          try {
+            const user = await getUserFromDB(env.DB, username);
+            if (user) {
+              return jsonResponse({ 
+                subscribed: user.daily_subscribe === 1,
+                email: user.email
+              });
+            }
+          } catch (e) {
+            console.error('Get subscribe status error:', e);
+          }
+        }
+
+        return jsonResponse({ subscribed: false, email: null });
+      }
+
+      // POST /api/daily/subscribe - 订阅/取消订阅日报
+      if (path === '/api/daily/subscribe' && request.method === 'POST') {
+        const username = await verifyToken(request, env);
+        if (!username) {
+          return jsonResponse({ error: '未登录' }, 401);
+        }
+
+        const { subscribe } = await request.json();
+        
+        if (typeof subscribe !== 'boolean') {
+          return jsonResponse({ error: '参数错误' }, 400);
+        }
+
+        if (!env.DB) {
+          return jsonResponse({ error: '服务暂不可用' }, 500);
+        }
+
+        try {
+          const user = await getUserFromDB(env.DB, username);
+          if (!user) {
+            return jsonResponse({ error: '用户不存在' }, 404);
+          }
+
+          // 订阅需要绑定邮箱
+          if (subscribe && !user.email) {
+            return jsonResponse({ error: '请先绑定邮箱' }, 400);
+          }
+
+          await env.DB.prepare('UPDATE users SET daily_subscribe = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?')
+            .bind(subscribe ? 1 : 0, username).run();
+
+          return jsonResponse({ 
+            success: true, 
+            subscribed: subscribe,
+            message: subscribe ? '订阅成功，每日早报将发送到您的邮箱' : '已取消订阅'
+          });
+        } catch (e) {
+          console.error('Update subscribe error:', e);
+          return jsonResponse({ error: '操作失败' }, 500);
         }
       }
 
@@ -2462,6 +2642,36 @@ async function generateDailyReport(env, isScheduled = false) {
   `).bind(today, JSON.stringify(reportJson), newsList.length).run();
   
   console.log(`日报生成成功: ${today}`);
+  
+  // 发送日报邮件给订阅用户
+  try {
+    const subscribers = await env.DB.prepare(`
+      SELECT email FROM users 
+      WHERE daily_subscribe = 1 AND email IS NOT NULL AND email != ''
+    `).all();
+    
+    const subscriberList = subscribers.results || [];
+    console.log(`找到 ${subscriberList.length} 个订阅用户`);
+    
+    let sentCount = 0;
+    let failCount = 0;
+    
+    for (const sub of subscriberList) {
+      try {
+        await sendDailyReportEmail(sub.email, today, reportJson, env);
+        sentCount++;
+        console.log(`日报邮件已发送: ${sub.email}`);
+      } catch (e) {
+        failCount++;
+        console.error(`发送日报邮件失败 (${sub.email}):`, e.message);
+      }
+    }
+    
+    console.log(`日报邮件发送完成: 成功 ${sentCount}, 失败 ${failCount}`);
+  } catch (e) {
+    console.error('获取订阅用户失败:', e);
+  }
+  
   return { success: true, date: today, newsCount: newsList.length };
 }
 

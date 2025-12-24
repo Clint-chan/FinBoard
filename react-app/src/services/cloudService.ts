@@ -277,6 +277,45 @@ export async function bindEmail(token: string, email: string, code: string): Pro
   return data
 }
 
+/**
+ * 获取日报订阅状态
+ */
+export async function getDailySubscribeStatus(token: string): Promise<{ subscribed: boolean; email: string | null }> {
+  if (!token) throw new Error('未登录')
+
+  const res = await fetch(`${SYNC_API}/api/daily/subscribe`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error((data as ErrorResponse).error || '获取订阅状态失败')
+  }
+  return data
+}
+
+/**
+ * 订阅/取消订阅日报
+ */
+export async function setDailySubscribe(token: string, subscribe: boolean): Promise<{ subscribed: boolean; message: string }> {
+  if (!token) throw new Error('未登录')
+
+  const res = await fetch(`${SYNC_API}/api/daily/subscribe`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ subscribe })
+  })
+
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error((data as ErrorResponse).error || '操作失败')
+  }
+  return data
+}
+
 export default {
   cloudLogin,
   cloudRegister,
@@ -291,5 +330,7 @@ export default {
   changeEmail,
   getUserInfo,
   sendBindEmailCode,
-  bindEmail
+  bindEmail,
+  getDailySubscribeStatus,
+  setDailySubscribe
 }
