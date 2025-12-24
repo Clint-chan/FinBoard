@@ -1778,7 +1778,7 @@ function buildDailyReportPrompt() {
       "category": "分类名称",
       "color": "tech/fin/geo/soc",
       "items": [
-        { "title": "标题", "tag": "bullish/bearish/neutral", "tagText": "标签", "summary": "一句话点评" }
+        { "title": "简短标题", "tag": "bullish/bearish/neutral", "tagText": "标签", "summary": "简要点评，包含事件背景和影响分析" }
       ]
     }
   ],
@@ -1809,6 +1809,14 @@ function buildDailyReportPrompt() {
 - color 对应：tech(蓝)、fin(绿)、geo(橙)、soc(紫)
 - **每个分类精选 3 条最重要的情报**，优先选择对市场影响最大的新闻
 - tag 和 tagText 自由发挥，准确表达利好/利空/中性及程度
+- **title 字段格式要求（极其重要！）**：
+  - 必须简短精炼概括核心事件
+  - ✅ 正确示例："火箭回收失败"、"影子银行风暴"、"中美司法交锋"、"中日关系紧张"
+  - ❌ 错误示例："英伟达H200获批对华销售，阿里或成前沿市场"（太长，像新闻标题）
+- **summary 字段格式要求**：
+  - 必须详实，包含完整上下文和影响分析
+  - 示例1："英伟达H200受审；国产GPU“伊露维塔”亮相+闻泰保供，催化自主可控。"
+  - 示例2：“长征12A实验失败，打击商业航天情绪。但“青州号”飞船亮相。”
 
 ### 大盘研判 prediction
 - northbound 和 volume：自由分析，简练而有深度，一两句话点明核心判断
