@@ -78,13 +78,13 @@
   height: 14px;
 }
 
-/* Section Title - 无分隔线，简洁风格 */
+/* Section Title - 加粗更明显 */
 .section-title {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-tertiary);
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
   margin-bottom: 12px;
   display: flex;
   align-items: center;
@@ -92,9 +92,9 @@
 }
 
 .section-title svg {
-  width: 14px;
-  height: 14px;
-  opacity: 0.6;
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
 }
 
 /* Intelligence Matrix */
@@ -219,16 +219,17 @@
 .prediction-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border-radius: var(--radius);
   overflow: hidden;
-  margin-bottom: 32px;
+  margin-bottom: 28px;
+  box-shadow: var(--shadow-sm);
 }
 
 .prediction-content {
-  padding: 24px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
 @media (min-width: 768px) {
@@ -239,37 +240,42 @@
 
 .prediction-main {
   flex: 1;
-  padding-right: 24px;
-  border-right: 1px solid var(--border-lighter);
+  padding-right: 20px;
+  border-right: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 @media (max-width: 767px) {
   .prediction-main {
     padding-right: 0;
     border-right: none;
-    padding-bottom: 24px;
-    border-bottom: 1px solid var(--border-lighter);
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-light);
   }
 }
 
 .prediction-label {
   display: inline-block;
-  padding: 2px 8px;
-  background: var(--bg-hover);
-  color: var(--text-tertiary);
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  color: white;
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   border-radius: 4px;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  width: fit-content;
 }
 
 .prediction-tone {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 800;
   color: var(--text-primary);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  letter-spacing: -0.02em;
 }
 
 .prediction-subtitle {
@@ -280,10 +286,9 @@
 }
 
 .prediction-summary {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
-  line-height: 1.6;
-  text-align: justify;
+  line-height: 1.7;
 }
 
 .prediction-details {

@@ -168,27 +168,15 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
             <span className="daily-date">{currentDate?.replace(/-/g, '.')}</span>
           </h1>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {isAdmin && (
-            <button 
-              onClick={handleGenerate} 
-              disabled={generating}
-              className="history-btn"
-              style={{ background: generating ? '#e5e7eb' : '#7c3aed', color: 'white' }}
-            >
-              {generating ? '生成中...' : '重新生成'}
-            </button>
-          )}
-          <button className="history-btn" onClick={() => setHistoryOpen(true)}>
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>往期回顾</span>
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: 12, height: 12 }}>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
+        <button className="history-btn" onClick={() => setHistoryOpen(true)}>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>往期回顾</span>
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: 12, height: 12 }}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
       </header>
 
       {/* Intelligence Matrix */}

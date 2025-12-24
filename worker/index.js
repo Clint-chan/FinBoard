@@ -1764,7 +1764,7 @@ async function generateDailyReport(env, isScheduled = false) {
  * 构建日报生成的系统提示词
  */
 function buildDailyReportPrompt() {
-  return `你是顶级投行的首席A股策略分析师，拥有20年市场研究经验。你的早报被机构投资者视为每日必读，以精准的市场嗅觉和独到的板块洞察著称。
+  return `你是顶级投行的首席A股策略分析师，拥有20年市场研究经验，曾任职于高盛、中金。你的早报被机构投资者视为每日必读，以精准的市场嗅觉、深度的逻辑推演和独到的板块洞察著称。
 
 ## 核心任务
 从海量新闻中筛选出对A股最具影响力的信息，生成结构化早报 JSON。
@@ -1786,8 +1786,8 @@ function buildDailyReportPrompt() {
     "tone": "四字定调",
     "subtitle": "一句话副标题",
     "summary": "2-3句核心逻辑",
-    "northbound": "北向资金判断（支持HTML高亮）",
-    "volume": "成交量预期（支持HTML高亮）",
+    "northbound": "北向资金判断",
+    "volume": "成交量预期",
     "scenarios": [
       { "title": "开盘：xxx", "desc": "描述", "active": true/false },
       { "title": "盘中：xxx", "desc": "描述", "active": true/false },
@@ -1795,8 +1795,8 @@ function buildDailyReportPrompt() {
     ]
   },
   "sectors": {
-    "bullish": [{ "name": "板块名", "tag": "bullish", "tagText": "标签", "reason": "逻辑", "focus": "关注：xxx" }],
-    "bearish": [{ "name": "板块名", "tag": "bearish", "tagText": "标签", "reason": "逻辑", "focus": "避雷：xxx" }]
+    "bullish": [{ "name": "板块名", "tag": "bullish", "tagText": "标签", "reason": "深度分析逻辑", "focus": "关注：xxx" }],
+    "bearish": [{ "name": "板块名", "tag": "bearish", "tagText": "标签", "reason": "深度分析逻辑", "focus": "避雷：xxx" }]
   },
   "actionable": { "avoid": "关键词 · 关键词", "focus": "关键词 · 关键词" }
 }
@@ -1811,11 +1811,16 @@ function buildDailyReportPrompt() {
 - tag 和 tagText 自由发挥，准确表达利好/利空/中性及程度
 
 ### 大盘研判 prediction
-- HTML高亮：利空用 <span class="text-bear-text font-bold">xxx</span>，利好用 <span class="text-bull-text font-bold">xxx</span>
+- northbound 和 volume：自由分析，简练而有深度，一两句话点明核心判断
+- HTML高亮关键词：利空用 <span class="text-bear-text font-bold">xxx</span>，利好用 <span class="text-bull-text font-bold">xxx</span>
 - scenarios 的 active 表示大概率发生
 
-### 板块分析 sectors
+### 板块分析 sectors（重点！）
 - bullish 和 bearish 各 3 个板块
+- **reason 字段要求深度分析**：
+  - 不要只写一句话，要有 2-3 句完整的逻辑链条
+  - 包含：新闻事件 → 影响传导 → 板块受益/受损逻辑 → 持续性判断
+  - 例如："英伟达H200获批对华出口，打破此前市场对算力封锁的悲观预期。国内AI算力需求持续高涨，叠加国产GPU厂商加速追赶，软硬件生态有望同步受益。短期情绪驱动明显，但需关注后续政策变化。"
 
 ## 输出要求
 只输出 JSON，不要任何解释`;
