@@ -507,6 +507,31 @@ export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHisto
     })
   }, [strategies, saveAlertHistory])
 
+  // 删除价格预警条件
+  const handleDeleteCondition = useCallback((strategyId: string, conditionIndex: number) => {
+    const strategy = strategies.find(s => s.id === strategyId) as PriceAlertStrategy | undefined
+    if (!strategy) return
+
+    const newConditions = [...(strategy.conditions || [])]
+    newConditions.splice(conditionIndex, 1)
+
+    // 如果删除后没有条件了，可以选择删除整个策略或保留空策略
+    // 这里选择保留策略，用户可以继续添加条件
+    const updatedStrategy = { 
+      ...strategy, 
+      conditions: newConditions,
+      // 如果所有条件都删除了，重置状态为运行中
+      status: newConditions.length === 0 ? 'running' as const : strategy.status,
+      updatedAt: Date.now()
+    }
+
+    setStrategies(prev => {
+      const updated = prev.map(s => s.id === strategyId ? updatedStrategy : s)
+      saveStrategies(updated)
+      return updated
+    })
+  }, [strategies])
+
   return (
     <div className="strategy-center">
       {/* 头部 */}
@@ -623,6 +648,7 @@ export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHisto
                   onDelete={() => handleDeleteStrategy(strategy.id)}
                   onToggle={() => handleToggleStrategy(strategy.id)}
                   onConfirmCondition={handleConfirmCondition}
+                  onDeleteCondition={handleDeleteCondition}
                 />
               ))}
             </div>
@@ -637,6 +663,7 @@ export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHisto
                   onDelete={() => handleDeleteStrategy(strategy.id)}
                   onToggle={() => handleToggleStrategy(strategy.id)}
                   onConfirmCondition={handleConfirmCondition}
+                  onDeleteCondition={handleDeleteCondition}
                 />
               ))}
             </div>
@@ -681,6 +708,7 @@ interface StrategyCardProps {
   onDelete: () => void
   onToggle: () => void
   onConfirmCondition?: (strategyId: string, conditionIndex: number, condition: PriceCondition) => void
+  onDeleteCondition?: (strategyId: string, conditionIndex: number) => void
 }
 
 // 获取策略标签文字
@@ -727,7 +755,7 @@ function getStrategyDisplayName(strategy: Strategy): string {
   }
 }
 
-function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle, onConfirmCondition }: StrategyCardProps) {
+function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle, onConfirmCondition, onDeleteCondition }: StrategyCardProps) {
   const isTriggered = strategy.status === 'triggered'
   const isPriceAlert = strategy.type === 'price'
 
@@ -836,6 +864,7 @@ function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle, on
               onDelete={onDelete}
               onToggle={onToggle}
               onConfirmCondition={onConfirmCondition ? (idx, cond) => onConfirmCondition(strategy.id, idx, cond) : undefined}
+              onDeleteCondition={onDeleteCondition ? (idx) => onDeleteCondition(strategy.id, idx) : undefined}
             />
           )}
         </div>
@@ -999,9 +1028,10 @@ interface PriceAlertContentProps {
   onDelete?: () => void
   onToggle?: () => void
   onConfirmCondition?: (conditionIndex: number, condition: PriceCondition) => void
+  onDeleteCondition?: (conditionIndex: number) => void
 }
 
-function PriceAlertContent({ strategy, onEdit, onDelete, onToggle, onConfirmCondition }: PriceAlertContentProps) {
+function PriceAlertContent({ strategy, onEdit, onDelete, onToggle, onConfirmCondition, onDeleteCondition }: PriceAlertContentProps) {
   const [expanded, setExpanded] = useState(false)
   const conditions = strategy.conditions || []
 
@@ -1041,8 +1071,9 @@ function PriceAlertContent({ strategy, onEdit, onDelete, onToggle, onConfirmCond
   const handleDeleteCondition = (idx: number, e: React.MouseEvent) => {
     e.stopPropagation()
     if (confirm('确定删除这个预警条件吗？')) {
-      console.log('删除条件', idx)
-      // TODO: 删除条件
+      if (onDeleteCondition) {
+        onDeleteCondition(idx)
+      }
     }
   }
 
