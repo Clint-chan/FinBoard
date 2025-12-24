@@ -121,10 +121,14 @@ export function SettingsModal({
 
   // 获取用户邮箱
   useEffect(() => {
-    if (open && isLoggedIn && token) {
-      getUserInfo(token)
-        .then(info => setUserEmail(info.email))
-        .catch(() => setUserEmail(null))
+    if (open && isLoggedIn) {
+      // 优先使用 props 传入的 token，否则从 localStorage 获取
+      const currentToken = token || localStorage.getItem('cloud_token')
+      if (currentToken) {
+        getUserInfo(currentToken)
+          .then(info => setUserEmail(info.email))
+          .catch(() => setUserEmail(null))
+      }
     }
   }, [open, isLoggedIn, token])
 
@@ -158,7 +162,9 @@ export function SettingsModal({
       return
     }
 
-    if (!token) {
+    // 优先使用 props 传入的 token，否则从 localStorage 获取
+    const currentToken = token || localStorage.getItem('cloud_token')
+    if (!currentToken) {
       setEmailError('请先登录')
       return
     }
@@ -168,9 +174,9 @@ export function SettingsModal({
 
     try {
       if (emailMode === 'bind') {
-        await sendBindEmailCode(token, newEmail.trim())
+        await sendBindEmailCode(currentToken, newEmail.trim())
       } else {
-        await sendChangeEmailCode(token, newEmail.trim())
+        await sendChangeEmailCode(currentToken, newEmail.trim())
       }
       setEmailCountdown(60)
       const timer = setInterval(() => {
@@ -196,7 +202,9 @@ export function SettingsModal({
       return
     }
 
-    if (!token) {
+    // 优先使用 props 传入的 token，否则从 localStorage 获取
+    const currentToken = token || localStorage.getItem('cloud_token')
+    if (!currentToken) {
       setEmailError('请先登录')
       return
     }
@@ -206,11 +214,11 @@ export function SettingsModal({
 
     try {
       if (emailMode === 'bind') {
-        const result = await bindEmail(token, newEmail.trim(), emailCode.trim())
+        const result = await bindEmail(currentToken, newEmail.trim(), emailCode.trim())
         setUserEmail(result.email)
         setEmailSuccess('邮箱绑定成功')
       } else {
-        const result = await changeEmail(token, newEmail.trim(), emailCode.trim())
+        const result = await changeEmail(currentToken, newEmail.trim(), emailCode.trim())
         localStorage.setItem('cloud_token', result.token)
         setUserEmail(newEmail.trim())
         onLoginSuccess?.(result.token, result.username)
@@ -244,7 +252,10 @@ export function SettingsModal({
       setPasswordError('两次密码输入不一致')
       return
     }
-    if (!token) {
+
+    // 优先使用 props 传入的 token，否则从 localStorage 获取
+    const currentToken = token || localStorage.getItem('cloud_token')
+    if (!currentToken) {
       setPasswordError('请先登录')
       return
     }
@@ -253,7 +264,7 @@ export function SettingsModal({
     setPasswordError('')
 
     try {
-      await cloudChangePassword(token, oldPassword, newPassword)
+      await cloudChangePassword(currentToken, oldPassword, newPassword)
       setPasswordSuccess('密码修改成功')
       setTimeout(() => {
         resetPasswordForm()
