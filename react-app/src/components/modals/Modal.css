@@ -1107,3 +1107,22 @@
   color: var(--border-light);
   margin: 0 8px;
 }
+
+
+/* Auth Modal Footer 布局优化 */
+.auth-footer {
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-footer .auth-switch {
+  width: 100%;
+  text-align: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.auth-footer .modal-actions {
+  width: 100%;
+  justify-content: flex-end;
+}

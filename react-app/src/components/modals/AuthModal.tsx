@@ -331,16 +331,16 @@ export function AuthModal({ open, onClose, onSuccess }: AuthModalProps) {
             )}
           </div>
 
-          <div className="modal-footer">
+          <div className="modal-footer auth-footer">
             <div className="auth-switch">
               {mode === 'login' ? (
                 <>
-                  <span>没有账号？<button type="button" onClick={() => switchMode('register')}>立即注册</button></span>
+                  <span>没有账号？<button type="button" onClick={() => switchMode('register')}>注册</button></span>
                   <span className="auth-divider">|</span>
                   <button type="button" className="forgot-btn" onClick={() => switchMode('reset')}>忘记密码</button>
                 </>
               ) : mode === 'register' ? (
-                <span>已有账号？<button type="button" onClick={() => switchMode('login')}>立即登录</button></span>
+                <span>已有账号？<button type="button" onClick={() => switchMode('login')}>登录</button></span>
               ) : (
                 <span>想起密码了？<button type="button" onClick={() => switchMode('login')}>返回登录</button></span>
               )}
