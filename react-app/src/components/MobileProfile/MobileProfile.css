@@ -422,3 +422,197 @@
 [data-theme="dark"] .mp-settings select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 }
+
+
+/* 验证码输入框样式 */
+.mp-input-with-btn {
+  display: flex;
+  gap: 10px;
+}
+
+.mp-input-with-btn input {
+  flex: 1;
+}
+
+.mp-send-code-btn {
+  flex-shrink: 0;
+  padding: 0 16px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.mp-send-code-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.mp-send-code-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.mp-send-code-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+
+/* 账号中心 - 邮箱绑定 */
+.mp-setting-value {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mp-email-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mp-bind-btn,
+.mp-change-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mp-bind-btn {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+}
+
+.mp-bind-btn:hover {
+  opacity: 0.9;
+}
+
+.mp-change-btn {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+}
+
+.mp-change-btn:hover {
+  background: var(--border-light);
+  color: var(--text-primary);
+}
+
+/* 邮箱绑定弹窗 */
+.mp-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.mp-modal {
+  background: var(--bg-surface);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 360px;
+  overflow: hidden;
+}
+
+.mp-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.mp-modal-header h3 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.mp-modal-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  font-size: 20px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mp-modal-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.mp-modal-body {
+  padding: 20px;
+}
+
+.mp-modal-body .mp-input-group {
+  margin-bottom: 16px;
+}
+
+.mp-modal-body .mp-input-group:last-child {
+  margin-bottom: 0;
+}
+
+.mp-modal-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-light);
+}
+
+.mp-modal-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mp-modal-btn-primary {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+}
+
+.mp-modal-btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.mp-modal-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 成功提示 */
+.mp-success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  margin-bottom: 16px;
+  text-align: center;
+}

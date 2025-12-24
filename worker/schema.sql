@@ -5,12 +5,16 @@
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE,                -- 用户邮箱（用于登录和找回密码）
   password_hash TEXT NOT NULL,
   ai_quota INTEGER DEFAULT 3,
   register_ip TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 邮箱索引
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 -- AI 使用记录表
 CREATE TABLE IF NOT EXISTS ai_usage (
