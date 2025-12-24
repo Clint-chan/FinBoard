@@ -1,23 +1,20 @@
 /**
  * Daily Report 样式
- * 基于 5.html 模版
+ * 与项目整体风格统一
  */
 
 .daily-report {
-  max-width: 1024px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 0;
 }
 
+/* Header - 与项目其他页面风格统一，不加背景框 */
 .daily-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  padding: 12px 16px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
 }
 
 .daily-title {
@@ -27,63 +24,66 @@
 }
 
 .daily-logo {
-  width: 32px;
-  height: 32px;
-  background: #7c3aed;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-weight: bold;
-  font-size: 14px;
+  font-weight: 700;
+  font-size: 16px;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
 }
 
 .daily-title h1 {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 800;
   color: var(--text-primary);
   margin: 0;
+  letter-spacing: -0.02em;
 }
 
 .daily-date {
   color: var(--text-tertiary);
   font-weight: 400;
-  font-size: 14px;
+  font-size: 0.9rem;
   margin-left: 8px;
 }
 
 .history-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 20px;
-  border: 1px solid transparent;
-  background: transparent;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-surface);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .history-btn:hover {
-  border-color: var(--border-light);
+  border-color: var(--primary-color);
   background: var(--bg-hover);
   color: var(--text-primary);
 }
 
 .history-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
-/* Section Title */
+/* Section Title - 无分隔线，简洁风格 */
 .section-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   color: var(--text-tertiary);
   margin-bottom: 12px;
   display: flex;
@@ -91,42 +91,49 @@
   gap: 8px;
 }
 
-.section-title::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border-light);
-}
-
 .section-title svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
+  opacity: 0.6;
 }
 
 /* Intelligence Matrix */
 .intel-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+@media (max-width: 1024px) {
+  .intel-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .intel-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .intel-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border-radius: var(--radius);
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
-.intel-card.tech { border-top: 4px solid #3b82f6; }
-.intel-card.fin { border-top: 4px solid #10b981; }
-.intel-card.geo { border-top: 4px solid #f59e0b; }
-.intel-card.soc { border-top: 4px solid #6366f1; }
-.intel-card.other { border-top: 4px solid #6b7280; }
+.intel-card.tech { border-top: 3px solid #3b82f6; }
+.intel-card.fin { border-top: 3px solid #10b981; }
+.intel-card.geo { border-top: 3px solid #f59e0b; }
+.intel-card.soc { border-top: 3px solid #6366f1; }
+.intel-card.other { border-top: 3px solid #6b7280; }
 
 .intel-card-header {
-  padding: 12px;
-  font-size: 12px;
+  padding: 10px 12px;
+  font-size: 11px;
   font-weight: 700;
 }
 
