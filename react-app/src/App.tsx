@@ -4,6 +4,7 @@ import { useQuotes } from '@/hooks/useQuotes'
 import { useTheme } from '@/hooks/useTheme'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useCloudSync } from '@/hooks/useCloudSync'
+import { useStrategyMonitor } from '@/hooks/useStrategyMonitor'
 import { requestNotificationPermission } from '@/utils/format'
 import { runMigration } from '@/services/migrationService'
 import { loadStrategies, saveStrategies, generateStrategyId } from '@/services/strategyService'
@@ -103,6 +104,17 @@ function App() {
     config,
     onConfigLoaded: (cloudConfig) => {
       setConfig(prev => ({ ...prev, ...cloudConfig }))
+    }
+  })
+
+  // 后台策略监控（在 App 层级运行，不受页面切换影响）
+  useStrategyMonitor({
+    stockData,
+    strategyCheckInterval: config.strategyCheckInterval ?? 30,
+    onAlertTriggered: (item) => {
+      // 添加新记录到开头，保留最近100条
+      const newHistory = [item, ...(config.alertHistory || [])].slice(0, 100)
+      updateConfig({ alertHistory: newHistory })
     }
   })
 
@@ -757,7 +769,6 @@ function App() {
             stockData={stockData}
             alertHistory={config.alertHistory}
             onAlertHistoryChange={(history) => updateConfig({ alertHistory: history })}
-            strategyCheckInterval={config.strategyCheckInterval ?? 30}
           />
         )}
       </main>
