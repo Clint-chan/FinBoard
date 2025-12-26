@@ -63,6 +63,10 @@ export function AdminPage() {
   const [dailyReports, setDailyReports] = useState<DailyReportInfo[]>([])
   const [dailyLoading, setDailyLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
+  
+  // 测试邮件
+  const [testEmail, setTestEmail] = useState('')
+  const [sendingTestEmail, setSendingTestEmail] = useState(false)
 
   // 加载用户列表
   const loadUsers = useCallback(async () => {
@@ -159,6 +163,36 @@ export function AdminPage() {
       setError(err instanceof Error ? err.message : '生成日报失败')
     } finally {
       setGenerating(false)
+    }
+  }
+  
+  // 发送测试邮件
+  const sendTestDailyEmail = async () => {
+    if (!token || sendingTestEmail || !testEmail) return
+    setSendingTestEmail(true)
+    setError('')
+    
+    try {
+      const res = await fetch(`${SYNC_API}/api/admin/test-daily-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ email: testEmail })
+      })
+      
+      const data = await res.json()
+      if (data.success) {
+        alert(`测试邮件已发送到 ${testEmail}，日报日期: ${data.date}`)
+        setTestEmail('')
+      } else {
+        throw new Error(data.error || '发送失败')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '发送测试邮件失败')
+    } finally {
+      setSendingTestEmail(false)
     }
   }
 
@@ -324,6 +358,27 @@ export function AdminPage() {
           <p className="daily-hint">
             💡 日报会在每天北京时间 6:00 自动生成，也可以手动触发生成/重新生成
           </p>
+        </div>
+        
+        <div className="test-email-section">
+          <div className="test-email-title">📧 测试日报邮件</div>
+          <div className="test-email-form">
+            <input
+              type="email"
+              className="test-email-input"
+              placeholder="输入测试邮箱地址"
+              value={testEmail}
+              onChange={e => setTestEmail(e.target.value)}
+            />
+            <button 
+              className="test-email-btn"
+              onClick={sendTestDailyEmail}
+              disabled={sendingTestEmail || !testEmail}
+            >
+              {sendingTestEmail ? '发送中...' : '发送测试'}
+            </button>
+          </div>
+          <p className="test-email-hint">将最新日报发送到指定邮箱进行测试</p>
         </div>
         
         <div className="daily-list">

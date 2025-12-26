@@ -606,10 +606,11 @@
   background: linear-gradient(to right, rgba(124, 58, 237, 0.05), transparent);
   border: 1px solid rgba(124, 58, 237, 0.2);
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
+  overflow: hidden;
 }
 
 @media (min-width: 768px) {
@@ -622,41 +623,47 @@
 
 .actionable-header {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .actionable-icon {
-  padding: 8px;
+  padding: 6px;
   background: rgba(124, 58, 237, 0.1);
-  border-radius: 8px;
+  border-radius: 6px;
   color: #7c3aed;
+  flex-shrink: 0;
 }
 
 .actionable-icon svg {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
 }
 
 .actionable-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: #5b21b6;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: 4px;
+  letter-spacing: 0.08em;
+  margin-bottom: 2px;
+  white-space: nowrap;
 }
 
 .actionable-title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .actionable-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .actionable-box {
@@ -664,31 +671,39 @@
   align-items: center;
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
-  border-radius: 8px;
-  padding: 10px 16px;
+  border-radius: 6px;
+  padding: 8px 12px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .actionable-box-label {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding-right: 12px;
+  gap: 6px;
+  padding-right: 10px;
   border-right: 1px solid var(--border-light);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .actionable-box-label svg {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .actionable-box-value {
-  padding-left: 12px;
-  font-size: 12px;
+  padding-left: 10px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .actionable-box.focus {
@@ -824,3 +839,141 @@
 }
 
 /* History Modal 样式保持不变 */
+
+
+/* 操作按钮区域 - 浮动工具栏设计 */
+.daily-fab-toolbar {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 100;
+}
+
+.fab-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.fab-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.fab-btn:hover {
+  transform: scale(1.1);
+}
+
+.fab-btn:active {
+  transform: scale(0.95);
+}
+
+/* 往期回顾按钮 - 次要样式 */
+.fab-history {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+}
+
+.fab-history:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* 分享按钮 - 主要样式 */
+.fab-share {
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  color: white;
+}
+
+.fab-share:hover:not(:disabled) {
+  box-shadow: 0 6px 24px rgba(124, 58, 237, 0.4);
+}
+
+.fab-share:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 加载动画 */
+.fab-spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* 移动端适配 */
+@media (max-width: 640px) {
+  .daily-fab-toolbar {
+    right: 16px;
+    bottom: 80px; /* 避开底部导航栏 */
+  }
+  
+  .fab-btn {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .fab-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+/* 日报内容容器 - 用于截图 */
+.daily-content {
+  background: var(--bg-body);
+  padding: 24px 28px 20px;
+  border-radius: 12px;
+  position: relative;
+}
+
+/* 截图时的样式优化 */
+.daily-content section {
+  margin-bottom: 24px;
+}
+
+/* 截图中的 header */
+.daily-content .daily-header {
+  margin-bottom: 24px;
+}
+
+/* 中间水印 - 斜向半透明 */
+.daily-watermark-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-25deg);
+  font-size: 48px;
+  font-weight: 800;
+  color: var(--text-tertiary);
+  opacity: 0.04;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  letter-spacing: 0.1em;
+  z-index: 1;
+}
+
+/* 底部水印 - 低调不影响阅读 */
+.daily-watermark {
+  text-align: center;
+  padding-top: 16px;
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  opacity: 0.45;
+  letter-spacing: 0.05em;
+  border-top: 1px solid var(--border-lighter);
+}

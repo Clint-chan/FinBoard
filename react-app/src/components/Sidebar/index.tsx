@@ -1,6 +1,13 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { PageType, UserProfile } from '@/types'
-import { cloudChangePassword } from '@/services/cloudService'
+import { 
+  cloudChangePassword, 
+  getUserInfo, 
+  sendBindEmailCode, 
+  bindEmail, 
+  sendChangeEmailCode, 
+  changeEmail 
+} from '@/services/cloudService'
 import './Sidebar.css'
 
 // 图标组件
@@ -42,9 +49,7 @@ const Icons = {
   ),
   admin: (
     <svg viewBox="0 0 24 24">
-      <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-      <path d="M2 17l10 5 10-5"></path>
-      <path d="M2 12l10 5 10-5"></path>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
     </svg>
   ),
   login: (
@@ -97,6 +102,7 @@ interface SidebarProps {
   onProfileSave: (profile: UserProfile) => void
   onSync?: () => void | Promise<void>
   token?: string | null
+  onProfileClick?: () => void  // 新增：点击用户头像时的回调
 }
 
 function Sidebar({
@@ -115,6 +121,7 @@ function Sidebar({
   onProfileSave,
   onSync,
   token,
+  onProfileClick,
 }: SidebarProps) {
   const [expanded, setExpanded] = useState(false)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
@@ -126,12 +133,39 @@ function Sidebar({
   const [passwordError, setPasswordError] = useState('')
   const [passwordSuccess, setPasswordSuccess] = useState(false)
 
-  const navItems: { id: PageType | 'insight'; label: string; icon: JSX.Element; adminOnly?: boolean }[] = [
+  // 邮箱相关状态
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [showEmailForm, setShowEmailForm] = useState(false)
+  const [emailFormMode, setEmailFormMode] = useState<'bind' | 'change'>('bind')
+  const [newEmail, setNewEmail] = useState('')
+  const [emailCode, setEmailCode] = useState('')
+  const [emailLoading, setEmailLoading] = useState(false)
+  const [emailSendingCode, setEmailSendingCode] = useState(false)
+  const [emailCountdown, setEmailCountdown] = useState(0)
+  const [emailError, setEmailError] = useState('')
+  const [emailSuccess, setEmailSuccess] = useState('')
+
+  // 获取用户邮箱信息
+  useEffect(() => {
+    if (isLoggedIn && token) {
+      getUserInfo(token)
+        .then(info => setUserEmail(info.email))
+        .catch(() => setUserEmail(null))
+    } else {
+      setUserEmail(null)
+    }
+  }, [isLoggedIn, token])
+
+  const navItems: {
+    id: PageType | 'insight'
+    label: string
+    icon: JSX.Element
+    adminOnly?: boolean
+  }[] = [
     { id: 'watchlist', label: 'Watchlist', icon: Icons.watchlist },
     { id: 'daily', label: 'Daily', icon: Icons.daily },
     { id: 'insight', label: 'Insight', icon: Icons.analysis },
     { id: 'strategies', label: 'Strategies', icon: Icons.strategies },
-    { id: 'settings', label: 'Settings', icon: Icons.settings },
     { id: 'admin', label: 'Admin', icon: Icons.admin, adminOnly: true },
   ]
 
@@ -235,6 +269,97 @@ function Sidebar({
     }
   }
 
+  // 打开邮箱绑定/换绑表单
+  const openEmailForm = (mode: 'bind' | 'change') => {
+    setEmailFormMode(mode)
+    setNewEmail('')
+    setEmailCode('')
+    setEmailError('')
+    setEmailSuccess('')
+    setShowEmailForm(true)
+  }
+
+  // 发送邮箱验证码
+  const handleSendEmailCode = async () => {
+    if (!newEmail.trim()) {
+      setEmailError('请先输入邮箱')
+      return
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(newEmail.trim())) {
+      setEmailError('邮箱格式不正确')
+      return
+    }
+
+    if (!token) {
+      setEmailError('请先登录')
+      return
+    }
+
+    setEmailSendingCode(true)
+    setEmailError('')
+
+    try {
+      if (emailFormMode === 'bind') {
+        await sendBindEmailCode(token, newEmail.trim())
+      } else {
+        await sendChangeEmailCode(token, newEmail.trim())
+      }
+      setEmailCountdown(60)
+      const timer = setInterval(() => {
+        setEmailCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : '发送验证码失败')
+    } finally {
+      setEmailSendingCode(false)
+    }
+  }
+
+  // 确认绑定/换绑邮箱
+  const handleEmailSubmit = async () => {
+    if (!newEmail.trim() || !emailCode.trim()) {
+      setEmailError('请填写邮箱和验证码')
+      return
+    }
+
+    if (!token) {
+      setEmailError('请先登录')
+      return
+    }
+
+    setEmailLoading(true)
+    setEmailError('')
+
+    try {
+      if (emailFormMode === 'bind') {
+        const result = await bindEmail(token, newEmail.trim(), emailCode.trim())
+        setUserEmail(result.email)
+        setEmailSuccess('邮箱绑定成功')
+      } else {
+        const result = await changeEmail(token, newEmail.trim(), emailCode.trim())
+        localStorage.setItem('cloud_token', result.token)
+        setUserEmail(newEmail.trim())
+        setEmailSuccess('邮箱换绑成功')
+      }
+      setTimeout(() => {
+        setShowEmailForm(false)
+        setEmailSuccess('')
+      }, 1500)
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : '操作失败')
+    } finally {
+      setEmailLoading(false)
+    }
+  }
+
   const isExpanded = externalExpanded !== undefined ? externalExpanded : expanded
 
   return (
@@ -262,7 +387,7 @@ function Sidebar({
             .map(item => (
             <div
               key={item.id}
-              className={`sidebar-item ${activePage === item.id ? 'active' : ''}`}
+              className={`sidebar-item ${item.id !== 'insight' && activePage === item.id ? 'active' : ''}`}
               onClick={() => handleNavClick(item.id)}
             >
               <span className="sidebar-icon">{item.icon}</span>
@@ -271,7 +396,7 @@ function Sidebar({
           ))}
         </nav>
 
-        <div className="sidebar-user" onClick={displayUsername ? openProfileModal : onLoginClick}>
+        <div className="sidebar-user" onClick={displayUsername ? (onProfileClick || openProfileModal) : onLoginClick}>
           {/* 同步按钮 - 小图标 */}
           {isLoggedIn && onSync && (
             <button 
@@ -330,6 +455,81 @@ function Sidebar({
                 </label>
                 <div className="profile-username-display">{editUsername}</div>
               </div>
+
+              {/* 邮箱绑定 */}
+              {isLoggedIn && (
+                <div className="profile-email-section">
+                  <h3 className="profile-section-title">绑定邮箱</h3>
+                  
+                  {!showEmailForm ? (
+                    <div className="profile-email-display">
+                      {userEmail ? (
+                        <>
+                          <span className="profile-email-text">{userEmail}</span>
+                          <button className="profile-email-btn" onClick={() => openEmailForm('change')}>换绑</button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="profile-email-text profile-email-empty">未绑定</span>
+                          <button className="profile-email-btn profile-email-btn-primary" onClick={() => openEmailForm('bind')}>去绑定</button>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="profile-email-form">
+                      {emailError && <div className="profile-message profile-message-error">{emailError}</div>}
+                      {emailSuccess && <div className="profile-message profile-message-success">{emailSuccess}</div>}
+                      
+                      <div className="profile-form-group">
+                        <div className="profile-input-with-btn">
+                          <input
+                            type="email"
+                            value={newEmail}
+                            onChange={e => setNewEmail(e.target.value)}
+                            placeholder={emailFormMode === 'bind' ? '请输入邮箱' : '请输入新邮箱'}
+                            disabled={emailLoading || !!emailSuccess}
+                          />
+                          <button
+                            className="profile-send-code-btn"
+                            onClick={handleSendEmailCode}
+                            disabled={emailSendingCode || emailCountdown > 0 || emailLoading || !!emailSuccess}
+                          >
+                            {emailCountdown > 0 ? `${emailCountdown}s` : (emailSendingCode ? '发送中' : '获取验证码')}
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="profile-form-group">
+                        <input
+                          type="text"
+                          value={emailCode}
+                          onChange={e => setEmailCode(e.target.value)}
+                          placeholder="请输入验证码"
+                          maxLength={6}
+                          disabled={emailLoading || !!emailSuccess}
+                        />
+                      </div>
+                      
+                      <div className="profile-email-actions">
+                        <button 
+                          className="profile-btn profile-btn-secondary"
+                          onClick={() => setShowEmailForm(false)}
+                          disabled={emailLoading}
+                        >
+                          取消
+                        </button>
+                        <button 
+                          className="profile-btn profile-btn-primary"
+                          onClick={handleEmailSubmit}
+                          disabled={emailLoading || !!emailSuccess}
+                        >
+                          {emailLoading ? '处理中...' : '确认'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* 修改密码 */}
               {isLoggedIn && (

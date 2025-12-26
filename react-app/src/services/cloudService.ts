@@ -36,20 +36,37 @@ export async function cloudLogin(username: string, password: string): Promise<Au
 }
 
 /**
- * 用户注册
+ * 用户注册（需要邮箱验证码）
  */
-export async function cloudRegister(username: string, password: string): Promise<AuthResponse> {
+export async function cloudRegister(email: string, password: string, code: string): Promise<AuthResponse> {
   const res = await fetch(`${SYNC_API}/api/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ email, password, code })
   })
-  
+
   const data = await res.json()
   if (!res.ok) {
     throw new Error((data as ErrorResponse).error || '注册失败')
   }
-  return data as AuthResponse
+  // 注册成功后自动登录
+  return cloudLogin(email, password)
+}
+
+/**
+ * 发送注册验证码
+ */
+export async function sendVerifyCode(email: string): Promise<void> {
+  const res = await fetch(`${SYNC_API}/api/send-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  })
+
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error((data as ErrorResponse).error || '发送验证码失败')
+  }
 }
 
 
@@ -109,7 +126,7 @@ export async function verifyToken(token: string): Promise<boolean> {
  */
 export async function cloudChangePassword(token: string, oldPassword: string, newPassword: string): Promise<void> {
   if (!token) throw new Error('未登录')
-  
+
   const res = await fetch(`${SYNC_API}/api/change-password`, {
     method: 'POST',
     headers: {
@@ -118,18 +135,202 @@ export async function cloudChangePassword(token: string, oldPassword: string, ne
     },
     body: JSON.stringify({ oldPassword, newPassword })
   })
-  
+
   const data = await res.json()
   if (!res.ok) {
     throw new Error((data as ErrorResponse).error || '修改密码失败')
   }
 }
 
+/**
+ * 找回密码 - 发送验证码
+ */
+export async function sendResetPasswordCode(email: string): Promise<void> {
+  const res = await fetch(`${SYNC_API}/api/reset-password/send-code`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email })
+  })
+
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error((data as ErrorResponse).error || '发送验证码失败')
+  }
+}
+
+/**
+ * 找回密码 - 重置密码
+ */
+export async function resetPassword(email: string, code: string, newPassword: string): Promise<void> {
+  const res = await fetch(`${SYNC_API}/api/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, code, newPassword })
+  })
+
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error((data as ErrorResponse).error || '重置密码失败')
+  }
+}
+
+/**
+ * 换绑邮箱 - 发送验证码到新邮箱
+ */
+export async function sendChangeEmailCode(token: string, newEmail: string): Promise<void> {
+  if (!token) throw new Error('未登录')
+
+  const res = await fetch(`${SYNC_API}/api/change-email/send-code`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ newEmail })
+  })
+
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error((data as ErrorResponse).error || '发送验证码失败')
+  }
+}
+
+/**
+ * 换绑邮箱 - 确认换绑
+ */
+export async function changeEmail(token: string, newEmail: string, code: string): Promise<AuthResponse> {
+  if (!token) throw new Error('未登录')
+
+  const res = await fetch(`${SYNC_API}/api/change-email`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ newEmail, code })
+  })
+
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error((data as ErrorResponse).error || '换绑邮箱失败')
+  }
+  return data as AuthResponse
+}
+
+/**
+ * 获取用户信息
+ */
+export async function getUserInfo(token: string): Promise<{ username: string; email: string | null; aiQuota: number }> {
+  if (!token) throw new Error('未登录')
+
+  const res = await fetch(`${SYNC_API}/api/user/info`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error((data as ErrorResponse).error || '获取用户信息失败')
+  }
+  return data
+}
+
+/**
+ * 绑定邮箱 - 发送验证码（针对没有邮箱的老用户）
+ */
+export async function sendBindEmailCode(token: string, email: string): Promise<void> {
+  if (!token) throw new Error('未登录')
+
+  const res = await fetch(`${SYNC_API}/api/bind-email/send-code`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ email })
+  })
+
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error((data as ErrorResponse).error || '发送验证码失败')
+  }
+}
+
+/**
+ * 绑定邮箱 - 确认绑定
+ */
+export async function bindEmail(token: string, email: string, code: string): Promise<{ email: string }> {
+  if (!token) throw new Error('未登录')
+
+  const res = await fetch(`${SYNC_API}/api/bind-email`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ email, code })
+  })
+
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error((data as ErrorResponse).error || '绑定邮箱失败')
+  }
+  return data
+}
+
+/**
+ * 获取日报订阅状态
+ */
+export async function getDailySubscribeStatus(token: string): Promise<{ subscribed: boolean; email: string | null }> {
+  if (!token) throw new Error('未登录')
+
+  const res = await fetch(`${SYNC_API}/api/daily/subscribe`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error((data as ErrorResponse).error || '获取订阅状态失败')
+  }
+  return data
+}
+
+/**
+ * 订阅/取消订阅日报
+ */
+export async function setDailySubscribe(token: string, subscribe: boolean): Promise<{ subscribed: boolean; message: string }> {
+  if (!token) throw new Error('未登录')
+
+  const res = await fetch(`${SYNC_API}/api/daily/subscribe`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ subscribe })
+  })
+
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error((data as ErrorResponse).error || '操作失败')
+  }
+  return data
+}
+
 export default {
   cloudLogin,
   cloudRegister,
+  sendVerifyCode,
   cloudSaveConfig,
   cloudLoadConfig,
   verifyToken,
-  cloudChangePassword
+  cloudChangePassword,
+  sendResetPasswordCode,
+  resetPassword,
+  sendChangeEmailCode,
+  changeEmail,
+  getUserInfo,
+  sendBindEmailCode,
+  bindEmail,
+  getDailySubscribeStatus,
+  setDailySubscribe
 }

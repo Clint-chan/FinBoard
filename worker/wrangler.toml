@@ -13,6 +13,14 @@ binding = "DB"
 database_name = "fintell-db"
 database_id = "047dd4bc-6711-4e54-9719-dccff29c2d66"
 
-# 定时任务 - 每日北京时间6点生成日报 (UTC 22:00)
+# 定时任务 - 每日北京时间6点生成日报 (UTC 22:00)，邮件7点推送
 [triggers]
 crons = ["0 22 * * *"]
+
+# 环境变量 - 非敏感配置
+[vars]
+BREVO_SENDER_EMAIL = "admin@newestgpt.com"
+BREVO_SENDER_NAME = "Fintell"
+
+# 敏感信息请使用 Cloudflare Secrets 配置：
+# npx wrangler secret put BREVO_API_KEY

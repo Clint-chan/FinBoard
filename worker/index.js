@@ -1,6 +1,9 @@
 // Cloudflare Worker - Market Board 配置同步 API (带登录功能)
 // 支持 KV（配置存储）和 D1（用户管理、AI 统计）
 
+// 验证码有效期（5分钟）
+const CODE_EXPIRE_SECONDS = 300
+
 // ============ 价格格式化辅助函数 ============
 
 /**
@@ -26,6 +29,282 @@ const ADMIN_USERS = ['cdg']
 
 // 默认 AI 配额（每日）
 const DEFAULT_AI_QUOTA = 3
+
+// ============ 邮件发送函数 ============
+
+/**
+ * 生成6位数字验证码
+ */
+function generateVerifyCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString()
+}
+
+/**
+ * 通过 Brevo API 发送验证码邮件
+ * @param {string} email - 收件人邮箱
+ * @param {string} code - 验证码
+ * @param {object} env - 环境变量
+ */
+async function sendVerifyCodeEmail(email, code, env) {
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': env.BREVO_API_KEY,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { name: env.BREVO_SENDER_NAME, email: env.BREVO_SENDER_EMAIL },
+      to: [{ email: email }],
+      subject: 'Fintell 注册验证码',
+      htmlContent: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #333;">欢迎注册 Fintell</h2>
+          <p style="color: #666; font-size: 16px;">您的验证码是：</p>
+          <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+            <span style="font-size: 32px; font-weight: bold; color: #1890ff; letter-spacing: 8px;">${code}</span>
+          </div>
+          <p style="color: #999; font-size: 14px;">验证码有效期 5 分钟，请尽快完成注册。</p>
+          <p style="color: #999; font-size: 14px;">如果这不是您的操作，请忽略此邮件。</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+          <p style="color: #ccc; font-size: 12px;">Fintell - 智能股票监控平台</p>
+        </div>
+      `
+    })
+  })
+
+  if (!response.ok) {
+    const error = await response.text()
+    console.error('Brevo API error:', error)
+    throw new Error('邮件发送失败')
+  }
+
+  return true
+}
+
+/**
+ * 发送找回密码验证码邮件
+ */
+async function sendResetPasswordEmail(email, code, env) {
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': env.BREVO_API_KEY,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { name: env.BREVO_SENDER_NAME, email: env.BREVO_SENDER_EMAIL },
+      to: [{ email: email }],
+      subject: 'Fintell 密码重置验证码',
+      htmlContent: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #333;">重置密码</h2>
+          <p style="color: #666; font-size: 16px;">您正在重置 Fintell 账号密码，验证码是：</p>
+          <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+            <span style="font-size: 32px; font-weight: bold; color: #f59e0b; letter-spacing: 8px;">${code}</span>
+          </div>
+          <p style="color: #999; font-size: 14px;">验证码有效期 5 分钟。</p>
+          <p style="color: #ef4444; font-size: 14px;">如果这不是您的操作，请立即检查账号安全。</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+          <p style="color: #ccc; font-size: 12px;">Fintell - 智能股票监控平台</p>
+        </div>
+      `
+    })
+  })
+
+  if (!response.ok) {
+    const error = await response.text()
+    console.error('Brevo API error:', error)
+    throw new Error('邮件发送失败')
+  }
+
+  return true
+}
+
+/**
+ * 发送换绑邮箱验证码
+ */
+async function sendChangeEmailCode(email, code, env) {
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': env.BREVO_API_KEY,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { name: env.BREVO_SENDER_NAME, email: env.BREVO_SENDER_EMAIL },
+      to: [{ email: email }],
+      subject: 'Fintell 邮箱换绑验证码',
+      htmlContent: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #333;">换绑邮箱</h2>
+          <p style="color: #666; font-size: 16px;">您正在将此邮箱绑定到 Fintell 账号，验证码是：</p>
+          <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+            <span style="font-size: 32px; font-weight: bold; color: #10b981; letter-spacing: 8px;">${code}</span>
+          </div>
+          <p style="color: #999; font-size: 14px;">验证码有效期 5 分钟。</p>
+          <p style="color: #999; font-size: 14px;">如果这不是您的操作，请忽略此邮件。</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+          <p style="color: #ccc; font-size: 12px;">Fintell - 智能股票监控平台</p>
+        </div>
+      `
+    })
+  })
+
+  if (!response.ok) {
+    const error = await response.text()
+    console.error('Brevo API error:', error)
+    throw new Error('邮件发送失败')
+  }
+
+  return true
+}
+
+/**
+ * 发送绑定邮箱验证码（针对老用户首次绑定）
+ */
+async function sendBindEmailCode(email, code, env) {
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': env.BREVO_API_KEY,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { name: env.BREVO_SENDER_NAME, email: env.BREVO_SENDER_EMAIL },
+      to: [{ email: email }],
+      subject: 'Fintell 邮箱绑定验证码',
+      htmlContent: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #333;">绑定邮箱</h2>
+          <p style="color: #666; font-size: 16px;">您正在绑定此邮箱到 Fintell 账号，验证码是：</p>
+          <div style="background: #f5f5f5; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
+            <span style="font-size: 32px; font-weight: bold; color: #6366f1; letter-spacing: 8px;">${code}</span>
+          </div>
+          <p style="color: #999; font-size: 14px;">验证码有效期 5 分钟。</p>
+          <p style="color: #999; font-size: 14px;">绑定后可用于登录和找回密码。</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+          <p style="color: #ccc; font-size: 12px;">Fintell - 智能股票监控平台</p>
+        </div>
+      `
+    })
+  })
+
+  if (!response.ok) {
+    const error = await response.text()
+    console.error('Brevo API error:', error)
+    throw new Error('邮件发送失败')
+  }
+
+  return true
+}
+
+/**
+ * 发送日报订阅邮件
+ * @param {string} email - 收件人邮箱
+ * @param {string} date - 日报日期
+ * @param {object} reportContent - 日报内容
+ * @param {object} env - 环境变量
+ */
+async function sendDailyReportEmail(email, date, reportContent, env) {
+  // 构建日报邮件 HTML
+  const formattedDate = date.replace(/-/g, '.')
+  
+  // 提取关键信息
+  const marketSummary = reportContent.marketSummary || '暂无市场概览'
+  const prediction = reportContent.prediction || {}
+  const bullishSectors = reportContent.bullishSectors || []
+  const bearishSectors = reportContent.bearishSectors || []
+  
+  // 构建板块列表 HTML
+  const buildSectorList = (sectors, isBullish) => {
+    if (!sectors.length) return '<p style="color: #999;">暂无数据</p>'
+    return sectors.slice(0, 3).map(s => `
+      <div style="margin-bottom: 12px; padding: 12px; background: ${isBullish ? '#f0fdf4' : '#fef2f2'}; border-radius: 8px;">
+        <div style="font-weight: 600; color: ${isBullish ? '#16a34a' : '#dc2626'}; margin-bottom: 4px;">${s.name}</div>
+        <div style="font-size: 13px; color: #666;">${s.reason}</div>
+      </div>
+    `).join('')
+  }
+  
+  const htmlContent = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
+      <div style="background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 24px; text-align: center;">
+          <div style="display: inline-block; width: 48px; height: 48px; background: white; border-radius: 12px; line-height: 48px; font-size: 24px; font-weight: bold; color: #6366f1; margin-bottom: 12px;">F</div>
+          <h1 style="color: white; margin: 0; font-size: 24px;">Fintell 每日早报</h1>
+          <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">${formattedDate}</p>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding: 24px;">
+          <!-- 市场概览 -->
+          <div style="margin-bottom: 24px;">
+            <h2 style="font-size: 16px; color: #374151; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">📊 市场概览</h2>
+            <p style="color: #4b5563; line-height: 1.6; margin: 0;">${marketSummary}</p>
+          </div>
+          
+          <!-- 今日预判 -->
+          ${prediction.overall ? `
+          <div style="margin-bottom: 24px;">
+            <h2 style="font-size: 16px; color: #374151; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">🎯 今日预判</h2>
+            <p style="color: #4b5563; line-height: 1.6; margin: 0;">${prediction.overall}</p>
+          </div>
+          ` : ''}
+          
+          <!-- 利好板块 -->
+          <div style="margin-bottom: 24px;">
+            <h2 style="font-size: 16px; color: #16a34a; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #dcfce7;">📈 利好板块</h2>
+            ${buildSectorList(bullishSectors, true)}
+          </div>
+          
+          <!-- 利空板块 -->
+          <div style="margin-bottom: 24px;">
+            <h2 style="font-size: 16px; color: #dc2626; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #fee2e2;">📉 承压板块</h2>
+            ${buildSectorList(bearishSectors, false)}
+          </div>
+        </div>
+        
+        <!-- Footer -->
+        <div style="padding: 16px 24px; background: #f9fafb; text-align: center; border-top: 1px solid #e5e7eb;">
+          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+            查看完整日报请访问 <a href="https://fintell.newestgpt.com" style="color: #6366f1;">Fintell</a>
+          </p>
+          <p style="color: #d1d5db; font-size: 11px; margin: 8px 0 0;">
+            如需取消订阅，请在 Fintell 设置中关闭日报推送
+          </p>
+        </div>
+      </div>
+    </div>
+  `
+  
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'api-key': env.BREVO_API_KEY,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      sender: { name: env.BREVO_SENDER_NAME, email: env.BREVO_SENDER_EMAIL },
+      to: [{ email: email }],
+      subject: `Fintell 每日早报 ${formattedDate}`,
+      htmlContent
+    })
+  })
+
+  if (!response.ok) {
+    const error = await response.text()
+    console.error('发送日报邮件失败:', error)
+    throw new Error('邮件发送失败')
+  }
+
+  return true
+}
 
 // ============ D1 数据库操作 ============
 
@@ -66,10 +345,31 @@ async function initDB(db) {
       )
     `).run()
     
+    // 创建验证码表（替代 KV 存储）
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS verify_codes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code_key TEXT UNIQUE NOT NULL,
+        code TEXT NOT NULL,
+        expires_at DATETIME NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run()
+    
+    // 尝试添加 daily_subscribe 字段到 users 表（如果不存在）
+    try {
+      await db.prepare(`ALTER TABLE users ADD COLUMN daily_subscribe INTEGER DEFAULT 0`).run()
+      console.log('已添加 daily_subscribe 字段')
+    } catch (e) {
+      // 字段可能已存在，忽略
+    }
+    
     // 尝试创建索引（如果已存在会忽略）
     try {
       await db.prepare(`CREATE INDEX IF NOT EXISTS idx_daily_reports_date ON daily_reports(report_date DESC)`).run()
       await db.prepare(`CREATE INDEX IF NOT EXISTS idx_news_published ON daily_news(published_at DESC)`).run()
+      await db.prepare(`CREATE INDEX IF NOT EXISTS idx_verify_codes_key ON verify_codes(code_key)`).run()
+      await db.prepare(`CREATE INDEX IF NOT EXISTS idx_verify_codes_expires ON verify_codes(expires_at)`).run()
     } catch (e) {
       // 索引可能已存在，忽略
     }
@@ -92,13 +392,82 @@ async function getUserFromDB(db, username) {
 }
 
 /**
- * 创建用户到 D1
+ * 存储验证码到 D1（替代 KV）
+ * @param {D1Database} db - D1 数据库
+ * @param {string} codeKey - 验证码 key
+ * @param {string} code - 验证码
+ * @param {number} ttlSeconds - 过期时间（秒）
  */
-async function createUserInDB(db, username, passwordHash, registerIp) {
+async function saveVerifyCode(db, codeKey, code, ttlSeconds = 300) {
+  const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString()
+  await db.prepare(`
+    INSERT OR REPLACE INTO verify_codes (code_key, code, expires_at)
+    VALUES (?, ?, ?)
+  `).bind(codeKey, code, expiresAt).run()
+}
+
+/**
+ * 从 D1 获取验证码
+ * @param {D1Database} db - D1 数据库
+ * @param {string} codeKey - 验证码 key
+ * @returns {string|null} 验证码或 null（已过期或不存在）
+ */
+async function getVerifyCode(db, codeKey) {
+  const result = await db.prepare(`
+    SELECT code FROM verify_codes 
+    WHERE code_key = ? AND expires_at > datetime('now')
+  `).bind(codeKey).first()
+  return result ? result.code : null
+}
+
+/**
+ * 删除验证码
+ * @param {D1Database} db - D1 数据库
+ * @param {string} codeKey - 验证码 key
+ */
+async function deleteVerifyCode(db, codeKey) {
+  await db.prepare('DELETE FROM verify_codes WHERE code_key = ?').bind(codeKey).run()
+}
+
+/**
+ * 清理过期验证码（可选，定期调用）
+ */
+async function cleanExpiredCodes(db) {
+  await db.prepare("DELETE FROM verify_codes WHERE expires_at <= datetime('now')").run()
+}
+
+/**
+ * 通过邮箱获取用户
+ */
+async function getUserByEmailFromDB(db, email) {
+  const result = await db.prepare('SELECT * FROM users WHERE email = ?').bind(email).first()
+  return result
+}
+
+/**
+ * 创建用户到 D1（邮箱注册，email 同时作为 username）
+ */
+async function createUserInDB(db, email, passwordHash, registerIp) {
   const result = await db.prepare(
-    'INSERT INTO users (username, password_hash, ai_quota, register_ip) VALUES (?, ?, ?, ?)'
-  ).bind(username, passwordHash, DEFAULT_AI_QUOTA, registerIp).run()
+    'INSERT INTO users (username, email, password_hash, ai_quota, register_ip) VALUES (?, ?, ?, ?, ?)'
+  ).bind(email, email, passwordHash, DEFAULT_AI_QUOTA, registerIp).run()
   return result.meta.last_row_id
+}
+
+/**
+ * 更新用户密码
+ */
+async function updatePasswordInDB(db, email, passwordHash) {
+  await db.prepare('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE email = ?')
+    .bind(passwordHash, email).run()
+}
+
+/**
+ * 更新用户邮箱
+ */
+async function updateEmailInDB(db, oldEmail, newEmail) {
+  await db.prepare('UPDATE users SET email = ?, username = ?, updated_at = CURRENT_TIMESTAMP WHERE email = ?')
+    .bind(newEmail, newEmail, oldEmail).run()
 }
 
 /**
@@ -170,18 +539,88 @@ export default {
     const path = url.pathname;
 
     try {
-      // POST /api/register - 注册（优先 D1，回退 KV）
-      if (path === '/api/register' && request.method === 'POST') {
-        const { username, password } = await request.json();
+      // POST /api/send-code - 发送注册验证码
+      if (path === '/api/send-code' && request.method === 'POST') {
+        const { email } = await request.json();
         
-        if (!username || !password) {
-          return jsonResponse({ error: '用户名和密码不能为空' }, 400);
+        if (!email) {
+          return jsonResponse({ error: '邮箱不能为空' }, 400);
         }
-        if (username.length < 3 || username.length > 20) {
-          return jsonResponse({ error: '用户名长度 3-20 字符' }, 400);
+        
+        // 简单的邮箱格式验证
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          return jsonResponse({ error: '邮箱格式不正确' }, 400);
         }
+        
+        // 检查是否频繁发送（使用 D1）
+        if (env.DB) {
+          await initDB(env.DB);
+          const rateLimitKey = `code_rate:${email}`;
+          const lastSent = await getVerifyCode(env.DB, rateLimitKey);
+          if (lastSent) {
+            return jsonResponse({ error: '发送太频繁，请稍后再试' }, 429);
+          }
+        }
+        
+        // 生成验证码
+        const code = generateVerifyCode();
+
+        // 发送邮件
+        try {
+          await sendVerifyCodeEmail(email, code, env);
+        } catch (e) {
+          console.error('Send email error:', e);
+          return jsonResponse({ error: '邮件发送失败，请稍后重试', detail: e.message }, 500);
+        }
+
+        // 存储验证码到 D1（5分钟过期）
+        try {
+          if (env.DB) {
+            const codeKey = `verify_code:${email}`;
+            await saveVerifyCode(env.DB, codeKey, code, CODE_EXPIRE_SECONDS);
+            // 设置发送频率限制（1分钟）
+            const rateLimitKey = `code_rate:${email}`;
+            await saveVerifyCode(env.DB, rateLimitKey, '1', 60);
+          }
+        } catch (dbError) {
+          console.error('D1 save code error:', dbError);
+          // 写入失败不影响用户体验，验证码已发送
+        }
+
+        return jsonResponse({ success: true, message: '验证码已发送' });
+      }
+
+      // POST /api/register - 注册（需要验证码）
+      if (path === '/api/register' && request.method === 'POST') {
+        const { email, password, code } = await request.json();
+        
+        if (!email || !password || !code) {
+          return jsonResponse({ error: '邮箱、密码和验证码不能为空' }, 400);
+        }
+        
+        // 邮箱格式验证
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          return jsonResponse({ error: '邮箱格式不正确' }, 400);
+        }
+        
         if (password.length < 6) {
           return jsonResponse({ error: '密码至少 6 位' }, 400);
+        }
+        
+        // 验证验证码（使用 D1）
+        let storedCode = null;
+        const codeKey = `verify_code:${email}`;
+        if (env.DB) {
+          await initDB(env.DB);
+          storedCode = await getVerifyCode(env.DB, codeKey);
+        }
+        if (!storedCode) {
+          return jsonResponse({ error: '验证码已过期，请重新获取' }, 400);
+        }
+        if (storedCode !== code) {
+          return jsonResponse({ error: '验证码错误' }, 400);
         }
 
         // 获取客户端 IP
@@ -196,10 +635,10 @@ export default {
           try {
             await initDB(env.DB);
             
-            // 检查用户名是否存在
-            const existing = await getUserFromDB(env.DB, username);
+            // 检查邮箱是否已注册（用 email 作为 username）
+            const existing = await getUserFromDB(env.DB, email);
             if (existing) {
-              return jsonResponse({ error: '用户名已存在' }, 400);
+              return jsonResponse({ error: '该邮箱已注册' }, 400);
             }
             
             // 检查 IP 是否已注册过
@@ -208,7 +647,11 @@ export default {
               return jsonResponse({ error: '该 IP 已注册过账号' }, 400);
             }
             
-            await createUserInDB(env.DB, username, passwordHash, clientIP);
+            await createUserInDB(env.DB, email, passwordHash, clientIP);
+            
+            // 注册成功后删除验证码
+            await deleteVerifyCode(env.DB, codeKey);
+            
             return jsonResponse({ success: true, message: '注册成功' });
           } catch (e) {
             console.error('D1 register error:', e);
@@ -217,9 +660,9 @@ export default {
         }
 
         // KV 回退
-        const existing = await env.CONFIG_KV.get(`user:${username}`);
+        const existing = await env.CONFIG_KV.get(`user:${email}`);
         if (existing) {
-          return jsonResponse({ error: '用户名已存在' }, 400);
+          return jsonResponse({ error: '该邮箱已注册' }, 400);
         }
         
         // KV 中也检查 IP（简单实现）
@@ -229,7 +672,7 @@ export default {
           return jsonResponse({ error: '该 IP 已注册过账号' }, 400);
         }
         
-        await env.CONFIG_KV.put(`user:${username}`, JSON.stringify({
+        await env.CONFIG_KV.put(`user:${email}`, JSON.stringify({
           passwordHash,
           registerIp: clientIP,
           createdAt: Date.now(),
@@ -239,7 +682,12 @@ export default {
         }));
         
         // 记录 IP
-        await env.CONFIG_KV.put(ipKey, username);
+        await env.CONFIG_KV.put(ipKey, email);
+        
+        // 注册成功后删除验证码（D1）
+        if (env.DB) {
+          await deleteVerifyCode(env.DB, codeKey);
+        }
 
         return jsonResponse({ success: true, message: '注册成功' });
       }
@@ -380,6 +828,353 @@ export default {
         }
 
         return jsonResponse({ success: true, message: '密码修改成功' });
+      }
+
+      // POST /api/reset-password/send-code - 找回密码：发送验证码
+      if (path === '/api/reset-password/send-code' && request.method === 'POST') {
+        const { email } = await request.json();
+
+        if (!email) {
+          return jsonResponse({ error: '邮箱不能为空' }, 400);
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          return jsonResponse({ error: '邮箱格式不正确' }, 400);
+        }
+
+        // 检查邮箱是否存在
+        if (env.DB) {
+          const user = await getUserByEmailFromDB(env.DB, email);
+          if (!user) {
+            return jsonResponse({ error: '该邮箱未注册' }, 400);
+          }
+        }
+
+        // 检查发送频率（使用 D1）
+        if (env.DB) {
+          await initDB(env.DB);
+          const rateLimitKey = `reset_rate:${email}`;
+          const lastSent = await getVerifyCode(env.DB, rateLimitKey);
+          if (lastSent) {
+            return jsonResponse({ error: '发送太频繁，请稍后再试' }, 429);
+          }
+        }
+
+        // 生成验证码
+        const code = generateVerifyCode();
+
+        // 发送邮件
+        try {
+          await sendResetPasswordEmail(email, code, env);
+        } catch (e) {
+          console.error('Send reset email error:', e);
+          return jsonResponse({ error: '邮件发送失败，请稍后重试' }, 500);
+        }
+
+        // 存储验证码到 D1（5分钟过期）
+        if (env.DB) {
+          const codeKey = `reset_code:${email}`;
+          await saveVerifyCode(env.DB, codeKey, code, CODE_EXPIRE_SECONDS);
+          // 设置发送频率限制（1分钟）
+          const rateLimitKey = `reset_rate:${email}`;
+          await saveVerifyCode(env.DB, rateLimitKey, '1', 60);
+        }
+
+        return jsonResponse({ success: true, message: '验证码已发送' });
+      }
+
+      // POST /api/reset-password - 找回密码：重置密码
+      if (path === '/api/reset-password' && request.method === 'POST') {
+        const { email, code, newPassword } = await request.json();
+
+        if (!email || !code || !newPassword) {
+          return jsonResponse({ error: '邮箱、验证码和新密码不能为空' }, 400);
+        }
+
+        if (newPassword.length < 6) {
+          return jsonResponse({ error: '新密码至少 6 位' }, 400);
+        }
+
+        // 验证验证码（使用 D1）
+        const codeKey = `reset_code:${email}`;
+        let storedCode = null;
+        if (env.DB) {
+          await initDB(env.DB);
+          storedCode = await getVerifyCode(env.DB, codeKey);
+        }
+        if (!storedCode) {
+          return jsonResponse({ error: '验证码已过期，请重新获取' }, 400);
+        }
+        if (storedCode !== code) {
+          return jsonResponse({ error: '验证码错误' }, 400);
+        }
+
+        // 更新密码
+        const newPasswordHash = await hashPassword(newPassword);
+
+        if (env.DB) {
+          try {
+            await updatePasswordInDB(env.DB, email, newPasswordHash);
+            // 删除验证码
+            await deleteVerifyCode(env.DB, codeKey);
+            return jsonResponse({ success: true, message: '密码重置成功' });
+          } catch (e) {
+            console.error('Reset password error:', e);
+            return jsonResponse({ error: '重置密码失败' }, 500);
+          }
+        }
+
+        return jsonResponse({ error: '服务暂不可用' }, 500);
+      }
+
+      // POST /api/change-email/send-code - 换绑邮箱：发送验证码到新邮箱
+      if (path === '/api/change-email/send-code' && request.method === 'POST') {
+        const username = await verifyToken(request, env);
+        if (!username) {
+          return jsonResponse({ error: '未登录' }, 401);
+        }
+
+        const { newEmail } = await request.json();
+
+        if (!newEmail) {
+          return jsonResponse({ error: '新邮箱不能为空' }, 400);
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(newEmail)) {
+          return jsonResponse({ error: '邮箱格式不正确' }, 400);
+        }
+
+        // 检查新邮箱是否已被使用
+        if (env.DB) {
+          await initDB(env.DB);
+          const existingUser = await getUserByEmailFromDB(env.DB, newEmail);
+          if (existingUser) {
+            return jsonResponse({ error: '该邮箱已被其他账号使用' }, 400);
+          }
+        }
+
+        // 检查发送频率（使用 D1）
+        if (env.DB) {
+          const rateLimitKey = `change_email_rate:${username}`;
+          const lastSent = await getVerifyCode(env.DB, rateLimitKey);
+          if (lastSent) {
+            return jsonResponse({ error: '发送太频繁，请稍后再试' }, 429);
+          }
+        }
+
+        // 生成验证码
+        const code = generateVerifyCode();
+
+        // 发送邮件
+        try {
+          await sendChangeEmailCode(newEmail, code, env);
+        } catch (e) {
+          console.error('Send change email code error:', e);
+          return jsonResponse({ error: '邮件发送失败，请稍后重试' }, 500);
+        }
+
+        // 存储验证码到 D1（5分钟过期），key 包含用户名防止冲突
+        if (env.DB) {
+          const codeKey = `change_email_code:${username}:${newEmail}`;
+          await saveVerifyCode(env.DB, codeKey, code, CODE_EXPIRE_SECONDS);
+          // 设置发送频率限制（1分钟）
+          const rateLimitKey = `change_email_rate:${username}`;
+          await saveVerifyCode(env.DB, rateLimitKey, '1', 60);
+        }
+
+        return jsonResponse({ success: true, message: '验证码已发送到新邮箱' });
+      }
+
+      // POST /api/change-email - 换绑邮箱：确认换绑
+      if (path === '/api/change-email' && request.method === 'POST') {
+        const username = await verifyToken(request, env);
+        if (!username) {
+          return jsonResponse({ error: '未登录' }, 401);
+        }
+
+        const { newEmail, code } = await request.json();
+
+        if (!newEmail || !code) {
+          return jsonResponse({ error: '新邮箱和验证码不能为空' }, 400);
+        }
+
+        // 验证验证码（使用 D1）
+        const codeKey = `change_email_code:${username}:${newEmail}`;
+        let storedCode = null;
+        if (env.DB) {
+          await initDB(env.DB);
+          storedCode = await getVerifyCode(env.DB, codeKey);
+        }
+        if (!storedCode) {
+          return jsonResponse({ error: '验证码已过期，请重新获取' }, 400);
+        }
+        if (storedCode !== code) {
+          return jsonResponse({ error: '验证码错误' }, 400);
+        }
+
+        // 获取当前用户邮箱
+        if (env.DB) {
+          try {
+            const user = await getUserFromDB(env.DB, username);
+            if (!user) {
+              return jsonResponse({ error: '用户不存在' }, 404);
+            }
+
+            // 更新邮箱
+            await updateEmailInDB(env.DB, user.email || username, newEmail);
+
+            // 删除验证码
+            await deleteVerifyCode(env.DB, codeKey);
+
+            // 生成新 token（因为 username 变了）
+            const newToken = await generateToken(newEmail);
+
+            return jsonResponse({ 
+              success: true, 
+              message: '邮箱换绑成功',
+              token: newToken,
+              username: newEmail
+            });
+          } catch (e) {
+            console.error('Change email error:', e);
+            return jsonResponse({ error: '换绑邮箱失败' }, 500);
+          }
+        }
+
+        return jsonResponse({ error: '服务暂不可用' }, 500);
+      }
+
+      // GET /api/user/info - 获取当前用户信息
+      if (path === '/api/user/info' && request.method === 'GET') {
+        const username = await verifyToken(request, env);
+        if (!username) {
+          return jsonResponse({ error: '未登录' }, 401);
+        }
+
+        if (env.DB) {
+          try {
+            const user = await getUserFromDB(env.DB, username);
+            if (user) {
+              return jsonResponse({
+                username: user.username,
+                email: user.email,
+                aiQuota: user.ai_quota,
+                createdAt: user.created_at
+              });
+            }
+          } catch (e) {
+            console.error('Get user info error:', e);
+          }
+        }
+
+        return jsonResponse({ username, email: username });
+      }
+
+      // POST /api/bind-email/send-code - 绑定邮箱：发送验证码（针对没有邮箱的老用户）
+      if (path === '/api/bind-email/send-code' && request.method === 'POST') {
+        const username = await verifyToken(request, env);
+        if (!username) {
+          return jsonResponse({ error: '未登录' }, 401);
+        }
+
+        const { email } = await request.json();
+
+        if (!email) {
+          return jsonResponse({ error: '邮箱不能为空' }, 400);
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          return jsonResponse({ error: '邮箱格式不正确' }, 400);
+        }
+
+        // 检查邮箱是否已被使用
+        if (env.DB) {
+          await initDB(env.DB);
+          const existingUser = await getUserByEmailFromDB(env.DB, email);
+          if (existingUser && existingUser.username !== username) {
+            return jsonResponse({ error: '该邮箱已被其他账号使用' }, 400);
+          }
+        }
+
+        // 检查发送频率（使用 D1）
+        if (env.DB) {
+          const rateLimitKey = `bind_email_rate:${username}`;
+          const lastSent = await getVerifyCode(env.DB, rateLimitKey);
+          if (lastSent) {
+            return jsonResponse({ error: '发送太频繁，请稍后再试' }, 429);
+          }
+        }
+
+        // 生成验证码
+        const code = generateVerifyCode();
+
+        // 发送邮件
+        try {
+          await sendBindEmailCode(email, code, env);
+        } catch (e) {
+          console.error('Send bind email code error:', e);
+          return jsonResponse({ error: '邮件发送失败，请稍后重试' }, 500);
+        }
+
+        // 存储验证码到 D1
+        if (env.DB) {
+          const codeKey = `bind_email_code:${username}:${email}`;
+          await saveVerifyCode(env.DB, codeKey, code, CODE_EXPIRE_SECONDS);
+          // 设置发送频率限制
+          const rateLimitKey = `bind_email_rate:${username}`;
+          await saveVerifyCode(env.DB, rateLimitKey, '1', 60);
+        }
+
+        return jsonResponse({ success: true, message: '验证码已发送' });
+      }
+
+      // POST /api/bind-email - 绑定邮箱：确认绑定
+      if (path === '/api/bind-email' && request.method === 'POST') {
+        const username = await verifyToken(request, env);
+        if (!username) {
+          return jsonResponse({ error: '未登录' }, 401);
+        }
+
+        const { email, code } = await request.json();
+
+        if (!email || !code) {
+          return jsonResponse({ error: '邮箱和验证码不能为空' }, 400);
+        }
+
+        // 验证验证码（使用 D1）
+        const codeKey = `bind_email_code:${username}:${email}`;
+        let storedCode = null;
+        if (env.DB) {
+          await initDB(env.DB);
+          storedCode = await getVerifyCode(env.DB, codeKey);
+        }
+        if (!storedCode) {
+          return jsonResponse({ error: '验证码已过期，请重新获取' }, 400);
+        }
+        if (storedCode !== code) {
+          return jsonResponse({ error: '验证码错误' }, 400);
+        }
+
+        if (env.DB) {
+          try {
+            // 绑定邮箱（只更新 email 字段，不改 username）
+            await env.DB.prepare('UPDATE users SET email = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?')
+              .bind(email, username).run();
+
+            // 删除验证码
+            await deleteVerifyCode(env.DB, codeKey);
+
+            return jsonResponse({ success: true, message: '邮箱绑定成功', email });
+          } catch (e) {
+            console.error('Bind email error:', e);
+            return jsonResponse({ error: '绑定邮箱失败' }, 500);
+          }
+        }
+
+        return jsonResponse({ error: '服务暂不可用' }, 500);
       }
 
       // GET /api/config - 获取配置 (需要 token)
@@ -741,6 +1536,74 @@ export default {
         }
       }
 
+      // ============ Daily Subscribe API ============
+      
+      // GET /api/daily/subscribe - 获取订阅状态
+      if (path === '/api/daily/subscribe' && request.method === 'GET') {
+        const username = await verifyToken(request, env);
+        if (!username) {
+          return jsonResponse({ error: '未登录' }, 401);
+        }
+
+        if (env.DB) {
+          try {
+            const user = await getUserFromDB(env.DB, username);
+            if (user) {
+              return jsonResponse({ 
+                subscribed: user.daily_subscribe === 1,
+                email: user.email
+              });
+            }
+          } catch (e) {
+            console.error('Get subscribe status error:', e);
+          }
+        }
+
+        return jsonResponse({ subscribed: false, email: null });
+      }
+
+      // POST /api/daily/subscribe - 订阅/取消订阅日报
+      if (path === '/api/daily/subscribe' && request.method === 'POST') {
+        const username = await verifyToken(request, env);
+        if (!username) {
+          return jsonResponse({ error: '未登录' }, 401);
+        }
+
+        const { subscribe } = await request.json();
+        
+        if (typeof subscribe !== 'boolean') {
+          return jsonResponse({ error: '参数错误' }, 400);
+        }
+
+        if (!env.DB) {
+          return jsonResponse({ error: '服务暂不可用' }, 500);
+        }
+
+        try {
+          const user = await getUserFromDB(env.DB, username);
+          if (!user) {
+            return jsonResponse({ error: '用户不存在' }, 404);
+          }
+
+          // 订阅需要绑定邮箱
+          if (subscribe && !user.email) {
+            return jsonResponse({ error: '请先绑定邮箱' }, 400);
+          }
+
+          await env.DB.prepare('UPDATE users SET daily_subscribe = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?')
+            .bind(subscribe ? 1 : 0, username).run();
+
+          return jsonResponse({ 
+            success: true, 
+            subscribed: subscribe,
+            message: subscribe ? '订阅成功，每日早报将发送到您的邮箱' : '已取消订阅'
+          });
+        } catch (e) {
+          console.error('Update subscribe error:', e);
+          return jsonResponse({ error: '操作失败' }, 500);
+        }
+      }
+
       // ============ Daily Report API ============
       
       // GET /api/daily/list - 获取日报列表
@@ -824,6 +1687,57 @@ export default {
           return jsonResponse({ error: e.message }, 500);
         }
       }
+      
+      // POST /api/admin/test-daily-email - 测试发送日报邮件（管理员）
+      if (path === '/api/admin/test-daily-email' && request.method === 'POST') {
+        const username = await verifyToken(request, env);
+        if (!username || !ADMIN_USERS.includes(username)) {
+          return jsonResponse({ error: '无权限' }, 403);
+        }
+        
+        const { email } = await request.json();
+        if (!email) {
+          return jsonResponse({ error: '邮箱不能为空' }, 400);
+        }
+        
+        // 邮箱格式验证
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          return jsonResponse({ error: '邮箱格式不正确' }, 400);
+        }
+        
+        try {
+          if (!env.DB) {
+            return jsonResponse({ error: '数据库未配置' }, 500);
+          }
+          
+          await initDB(env.DB);
+          
+          // 获取最新日报
+          const result = await env.DB.prepare(`
+            SELECT report_date, content FROM daily_reports 
+            ORDER BY report_date DESC LIMIT 1
+          `).first();
+          
+          if (!result) {
+            return jsonResponse({ error: '暂无日报，请先生成日报' }, 404);
+          }
+          
+          const reportContent = JSON.parse(result.content);
+          
+          // 发送测试邮件
+          await sendDailyReportEmail(email, result.report_date, reportContent, env);
+          
+          return jsonResponse({ 
+            success: true, 
+            message: `测试邮件已发送到 ${email}`,
+            date: result.report_date
+          });
+        } catch (e) {
+          console.error('发送测试邮件失败:', e);
+          return jsonResponse({ error: e.message }, 500);
+        }
+      }
 
       return jsonResponse({ error: 'Not found' }, 404);
     } catch (err) {
@@ -831,7 +1745,7 @@ export default {
     }
   },
   
-  // 定时任务 - 每日北京时间6点生成日报
+  // 定时任务 - 每日北京时间6点生成日报，邮件7点推送
   async scheduled(event, env, ctx) {
     console.log('Daily report cron triggered:', event.cron, new Date().toISOString());
     ctx.waitUntil(generateDailyReport(env, true)); // isScheduled = true
@@ -1720,7 +2634,7 @@ async function handleAIConfig(request, env) {
 /**
  * 生成每日早报
  * @param {Object} env - Worker 环境
- * @param {boolean} isScheduled - 是否是定时任务触发（6点自动）
+ * @param {boolean} isScheduled - 是否是定时任务触发（6点自动生成，邮件7点推送）
  * 
  * 手动触发：读取过去24小时的新闻
  * 定时触发：读取昨天6点到今天6点的新闻
@@ -1740,7 +2654,7 @@ async function generateDailyReport(env, isScheduled = false) {
   
   if (isScheduled) {
     // 定时任务（6点触发）：昨天6点到今天6点
-    // 今天6点 UTC = 今天北京6点 - 8小时 = 昨天 22:00 UTC
+    // 今天北京6点 = UTC 22:00（前一天）
     endTime = new Date(Date.UTC(
       beijingNow.getUTCFullYear(),
       beijingNow.getUTCMonth(),
@@ -1875,6 +2789,36 @@ async function generateDailyReport(env, isScheduled = false) {
   `).bind(today, JSON.stringify(reportJson), newsList.length).run();
   
   console.log(`日报生成成功: ${today}`);
+  
+  // 发送日报邮件给订阅用户
+  try {
+    const subscribers = await env.DB.prepare(`
+      SELECT email FROM users 
+      WHERE daily_subscribe = 1 AND email IS NOT NULL AND email != ''
+    `).all();
+    
+    const subscriberList = subscribers.results || [];
+    console.log(`找到 ${subscriberList.length} 个订阅用户`);
+    
+    let sentCount = 0;
+    let failCount = 0;
+    
+    for (const sub of subscriberList) {
+      try {
+        await sendDailyReportEmail(sub.email, today, reportJson, env);
+        sentCount++;
+        console.log(`日报邮件已发送: ${sub.email}`);
+      } catch (e) {
+        failCount++;
+        console.error(`发送日报邮件失败 (${sub.email}):`, e.message);
+      }
+    }
+    
+    console.log(`日报邮件发送完成: 成功 ${sentCount}, 失败 ${failCount}`);
+  } catch (e) {
+    console.error('获取订阅用户失败:', e);
+  }
+  
   return { success: true, date: today, newsCount: newsList.length };
 }
 

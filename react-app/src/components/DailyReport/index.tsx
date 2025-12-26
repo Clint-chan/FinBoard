@@ -1,7 +1,8 @@
 /**
  * DailyReport - 每日早报组件
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import html2canvas from 'html2canvas'
 import type { DailyReportContent, DailyReportListItem, IntelCategory, SectorItem } from '@/types'
 import './DailyReport.css'
 
@@ -16,10 +17,12 @@ interface DailyReportProps {
 export function DailyReport({ isAdmin, token }: DailyReportProps) {
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  const [sharing, setSharing] = useState(false)
   const [report, setReport] = useState<DailyReportContent | null>(null)
   const [currentDate, setCurrentDate] = useState<string>('')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [historyList, setHistoryList] = useState<DailyReportListItem[]>([])
+  const reportRef = useRef<HTMLDivElement>(null)
 
   // 获取今日日报
   const fetchTodayReport = useCallback(async () => {
@@ -111,6 +114,33 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
     }
   }
 
+  // 分享为图片
+  const handleShare = async () => {
+    if (!reportRef.current || sharing) return
+    setSharing(true)
+
+    try {
+      const canvas = await html2canvas(reportRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2, // 高清
+        useCORS: true,
+        logging: false,
+        windowWidth: 1200, // 固定宽度
+      })
+
+      // 转换为图片并下载
+      const link = document.createElement('a')
+      link.download = `Fintell早报_${currentDate}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (e) {
+      console.error('生成图片失败:', e)
+      alert('生成图片失败')
+    } finally {
+      setSharing(false)
+    }
+  }
+
   useEffect(() => {
     fetchTodayReport()
   }, [fetchTodayReport])
@@ -159,34 +189,30 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
 
   return (
     <div className="daily-report">
-      {/* Header */}
-      <header className="daily-header">
-        <div className="daily-title">
-          <div className="daily-logo">F</div>
-          <h1>
-            每日早报
-            <span className="daily-date">{currentDate?.replace(/-/g, '.')}</span>
-          </h1>
-        </div>
-        <button className="history-btn" onClick={() => setHistoryOpen(true)}>
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>往期回顾</span>
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: 12, height: 12 }}>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      </header>
+      {/* 日报内容 - 用于截图（包含标题） */}
+      <div ref={reportRef} className="daily-content">
+        {/* 中间水印 */}
+        <div className="daily-watermark-center">Fintell</div>
+        
+        {/* Header - 包含在截图中 */}
+        <header className="daily-header">
+          <div className="daily-title">
+            <div className="daily-logo">F</div>
+            <h1>
+              每日早报
+              <span className="daily-date">{currentDate?.replace(/-/g, '.')}</span>
+            </h1>
+          </div>
+        </header>
 
-      {/* Intelligence Matrix */}
-      <section>
-        <div className="section-title">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-          </svg>
-          全球情报矩阵 Intelligence Matrix
-        </div>
+        {/* Intelligence Matrix */}
+        <section>
+          <div className="section-title">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+            </svg>
+            全球情报矩阵 Intelligence Matrix
+          </div>
         <div className="intel-grid">
           {report.intelligence.map((cat: IntelCategory, idx: number) => (
             <div key={idx} className={`intel-card ${cat.color}`}>
@@ -307,6 +333,41 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
             <div className="actionable-box-value">{report.actionable.focus}</div>
           </div>
         </div>
+      </div>
+
+        {/* 水印 - 底部居中 */}
+        <div className="daily-watermark">
+          Fintell | board.newestgpt.com
+        </div>
+      </div>{/* 结束 daily-content */}
+
+      {/* 浮动工具栏 - 不包含在截图中 */}
+      <div className="daily-fab-toolbar">
+        <button 
+          className="fab-btn fab-history" 
+          onClick={() => setHistoryOpen(true)}
+          title="往期回顾"
+        >
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+        <button 
+          className="fab-btn fab-share" 
+          onClick={handleShare} 
+          disabled={sharing}
+          title={sharing ? '生成中...' : '分享图片'}
+        >
+          {sharing ? (
+            <svg className="fab-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 12a9 9 0 11-6.219-8.56" />
+            </svg>
+          ) : (
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+          )}
+        </button>
       </div>
 
       {/* History Modal */}

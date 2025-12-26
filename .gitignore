@@ -8,3 +8,7 @@ AGENTS.md
 /worker-news/.wrangler/state/v3
 /worker-news/node_modules
 /worker/.wrangler
+
+# 敏感配置文件
+.dev.vars
+worker/.dev.vars
