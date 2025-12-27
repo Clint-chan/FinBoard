@@ -335,7 +335,7 @@ ${buildSectorList(sectors.bearish, false)}
 <div style="font-size:13px;color:#1f2937;">${actionable.avoid || '-'}</div>
 </div>
 <div style="flex:1;background:#ecfdf5;border-radius:8px;padding:10px;">
-<div style="font-size:10px;color:#059669;margin-bottom:4px;">关注替代</div>
+<div style="font-size:10px;color:#059669;margin-bottom:4px;">进攻布局</div>
 <div style="font-size:13px;color:#1f2937;">${actionable.focus || '-'}</div>
 </div></div></div></div>
 <div style="padding:16px 24px;background:#f9fafb;text-align:center;border-top:1px solid #e5e7eb;">
