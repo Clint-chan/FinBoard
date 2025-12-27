@@ -75,15 +75,23 @@ export async function sendVerifyCode(email: string): Promise<void> {
  */
 export async function cloudSaveConfig(token: string, config: Partial<UserConfig>): Promise<void> {
   if (!token) return
-  
-  await fetch(`${SYNC_API}/api/config`, {
+
+  const res = await fetch(`${SYNC_API}/api/config`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      Authorization: `Bearer ${token}`
     },
     body: JSON.stringify({ config })
   })
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    console.error('[CloudService] 保存配置失败:', res.status, data)
+    throw new Error((data as ErrorResponse).error || '保存配置失败')
+  }
+
+  console.log('[CloudService] 配置保存成功')
 }
 
 /**
