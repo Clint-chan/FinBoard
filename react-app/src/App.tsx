@@ -51,6 +51,7 @@ function App() {
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [sidebarHovered, setSidebarHovered] = useState(false) // 侧边栏hover状态
   const [activeCategory, setActiveCategory] = useState<string | null>(null) // 当前选中的分类，null 表示全部
   
   // 移动端状态
@@ -671,10 +672,14 @@ function App() {
         syncing={syncing}
         isAdmin={isAdmin}
         expanded={mobileSidebarOpen}
+        insightOpen={analysisDrawer.open}
         onExpandedChange={setMobileSidebarOpen}
+        onHoverChange={setSidebarHovered}
         onPageChange={(page) => {
           setActivePage(page)
           setMobileSidebarOpen(false)
+          // 切换页面时关闭 insight 界面
+          setAnalysisDrawer({ open: false, code: '' })
         }}
         onLoginClick={() => {
           setAuthModalOpen(true)
@@ -925,7 +930,10 @@ function App() {
       <AnalysisDrawer
         open={analysisDrawer.open}
         code={analysisDrawer.code}
-        onClose={() => setAnalysisDrawer({ open: false, code: '' })}
+        onClose={() => {
+          setAnalysisDrawer({ open: false, code: '' })
+          setActivePage('watchlist') // 关闭后回到watchlist
+        }}
         stockList={config.codes}
         stockData={stockData}
         isDark={isDark}
@@ -934,6 +942,8 @@ function App() {
         }}
         onSaveAlerts={saveAlertsFromAI}
         alerts={getAlertsForChart()}
+        categories={categories}
+        sidebarExpanded={sidebarHovered || mobileSidebarOpen}
       />
 
       {/* 老板键遮罩 */}

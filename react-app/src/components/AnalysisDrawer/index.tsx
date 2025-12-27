@@ -5,7 +5,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { SuperChart } from '@/components/SuperChart'
 import { StockNews } from '@/components/StockNews'
 import { ChatMessage as ChatMessageComponent } from './ChatMessage'
-import type { StockData } from '@/types'
+import type { StockData, StockCategory } from '@/types'
 import { type AIMode, AI_MODES, type ChatMessage } from './types'
 import './AnalysisDrawer.css'
 
@@ -19,6 +19,10 @@ interface AnalysisDrawerProps {
   onOpenAlert?: (code: string, price?: number) => void
   onSaveAlerts?: (code: string, alerts: Array<{ price: number; operator: 'above' | 'below'; note: string }>) => void
   alerts?: Record<string, { conditions: Array<{ type: 'price' | 'pct'; operator: 'above' | 'below'; value: number; triggered?: boolean; note?: string }> }>
+  categories?: StockCategory[]
+  activeCategory?: string | null
+  onCategoryChange?: (categoryId: string | null) => void
+  sidebarExpanded?: boolean
 }
 
 export function AnalysisDrawer({
@@ -30,10 +34,19 @@ export function AnalysisDrawer({
   isDark = false,
   onOpenAlert,
   onSaveAlerts,
-  alerts = {}
+  alerts = {},
+  categories = [],
+  activeCategory: externalActiveCategory,
+  onCategoryChange,
+  sidebarExpanded = false
 }: AnalysisDrawerProps) {
   // 当前选中的股票
   const [currentCode, setCurrentCode] = useState(initialCode)
+  
+  // 内部分类状态（如果外部没有传入控制）
+  const [internalActiveCategory, setInternalActiveCategory] = useState<string | null>(null)
+  const activeCategory = onCategoryChange ? externalActiveCategory : internalActiveCategory
+  const handleCategoryChange = onCategoryChange || setInternalActiveCategory
   
   // AI 模式
   const [aiMode, setAiMode] = useState<AIMode>('intraday')
@@ -50,6 +63,7 @@ export function AnalysisDrawer({
   const [inputValue, setInputValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesRef = useRef<HTMLDivElement>(null)
+  const filterTabsRef = useRef<HTMLDivElement>(null)
   
   // 拖拽调整宽度
   const [chatWidth, setChatWidth] = useState(400)
@@ -62,6 +76,18 @@ export function AnalysisDrawer({
       setCurrentCode(initialCode)
     }
   }, [open, initialCode])
+
+  // 打开时禁止底层页面滚动
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [open])
 
   // 初始化聊天历史
   useEffect(() => {
@@ -235,6 +261,14 @@ export function AnalysisDrawer({
     }
   }, [sendMessage])
 
+  // 分类标签横向滚动（鼠标滚轮转换为横向滚动）
+  const handleFilterTabsWheel = useCallback((e: React.WheelEvent) => {
+    if (filterTabsRef.current) {
+      e.preventDefault()
+      filterTabsRef.current.scrollLeft += e.deltaY
+    }
+  }, [])
+
   // 拖拽调整宽度
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -289,9 +323,17 @@ export function AnalysisDrawer({
 
   const currentStock = stockData[currentCode]
   const messages = chatHistory[currentCode] || []
+  
+  // 根据分类筛选股票列表
+  const filteredStockList = activeCategory === null
+    ? stockList
+    : stockList.filter(code => {
+        const category = categories.find(c => c.id === activeCategory)
+        return category?.codes.includes(code)
+      })
 
   return (
-    <div className={`analysis-drawer ${open ? 'open' : ''}`}>
+    <div className={`analysis-drawer ${open ? 'open' : ''} ${sidebarExpanded ? 'sidebar-expanded' : ''}`}>
       <div className="drawer-content">
         {/* 关闭按钮 */}
         <button className="close-drawer-btn" onClick={onClose} title="关闭">
@@ -303,9 +345,37 @@ export function AnalysisDrawer({
 
         {/* 左侧自选股列表 */}
         <div className="stock-sidebar">
-          <div className="sidebar-header">自选股</div>
-          <div className="sidebar-list">
-            {stockList.map(code => {
+          {/* 融合后的 Header (包含标题和分类标签) */}
+          <div className="stock-header">
+            <div className="header-title">自选行情</div>
+            
+            {/* 分类标签组 */}
+            <div 
+              className="filter-tabs"
+              ref={filterTabsRef}
+              onWheel={handleFilterTabsWheel}
+            >
+              <div
+                className={`filter-item ${activeCategory === null ? 'active' : ''}`}
+                onClick={() => handleCategoryChange(null)}
+              >
+                全部
+              </div>
+              {categories.map(cat => (
+                <div
+                  key={cat.id}
+                  className={`filter-item ${activeCategory === cat.id ? 'active' : ''}`}
+                  onClick={() => handleCategoryChange(cat.id)}
+                >
+                  {cat.name}
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* 可滚动的列表区域 */}
+          <div className="stock-list-container">
+            {filteredStockList.map(code => {
               const d = stockData[code]
               if (!d) return null
               const price = typeof d.price === 'number' && !isNaN(d.price) ? d.price : 0
@@ -317,19 +387,20 @@ export function AnalysisDrawer({
               return (
                 <div
                   key={code}
-                  className={`sidebar-item ${isActive ? 'active' : ''}`}
+                  className={`stock-item ${isActive ? 'selected' : ''}`}
                   onClick={() => switchStock(code)}
                 >
-                  <div className="item-left">
-                    <span className="item-name">{d.name || '--'}</span>
+                  <div className="s-left">
+                    <div className="s-name">{d.name || '--'}</div>
+                    <div className="s-code">{code}</div>
                   </div>
-                  <div className="item-right">
-                    <span className={`item-price ${isUp ? 'up' : 'down'}`}>
+                  <div className="s-right">
+                    <div className={`s-price ${isUp ? 'up' : 'down'}`}>
                       {price ? price.toFixed(2) : '--'}
-                    </span>
-                    <span className={`item-pct ${isUp ? 'up' : 'down'}`}>
+                    </div>
+                    <div className={`s-rate ${isUp ? 'bg-up' : 'bg-down'}`}>
                       {price ? `${isUp ? '+' : ''}${pct.toFixed(2)}%` : '--'}
-                    </span>
+                    </div>
                   </div>
                 </div>
               )

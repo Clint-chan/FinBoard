@@ -94,7 +94,9 @@ interface SidebarProps {
   syncing?: boolean
   isAdmin?: boolean
   expanded?: boolean
+  insightOpen?: boolean  // 新增：insight界面是否打开
   onExpandedChange?: (expanded: boolean) => void
+  onHoverChange?: (hovered: boolean) => void  // 新增：hover状态变化回调
   onPageChange: (page: PageType) => void
   onLoginClick: () => void
   onLogoutClick: () => void
@@ -111,9 +113,11 @@ function Sidebar({
   isLoggedIn = false,
   expanded: externalExpanded,
   onExpandedChange,
+  onHoverChange,
   cloudUsername,
   syncing = false,
   isAdmin = false,
+  insightOpen = false,
   onPageChange,
   onLoginClick,
   onLogoutClick,
@@ -374,8 +378,18 @@ function Sidebar({
       
       <aside
         className={`sidebar ${isExpanded ? 'expanded' : ''}`}
-        onMouseEnter={() => !externalExpanded && setExpanded(true)}
-        onMouseLeave={() => !externalExpanded && setExpanded(false)}
+        onMouseEnter={() => {
+          if (!externalExpanded) {
+            setExpanded(true)
+            onHoverChange?.(true)
+          }
+        }}
+        onMouseLeave={() => {
+          if (!externalExpanded) {
+            setExpanded(false)
+            onHoverChange?.(false)
+          }
+        }}
       >
         <div className="sidebar-logo">
           <span className="sidebar-logo-text">Fintell</span>
@@ -384,16 +398,22 @@ function Sidebar({
         <nav className="sidebar-nav">
           {navItems
             .filter(item => !item.adminOnly || isAdmin)
-            .map(item => (
-            <div
-              key={item.id}
-              className={`sidebar-item ${item.id !== 'insight' && activePage === item.id ? 'active' : ''}`}
-              onClick={() => handleNavClick(item.id)}
-            >
-              <span className="sidebar-icon">{item.icon}</span>
-              <span className="sidebar-label">{item.label}</span>
-            </div>
-          ))}
+            .map(item => {
+              // 当 insight 打开时，只有 insight 显示选中状态
+              const isActive = insightOpen 
+                ? item.id === 'insight'
+                : item.id !== 'insight' && activePage === item.id
+              return (
+                <div
+                  key={item.id}
+                  className={`sidebar-item ${isActive ? 'active' : ''}`}
+                  onClick={() => handleNavClick(item.id)}
+                >
+                  <span className="sidebar-icon">{item.icon}</span>
+                  <span className="sidebar-label">{item.label}</span>
+                </div>
+              )
+            })}
         </nav>
 
         <div className="sidebar-user" onClick={displayUsername ? (onProfileClick || openProfileModal) : onLoginClick}>

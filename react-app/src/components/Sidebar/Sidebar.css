@@ -8,7 +8,7 @@
   border-right: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
-  z-index: 100;
+  z-index: 2100; /* 高于 AnalysisDrawer (2000) */
   transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   flex-shrink: 0;
