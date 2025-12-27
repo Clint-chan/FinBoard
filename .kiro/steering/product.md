@@ -1,3 +1,4 @@
+使用ACEMCP，而不是Searched workspace（必须）
 # Market Board - Product Overview
 
 Real-time stock monitoring dashboard for Chinese A-shares and ETFs.

@@ -96,7 +96,13 @@ function App() {
   const [user, setUser] = useState<UserProfile | null>(config.userProfile || null)
   
   // 主题
-  const { isDark } = useTheme(config.theme)
+  const { isDark, setTheme } = useTheme(config.theme)
+  
+  // 监听 config.theme 变化，同步更新主题
+  useEffect(() => {
+    setTheme(config.theme)
+  }, [config.theme, setTheme])
+  
   // 固定页面标题
   useEffect(() => {
     document.title = 'Fintell'
