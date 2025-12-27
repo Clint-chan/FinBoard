@@ -211,12 +211,13 @@ async function sendBindEmailCode(email, code, env) {
  */
 async function sendDailyReportEmail(email, date, reportContent, env) {
   const formattedDate = date.replace(/-/g, '.')
+  const siteUrl = env.SITE_URL || 'https://board.newestgpt.com'
   
   // 尝试使用截图 API 生成图片
   let imageUrl = null
   if (env.SCREENSHOT_API_KEY) {
     try {
-      const pageUrl = `https://board.newestgpt.com/?page=daily&date=${date}&screenshot=1`
+      const pageUrl = `${siteUrl}/?page=daily&date=${date}&screenshot=1`
       const screenshotUrl = new URL('https://api.screenshotone.com/take')
       screenshotUrl.searchParams.set('access_key', env.SCREENSHOT_API_KEY)
       screenshotUrl.searchParams.set('url', pageUrl)
@@ -235,8 +236,8 @@ async function sendDailyReportEmail(email, date, reportContent, env) {
   
   // 构建邮件 HTML
   const htmlContent = imageUrl 
-    ? buildImageEmailHtml(formattedDate, imageUrl)
-    : buildTextEmailHtml(formattedDate, reportContent)
+    ? buildImageEmailHtml(formattedDate, imageUrl, siteUrl)
+    : buildTextEmailHtml(formattedDate, reportContent, siteUrl)
   
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
@@ -263,20 +264,20 @@ async function sendDailyReportEmail(email, date, reportContent, env) {
 }
 
 // 带图片的邮件模板
-function buildImageEmailHtml(formattedDate, imageUrl) {
+function buildImageEmailHtml(formattedDate, imageUrl, siteUrl) {
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:20px;background:#f1f5f9;font-family:sans-serif;">
 <div style="max-width:800px;margin:0 auto;">
 <img src="${imageUrl}" alt="Fintell 每日早报 ${formattedDate}" style="width:100%;height:auto;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.1);">
 <div style="text-align:center;margin-top:20px;padding:16px;">
-<p style="color:#64748b;font-size:13px;margin:0 0 8px;">查看完整日报请访问 <a href="https://board.newestgpt.com" style="color:#7c3aed;">Fintell</a></p>
+<p style="color:#64748b;font-size:13px;margin:0 0 8px;">查看完整日报请访问 <a href="${siteUrl}" style="color:#7c3aed;">Fintell</a></p>
 <p style="color:#94a3b8;font-size:11px;margin:0;">如需取消订阅，请在设置中关闭日报推送</p>
 </div></div></body></html>`
 }
 
 // 纯文本邮件模板（备用）
-function buildTextEmailHtml(formattedDate, reportContent) {
+function buildTextEmailHtml(formattedDate, reportContent, siteUrl) {
   const prediction = reportContent.prediction || {}
   const sectors = reportContent.sectors || {}
   const actionable = reportContent.actionable || {}
@@ -326,7 +327,7 @@ ${buildSectorList(sectors.bearish, false)}
 <div style="font-size:13px;color:#1f2937;">${actionable.focus || '-'}</div>
 </div></div></div></div>
 <div style="padding:16px 24px;background:#f9fafb;text-align:center;border-top:1px solid #e5e7eb;">
-<p style="color:#9ca3af;font-size:12px;margin:0;">查看完整日报请访问 <a href="https://board.newestgpt.com" style="color:#7c3aed;">Fintell</a></p>
+<p style="color:#9ca3af;font-size:12px;margin:0;">查看完整日报请访问 <a href="${siteUrl}" style="color:#7c3aed;">Fintell</a></p>
 <p style="color:#d1d5db;font-size:11px;margin:8px 0 0;">如需取消订阅，请在设置中关闭日报推送</p>
 </div></div></body></html>`
 }

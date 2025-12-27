@@ -21,6 +21,8 @@ crons = ["0 22 * * *"]
 [vars]
 BREVO_SENDER_EMAIL = "admin@newestgpt.com"
 BREVO_SENDER_NAME = "Fintell"
+SITE_URL = "https://board.newestgpt.com"
 
 # 敏感信息请使用 Cloudflare Secrets 配置：
 # npx wrangler secret put BREVO_API_KEY
+# npx wrangler secret put SCREENSHOT_API_KEY
