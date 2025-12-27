@@ -69,6 +69,34 @@ export function AnalysisDrawer({
   const [chatWidth, setChatWidth] = useState(400)
   const resizerRef = useRef<HTMLDivElement>(null)
   const isResizing = useRef(false)
+  
+  // 聊天区域展开状态
+  const [chatExpanded, setChatExpanded] = useState(false)
+  // 图表和新闻是否渲染（用于动画后延迟卸载）
+  const [chartVisible, setChartVisible] = useState(true)
+  
+  // 处理展开/收起切换
+  const handleToggleExpand = useCallback(() => {
+    if (chatExpanded) {
+      // 收起：先显示图表，再播放动画
+      setChartVisible(true)
+      // 等待下一帧再移除 expanded 类，让动画生效
+      requestAnimationFrame(() => {
+        setChatExpanded(false)
+        // 动画结束后触发 resize 让图表重新计算尺寸
+        setTimeout(() => {
+          window.dispatchEvent(new Event('resize'))
+        }, 450)
+      })
+    } else {
+      // 展开：先播放动画，动画结束后隐藏图表
+      setChatExpanded(true)
+      // 动画持续 400ms，之后隐藏图表
+      setTimeout(() => {
+        setChartVisible(false)
+      }, 400)
+    }
+  }, [chatExpanded])
 
   // 同步初始代码
   useEffect(() => {
@@ -408,10 +436,12 @@ export function AnalysisDrawer({
           </div>
         </div>
 
-        {/* 中间图表区域 */}
-        <div className="chart-section">
+        {/* 中间图表区域 - 展开时滑出 */}
+        {chartVisible && (
+        <div className={`chart-section ${chatExpanded ? 'slide-out' : ''}`}>
           <div className="chart-wrapper">
             <SuperChart
+              key={`chart-${currentCode}`}
               code={currentCode}
               fillContainer
               isDark={isDark}
@@ -428,28 +458,32 @@ export function AnalysisDrawer({
             />
           </div>
         </div>
+        )}
 
-        {/* 拖拽手柄 */}
+        {/* 拖拽手柄 - 单击展开/收起 */}
         <div
           ref={resizerRef}
-          className="drawer-resizer"
-          onMouseDown={startResize}
+          className={`drawer-resizer ${chatExpanded ? 'expanded' : ''}`}
+          onClick={handleToggleExpand}
+          title="点击展开/收起"
         />
 
 
         {/* 右侧面板 */}
-        <div className="chat-section" style={{ width: chatWidth }}>
-          {/* 新闻区域 */}
-          <div className="news-section">
+        <div className={`chat-section ${chatExpanded ? 'expanded' : ''}`} style={{ width: chatExpanded ? undefined : chatWidth }}>
+          {/* 新闻区域 - 展开时滑出 */}
+          {chartVisible && (
+          <div className={`news-section ${chatExpanded ? 'slide-up' : ''}`}>
             <StockNews 
               code={currentCode} 
               stockName={currentStock?.name}
               isDark={isDark}
             />
           </div>
+          )}
 
           {/* AI 聊天面板 */}
-          <div className="chat-container">
+          <div className={`chat-container ${chatExpanded ? 'expanded' : ''}`}>
             <div className="chat-header">
               <div className="ai-identity">
                 <div className="ai-avatar">F</div>
