@@ -450,7 +450,7 @@ export function SettingsModal({
             )}
           </div>
           <div className="settings-avatar-actions">
-            <h4>{username || '未登录'}</h4>
+            <h4>{nickname || username || '未登录'}</h4>
             <p>支持 JPG, PNG 格式，最大 2MB</p>
             <button className="settings-btn-upload" onClick={handleAvatarClick}>
               更换头像
