@@ -223,6 +223,7 @@ function generateDailyReportScreenshotUrl(date, env) {
   screenshotUrl.searchParams.set('full_page', 'true')
   screenshotUrl.searchParams.set('delay', '3')
   screenshotUrl.searchParams.set('block_ads', 'true')
+  screenshotUrl.searchParams.set('device_scale_factor', '3')  // 3倍分辨率，最高清晰度
   // 启用缓存：相同 URL 在 TTL 内不会重复截图
   screenshotUrl.searchParams.set('cache', 'true')
   screenshotUrl.searchParams.set('cache_ttl', '86400')  // 缓存24小时
@@ -1762,13 +1763,18 @@ export default {
           
           const reportContent = JSON.parse(result.content);
           
+          // 生成截图 URL
+          const screenshotUrl = generateDailyReportScreenshotUrl(result.report_date, env);
+          console.log('测试邮件截图 URL:', screenshotUrl ? '已生成' : '未生成（缺少 SCREENSHOT_API_KEY）');
+          
           // 发送测试邮件
-          await sendDailyReportEmail(email, result.report_date, reportContent, env);
+          await sendDailyReportEmail(email, result.report_date, reportContent, env, screenshotUrl);
           
           return jsonResponse({ 
             success: true, 
             message: `测试邮件已发送到 ${email}`,
-            date: result.report_date
+            date: result.report_date,
+            hasImage: !!screenshotUrl
           });
         } catch (e) {
           console.error('发送测试邮件失败:', e);
@@ -2843,6 +2849,8 @@ async function generateDailyReport(env, isScheduled = false) {
       screenshotUrl = generateDailyReportScreenshotUrl(today, env);
       if (screenshotUrl) {
         console.log('日报截图 URL 已生成（将被所有邮件共用）');
+      } else {
+        console.log('未生成截图 URL，SCREENSHOT_API_KEY 是否配置:', !!env.SCREENSHOT_API_KEY);
       }
     }
     

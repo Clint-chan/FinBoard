@@ -135,7 +135,7 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
     try {
       const canvas = await html2canvas(reportRef.current, {
         backgroundColor: '#ffffff',
-        scale: 2, // 高清
+        scale: 3, // 3倍高清
         useCORS: true,
         logging: false,
         windowWidth: 1200, // 固定宽度
