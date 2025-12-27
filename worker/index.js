@@ -203,36 +203,47 @@ async function sendBindEmailCode(email, code, env) {
 }
 
 /**
- * 发送日报订阅邮件（支持截图 API）
+ * 生成日报截图 URL（每天只需调用一次）
+ * @param {string} date - 日报日期
+ * @param {object} env - 环境变量
+ * @returns {string|null} 截图 URL 或 null
+ */
+function generateDailyReportScreenshotUrl(date, env) {
+  if (!env.SCREENSHOT_API_KEY) return null
+  
+  const siteUrl = env.SITE_URL || 'https://board.newestgpt.com'
+  const pageUrl = `${siteUrl}/?page=daily&date=${date}&screenshot=1`
+  
+  const screenshotUrl = new URL('https://api.screenshotone.com/take')
+  screenshotUrl.searchParams.set('access_key', env.SCREENSHOT_API_KEY)
+  screenshotUrl.searchParams.set('url', pageUrl)
+  screenshotUrl.searchParams.set('format', 'png')
+  screenshotUrl.searchParams.set('viewport_width', '1280')
+  screenshotUrl.searchParams.set('viewport_height', '1600')
+  screenshotUrl.searchParams.set('full_page', 'true')
+  screenshotUrl.searchParams.set('delay', '3')
+  screenshotUrl.searchParams.set('block_ads', 'true')
+  // 启用缓存：相同 URL 在 TTL 内不会重复截图
+  screenshotUrl.searchParams.set('cache', 'true')
+  screenshotUrl.searchParams.set('cache_ttl', '86400')  // 缓存24小时
+  
+  return screenshotUrl.toString()
+}
+
+/**
+ * 发送日报订阅邮件
  * @param {string} email - 收件人邮箱
  * @param {string} date - 日报日期
  * @param {object} reportContent - 日报内容
  * @param {object} env - 环境变量
+ * @param {string|null} cachedImageUrl - 预生成的截图 URL（避免重复调用 API）
  */
-async function sendDailyReportEmail(email, date, reportContent, env) {
+async function sendDailyReportEmail(email, date, reportContent, env, cachedImageUrl = null) {
   const formattedDate = date.replace(/-/g, '.')
   const siteUrl = env.SITE_URL || 'https://board.newestgpt.com'
   
-  // 尝试使用截图 API 生成图片
-  let imageUrl = null
-  if (env.SCREENSHOT_API_KEY) {
-    try {
-      const pageUrl = `${siteUrl}/?page=daily&date=${date}&screenshot=1`
-      const screenshotUrl = new URL('https://api.screenshotone.com/take')
-      screenshotUrl.searchParams.set('access_key', env.SCREENSHOT_API_KEY)
-      screenshotUrl.searchParams.set('url', pageUrl)
-      screenshotUrl.searchParams.set('format', 'png')
-      screenshotUrl.searchParams.set('viewport_width', '800')
-      screenshotUrl.searchParams.set('viewport_height', '1200')
-      screenshotUrl.searchParams.set('full_page', 'false')
-      screenshotUrl.searchParams.set('delay', '3')
-      screenshotUrl.searchParams.set('block_ads', 'true')
-      imageUrl = screenshotUrl.toString()
-      console.log('日报截图 URL 已生成')
-    } catch (e) {
-      console.error('生成截图 URL 失败:', e.message)
-    }
-  }
+  // 使用传入的缓存图片 URL，避免每封邮件都生成新的截图
+  const imageUrl = cachedImageUrl
   
   // 构建邮件 HTML
   const htmlContent = imageUrl 
@@ -2826,12 +2837,21 @@ async function generateDailyReport(env, isScheduled = false) {
     const subscriberList = subscribers.results || [];
     console.log(`找到 ${subscriberList.length} 个订阅用户`);
     
+    // 预先生成截图 URL（只调用一次，所有邮件共用）
+    let screenshotUrl = null;
+    if (subscriberList.length > 0) {
+      screenshotUrl = generateDailyReportScreenshotUrl(today, env);
+      if (screenshotUrl) {
+        console.log('日报截图 URL 已生成（将被所有邮件共用）');
+      }
+    }
+    
     let sentCount = 0;
     let failCount = 0;
     
     for (const sub of subscriberList) {
       try {
-        await sendDailyReportEmail(sub.email, today, reportJson, env);
+        await sendDailyReportEmail(sub.email, today, reportJson, env, screenshotUrl);
         sentCount++;
         console.log(`日报邮件已发送: ${sub.email}`);
       } catch (e) {
