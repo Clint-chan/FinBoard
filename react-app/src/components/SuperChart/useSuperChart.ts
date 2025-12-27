@@ -32,7 +32,7 @@ export function useSuperChart(options: UseSuperChartOptions) {
     defaultTab = 'intraday',
     defaultSubIndicators = ['vol'],
     showBoll: initialShowBoll = false,
-    klineCount: initialKlineCount = 50,
+    klineCount: initialKlineCount = 70,
     initialName = ''
   } = options
 
@@ -166,10 +166,16 @@ export function useSuperChart(options: UseSuperChartOptions) {
       },
       lastPrice: closes[closes.length - 1],
       preClose: klines.length > 1 ? klines[klines.length - 2].close : closes[0],
-      priceRange: {
-        min: Math.min(...klines.map(k => k.low)),
-        max: Math.max(...klines.map(k => k.high))
-      }
+      priceRange: (() => {
+        const minPrice = Math.min(...klines.map(k => k.low))
+        const maxPrice = Math.max(...klines.map(k => k.high))
+        const range = maxPrice - minPrice
+        const padding = range * 0.05 // 预留5%空间
+        return {
+          min: minPrice - padding,
+          max: maxPrice + padding
+        }
+      })()
     })
   }, [klineRawData, klineCount])
 
