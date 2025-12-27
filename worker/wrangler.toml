@@ -1,7 +1,6 @@
 name = "market-board-api"
-main = "src/index.js"
-compatibility_date = "2024-09-23"
-compatibility_flags = ["nodejs_compat"]
+main = "index.js"
+compatibility_date = "2024-01-01"
 
 # KV 绑定 - 用于用户配置存储（JSON 结构，读多写少）
 [[kv_namespaces]]

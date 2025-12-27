@@ -35,7 +35,22 @@ import '@/styles/index.css'
 // 在应用启动前执行数据迁移
 runMigration()
 
+// 检测是否为截图模式（用于邮件截图服务）
+const isScreenshotMode = () => {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('screenshot') === '1'
+}
+
 function App() {
+  // 截图模式：直接渲染日报，不显示其他 UI
+  if (isScreenshotMode()) {
+    return (
+      <div style={{ background: '#f8fafc', minHeight: '100vh', padding: '20px' }}>
+        <DailyReport />
+      </div>
+    )
+  }
+
   // 配置状态
   const [config, setConfig] = useLocalStorage<UserConfig>('market_board_config', DEFAULT_CONFIG)
   

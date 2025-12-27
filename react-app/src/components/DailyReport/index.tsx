@@ -14,6 +14,12 @@ interface DailyReportProps {
   token?: string | null
 }
 
+// 检测是否为截图模式（用于邮件截图）
+const isScreenshotMode = () => {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('screenshot') === '1'
+}
+
 export function DailyReport({ isAdmin, token }: DailyReportProps) {
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
@@ -23,14 +29,21 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [historyList, setHistoryList] = useState<DailyReportListItem[]>([])
   const reportRef = useRef<HTMLDivElement>(null)
+  
+  // 截图模式标记
+  const screenshotMode = isScreenshotMode()
 
-  // 获取今日日报
+  // 获取今日日报（或 URL 指定日期）
   const fetchTodayReport = useCallback(async () => {
     setLoading(true)
     try {
+      // 检查 URL 是否指定了日期
+      const params = new URLSearchParams(window.location.search)
+      const urlDate = params.get('date')
+      
       // 获取今天的日期
       const today = new Date()
-      const dateStr = today.toISOString().split('T')[0]
+      const dateStr = urlDate || today.toISOString().split('T')[0]
       
       const res = await fetch(`${API_BASE}/api/daily/${dateStr}`)
       if (res.ok) {
@@ -341,34 +354,36 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
         </div>
       </div>{/* 结束 daily-content */}
 
-      {/* 浮动工具栏 - 不包含在截图中 */}
-      <div className="daily-fab-toolbar">
-        <button 
-          className="fab-btn fab-history" 
-          onClick={() => setHistoryOpen(true)}
-          title="往期回顾"
-        >
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </button>
-        <button 
-          className="fab-btn fab-share" 
-          onClick={handleShare} 
-          disabled={sharing}
-          title={sharing ? '生成中...' : '分享图片'}
-        >
-          {sharing ? (
-            <svg className="fab-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 12a9 9 0 11-6.219-8.56" />
-            </svg>
-          ) : (
+      {/* 浮动工具栏 - 截图模式下隐藏 */}
+      {!screenshotMode && (
+        <div className="daily-fab-toolbar">
+          <button 
+            className="fab-btn fab-history" 
+            onClick={() => setHistoryOpen(true)}
+            title="往期回顾"
+          >
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-          )}
-        </button>
-      </div>
+          </button>
+          <button 
+            className="fab-btn fab-share" 
+            onClick={handleShare} 
+            disabled={sharing}
+            title={sharing ? '生成中...' : '分享图片'}
+          >
+            {sharing ? (
+              <svg className="fab-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 12a9 9 0 11-6.219-8.56" />
+              </svg>
+            ) : (
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* History Modal */}
       {historyOpen && (

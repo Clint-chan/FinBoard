@@ -203,84 +203,40 @@ async function sendBindEmailCode(email, code, env) {
 }
 
 /**
- * 发送日报订阅邮件
+ * 发送日报订阅邮件（支持截图 API）
  * @param {string} email - 收件人邮箱
  * @param {string} date - 日报日期
  * @param {object} reportContent - 日报内容
  * @param {object} env - 环境变量
  */
 async function sendDailyReportEmail(email, date, reportContent, env) {
-  // 构建日报邮件 HTML
   const formattedDate = date.replace(/-/g, '.')
   
-  // 提取关键信息
-  const marketSummary = reportContent.marketSummary || '暂无市场概览'
-  const prediction = reportContent.prediction || {}
-  const bullishSectors = reportContent.bullishSectors || []
-  const bearishSectors = reportContent.bearishSectors || []
-  
-  // 构建板块列表 HTML
-  const buildSectorList = (sectors, isBullish) => {
-    if (!sectors.length) return '<p style="color: #999;">暂无数据</p>'
-    return sectors.slice(0, 3).map(s => `
-      <div style="margin-bottom: 12px; padding: 12px; background: ${isBullish ? '#f0fdf4' : '#fef2f2'}; border-radius: 8px;">
-        <div style="font-weight: 600; color: ${isBullish ? '#16a34a' : '#dc2626'}; margin-bottom: 4px;">${s.name}</div>
-        <div style="font-size: 13px; color: #666;">${s.reason}</div>
-      </div>
-    `).join('')
+  // 尝试使用截图 API 生成图片
+  let imageUrl = null
+  if (env.SCREENSHOT_API_KEY) {
+    try {
+      const pageUrl = `https://board.newestgpt.com/?page=daily&date=${date}&screenshot=1`
+      const screenshotUrl = new URL('https://api.screenshotone.com/take')
+      screenshotUrl.searchParams.set('access_key', env.SCREENSHOT_API_KEY)
+      screenshotUrl.searchParams.set('url', pageUrl)
+      screenshotUrl.searchParams.set('format', 'png')
+      screenshotUrl.searchParams.set('viewport_width', '800')
+      screenshotUrl.searchParams.set('viewport_height', '1200')
+      screenshotUrl.searchParams.set('full_page', 'false')
+      screenshotUrl.searchParams.set('delay', '3')
+      screenshotUrl.searchParams.set('block_ads', 'true')
+      imageUrl = screenshotUrl.toString()
+      console.log('日报截图 URL 已生成')
+    } catch (e) {
+      console.error('生成截图 URL 失败:', e.message)
+    }
   }
   
-  const htmlContent = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f9fafb;">
-      <div style="background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-        <!-- Header -->
-        <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 24px; text-align: center;">
-          <div style="display: inline-block; width: 48px; height: 48px; background: white; border-radius: 12px; line-height: 48px; font-size: 24px; font-weight: bold; color: #6366f1; margin-bottom: 12px;">F</div>
-          <h1 style="color: white; margin: 0; font-size: 24px;">Fintell 每日早报</h1>
-          <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">${formattedDate}</p>
-        </div>
-        
-        <!-- Content -->
-        <div style="padding: 24px;">
-          <!-- 市场概览 -->
-          <div style="margin-bottom: 24px;">
-            <h2 style="font-size: 16px; color: #374151; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">📊 市场概览</h2>
-            <p style="color: #4b5563; line-height: 1.6; margin: 0;">${marketSummary}</p>
-          </div>
-          
-          <!-- 今日预判 -->
-          ${prediction.overall ? `
-          <div style="margin-bottom: 24px;">
-            <h2 style="font-size: 16px; color: #374151; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">🎯 今日预判</h2>
-            <p style="color: #4b5563; line-height: 1.6; margin: 0;">${prediction.overall}</p>
-          </div>
-          ` : ''}
-          
-          <!-- 利好板块 -->
-          <div style="margin-bottom: 24px;">
-            <h2 style="font-size: 16px; color: #16a34a; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #dcfce7;">📈 利好板块</h2>
-            ${buildSectorList(bullishSectors, true)}
-          </div>
-          
-          <!-- 利空板块 -->
-          <div style="margin-bottom: 24px;">
-            <h2 style="font-size: 16px; color: #dc2626; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 2px solid #fee2e2;">📉 承压板块</h2>
-            ${buildSectorList(bearishSectors, false)}
-          </div>
-        </div>
-        
-        <!-- Footer -->
-        <div style="padding: 16px 24px; background: #f9fafb; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-            查看完整日报请访问 <a href="https://fintell.newestgpt.com" style="color: #6366f1;">Fintell</a>
-          </p>
-          <p style="color: #d1d5db; font-size: 11px; margin: 8px 0 0;">
-            如需取消订阅，请在 Fintell 设置中关闭日报推送
-          </p>
-        </div>
-      </div>
-    </div>
-  `
+  // 构建邮件 HTML
+  const htmlContent = imageUrl 
+    ? buildImageEmailHtml(formattedDate, imageUrl)
+    : buildTextEmailHtml(formattedDate, reportContent)
   
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
@@ -304,6 +260,75 @@ async function sendDailyReportEmail(email, date, reportContent, env) {
   }
 
   return true
+}
+
+// 带图片的邮件模板
+function buildImageEmailHtml(formattedDate, imageUrl) {
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:20px;background:#f1f5f9;font-family:sans-serif;">
+<div style="max-width:800px;margin:0 auto;">
+<img src="${imageUrl}" alt="Fintell 每日早报 ${formattedDate}" style="width:100%;height:auto;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.1);">
+<div style="text-align:center;margin-top:20px;padding:16px;">
+<p style="color:#64748b;font-size:13px;margin:0 0 8px;">查看完整日报请访问 <a href="https://board.newestgpt.com" style="color:#7c3aed;">Fintell</a></p>
+<p style="color:#94a3b8;font-size:11px;margin:0;">如需取消订阅，请在设置中关闭日报推送</p>
+</div></div></body></html>`
+}
+
+// 纯文本邮件模板（备用）
+function buildTextEmailHtml(formattedDate, reportContent) {
+  const prediction = reportContent.prediction || {}
+  const sectors = reportContent.sectors || {}
+  const actionable = reportContent.actionable || {}
+  
+  const buildSectorList = (items, isBullish) => {
+    if (!items?.length) return '<p style="color:#999;">暂无数据</p>'
+    return items.slice(0, 3).map(s => `
+      <div style="margin-bottom:12px;padding:12px;background:${isBullish ? '#f0fdf4' : '#fef2f2'};border-radius:8px;">
+        <div style="font-weight:600;color:${isBullish ? '#16a34a' : '#dc2626'};margin-bottom:4px;">${s.name}</div>
+        <div style="font-size:13px;color:#666;">${s.reason || ''}</div>
+      </div>`).join('')
+  }
+  
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:20px;background:#f1f5f9;font-family:sans-serif;">
+<div style="max-width:600px;margin:0 auto;background:white;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+<div style="background:linear-gradient(135deg,#7c3aed 0%,#6366f1 100%);padding:24px;text-align:center;">
+<div style="width:48px;height:48px;background:rgba(255,255,255,0.2);border-radius:12px;display:inline-block;line-height:48px;margin-bottom:12px;">
+<span style="color:white;font-size:24px;font-weight:bold;">F</span></div>
+<h1 style="color:white;margin:0;font-size:24px;">Fintell 每日早报</h1>
+<p style="color:rgba(255,255,255,0.8);margin:8px 0 0;font-size:14px;">${formattedDate}</p>
+</div>
+<div style="padding:24px;">
+<div style="background:#faf5ff;border-radius:12px;padding:16px;margin-bottom:20px;border:1px solid #e9d5ff;">
+<div style="font-size:12px;font-weight:bold;color:#7c3aed;margin-bottom:8px;">📊 大盘研判</div>
+<div style="font-size:20px;font-weight:bold;color:#1e1b4b;margin-bottom:4px;">${prediction.tone || ''}</div>
+<div style="font-size:14px;color:#6b7280;">${prediction.subtitle || ''}</div>
+</div>
+<div style="margin-bottom:20px;">
+<div style="font-size:14px;font-weight:bold;color:#16a34a;margin-bottom:12px;">📈 利好板块</div>
+${buildSectorList(sectors.bullish, true)}
+</div>
+<div style="margin-bottom:20px;">
+<div style="font-size:14px;font-weight:bold;color:#dc2626;margin-bottom:12px;">📉 承压板块</div>
+${buildSectorList(sectors.bearish, false)}
+</div>
+<div style="background:#fefce8;border-radius:12px;padding:16px;border:1px solid #fde047;">
+<div style="font-size:12px;font-weight:bold;color:#854d0e;margin-bottom:8px;">🎯 交易策略</div>
+<div style="display:flex;gap:12px;">
+<div style="flex:1;background:#fffbeb;border-radius:8px;padding:10px;">
+<div style="font-size:10px;color:#d97706;margin-bottom:4px;">防守避雷</div>
+<div style="font-size:13px;color:#1f2937;">${actionable.avoid || '-'}</div>
+</div>
+<div style="flex:1;background:#ecfdf5;border-radius:8px;padding:10px;">
+<div style="font-size:10px;color:#059669;margin-bottom:4px;">关注替代</div>
+<div style="font-size:13px;color:#1f2937;">${actionable.focus || '-'}</div>
+</div></div></div></div>
+<div style="padding:16px 24px;background:#f9fafb;text-align:center;border-top:1px solid #e5e7eb;">
+<p style="color:#9ca3af;font-size:12px;margin:0;">查看完整日报请访问 <a href="https://board.newestgpt.com" style="color:#7c3aed;">Fintell</a></p>
+<p style="color:#d1d5db;font-size:11px;margin:8px 0 0;">如需取消订阅，请在设置中关闭日报推送</p>
+</div></div></body></html>`
 }
 
 // ============ D1 数据库操作 ============
