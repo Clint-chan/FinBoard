@@ -21,6 +21,7 @@ import StockTable from '@/components/StockTable'
 import StatusBar from '@/components/StatusBar'
 import ChartTooltip from '@/components/ChartTooltip'
 import ContextMenu from '@/components/ContextMenu'
+import { CategoryTabs } from '@/components/CategoryTabs'
 import { AddStockModal, AlertModal, CostModal, AuthModal } from '@/components/modals'
 import { AdminPage } from '@/components/AdminPage'
 import { StrategyCenter } from '@/components/StrategyCenter'
@@ -28,7 +29,7 @@ import { AnalysisDrawer } from '@/components/AnalysisDrawer'
 import { BossScreen } from '@/components/BossScreen'
 import { DailyReport } from '@/components/DailyReport'
 import { DEFAULT_CONFIG } from '@/services/config'
-import type { UserConfig, PageType, ContextMenuState, ChartTooltipState, UserProfile, AlertCondition } from '@/types'
+import type { UserConfig, PageType, ContextMenuState, ChartTooltipState, UserProfile, AlertCondition, StockCategory } from '@/types'
 import '@/styles/index.css'
 
 // 在应用启动前执行数据迁移
@@ -50,6 +51,7 @@ function App() {
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [settingsModalOpen, setSettingsModalOpen] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [activeCategory, setActiveCategory] = useState<string | null>(null) // 当前选中的分类，null 表示全部
   
   // 移动端状态
   const [mobileTab, setMobileTab] = useState<MobileTab>('watchlist')
@@ -134,12 +136,42 @@ function App() {
   }, [])
 
   // 添加股票
-  const addStock = useCallback((code: string) => {
-    if (!config.codes.includes(code)) {
-      updateConfig({ codes: [...config.codes, code] })
-    }
-    setAddStockOpen(false)
-  }, [config.codes, updateConfig])
+  const addStock = useCallback(
+    (code: string) => {
+      // 如果在某个分类下添加股票
+      if (activeCategory) {
+        // 检查是否已在该分类中
+        const category = (config.categories || []).find((c) => c.id === activeCategory)
+        if (category?.codes.includes(code)) {
+          // 已在该分类中，不重复添加
+          setAddStockOpen(false)
+          return
+        }
+
+        // 添加到该分类
+        const newCategories = (config.categories || []).map((c) => {
+          if (c.id === activeCategory) {
+            return { ...c, codes: [...c.codes, code] }
+          }
+          return c
+        })
+
+        // 如果股票不在全部列表中，也添加到全部列表
+        if (!config.codes.includes(code)) {
+          updateConfig({ codes: [...config.codes, code], categories: newCategories })
+        } else {
+          updateConfig({ categories: newCategories })
+        }
+      } else {
+        // 在"自选股"下添加，只添加到全部列表
+        if (!config.codes.includes(code)) {
+          updateConfig({ codes: [...config.codes, code] })
+        }
+      }
+      setAddStockOpen(false)
+    },
+    [config.codes, config.categories, activeCategory, updateConfig]
+  )
 
   // 删除股票
   const deleteStock = useCallback((code: string) => {
@@ -148,10 +180,17 @@ function App() {
     const newCosts = { ...config.costs }
     delete newCosts[code]
     
+    // 从所有分类中移除该股票
+    const newCategories = (config.categories || []).map(c => ({
+      ...c,
+      codes: c.codes.filter(cc => cc !== code)
+    }))
+    
     updateConfig({
       codes: config.codes.filter(c => c !== code),
       alerts: newAlerts,
-      costs: newCosts
+      costs: newCosts,
+      categories: newCategories
     })
     setContextMenu({ open: false, x: 0, y: 0, code: null })
   }, [config, updateConfig])
@@ -355,6 +394,82 @@ function App() {
     newCodes.splice(toIndex, 0, removed)
     updateConfig({ codes: newCodes })
   }, [config.codes, updateConfig])
+
+  // 分类管理
+  const categories = config.categories || []
+
+  // 更新分类列表
+  const updateCategories = useCallback(
+    (newCategories: StockCategory[]) => {
+      updateConfig({ categories: newCategories })
+    },
+    [updateConfig]
+  )
+
+  // 添加/移除股票到分类（允许一个股票属于多个分类）
+  const toggleStockInCategory = useCallback(
+    (code: string, categoryId: string | null) => {
+      if (!categoryId) {
+        // categoryId 为 null 表示从当前分类中移除（通过右键菜单的"从分类中移除"）
+        // 这里需要知道是哪个分类，所以我们从所有包含该股票的分类中移除
+        const newCategories = categories.map((c) => ({
+          ...c,
+          codes: c.codes.filter((cc) => cc !== code)
+        }))
+        updateConfig({ categories: newCategories })
+        return
+      }
+
+      // 检查股票是否已在该分类中
+      const category = categories.find((c) => c.id === categoryId)
+      if (!category) return
+
+      const isInCategory = category.codes.includes(code)
+
+      const newCategories = categories.map((c) => {
+        if (c.id === categoryId) {
+          if (isInCategory) {
+            // 已在分类中，移除
+            return { ...c, codes: c.codes.filter((cc) => cc !== code) }
+          } else {
+            // 不在分类中，添加
+            return { ...c, codes: [...c.codes, code] }
+          }
+        }
+        return c
+      })
+
+      updateConfig({ categories: newCategories })
+    },
+    [categories, updateConfig]
+  )
+
+  // 创建新分类并添加股票
+  const createCategoryAndAddStock = useCallback(
+    (name: string, code: string) => {
+      const newCategory: StockCategory = {
+        id: `cat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name,
+        codes: [code]
+      }
+      // 不从其他分类中移除，直接添加新分类
+      updateConfig({ categories: [...categories, newCategory] })
+  }, [categories, updateConfig])
+
+  // 获取当前显示的股票列表（根据分类筛选）
+  const getFilteredCodes = useCallback(() => {
+    if (!activeCategory) {
+      return config.codes // 全部
+    }
+    const category = categories.find(c => c.id === activeCategory)
+    if (!category) {
+      return config.codes
+    }
+    // 返回该分类下的股票（保持原有顺序）
+    return config.codes.filter(code => category.codes.includes(code))
+  }, [config.codes, categories, activeCategory])
+
+  const filteredCodes = getFilteredCodes()
 
   // 右键菜单
   const handleContextMenu = useCallback((e: React.MouseEvent, code: string) => {
@@ -642,9 +757,18 @@ function App() {
               </div>
             </header>
             
+            {/* 分类标签 */}
+            <CategoryTabs
+              categories={categories}
+              activeCategory={activeCategory}
+              totalCount={config.codes.length}
+              onCategoryChange={setActiveCategory}
+              onCategoriesChange={updateCategories}
+            />
+            
             <div className="card">
               <StockTable
-                codes={config.codes}
+                codes={filteredCodes}
                 stockData={stockData}
                 costs={config.costs}
                 alerts={config.alerts}
@@ -727,6 +851,12 @@ function App() {
         onClose={() => setAddStockOpen(false)}
         onAdd={addStock}
         existingCodes={config.codes}
+        categoryExistingCodes={
+          activeCategory
+            ? categories.find((c) => c.id === activeCategory)?.codes
+            : undefined
+        }
+        isInCategory={!!activeCategory}
       />
       
       <AlertModal
@@ -753,10 +883,22 @@ function App() {
         open={contextMenu.open}
         x={contextMenu.x}
         y={contextMenu.y}
+        code={contextMenu.code}
+        categories={categories}
         onClose={() => setContextMenu(prev => ({ ...prev, open: false }))}
         onSetAlert={() => setAlertModal({ open: true, code: contextMenu.code })}
         onSetCost={() => setCostModal({ open: true, code: contextMenu.code })}
         onDelete={() => contextMenu.code && deleteStock(contextMenu.code)}
+        onMoveToCategory={(categoryId) => {
+          if (contextMenu.code) {
+            toggleStockInCategory(contextMenu.code, categoryId)
+          }
+        }}
+        onCreateCategory={(name) => {
+          if (contextMenu.code) {
+            createCategoryAndAddStock(name, contextMenu.code)
+          }
+        }}
       />
       
       <ChartTooltip

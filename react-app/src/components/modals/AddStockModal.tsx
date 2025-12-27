@@ -8,9 +8,20 @@ interface AddStockModalProps {
   onClose: () => void
   onAdd: (code: string) => void
   existingCodes: string[]
+  // 当前分类下已有的股票代码（用于判断是否可以添加）
+  categoryExistingCodes?: string[]
+  // 是否在分类下添加（影响提示文字）
+  isInCategory?: boolean
 }
 
-function AddStockModal({ open, onClose, onAdd, existingCodes }: AddStockModalProps) {
+function AddStockModal({
+  open,
+  onClose,
+  onAdd,
+  existingCodes,
+  categoryExistingCodes,
+  isInCategory = false
+}: AddStockModalProps) {
   const [keyword, setKeyword] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -32,7 +43,7 @@ function AddStockModal({ open, onClose, onAdd, existingCodes }: AddStockModalPro
     }
 
     if (timerRef.current) clearTimeout(timerRef.current)
-    
+
     timerRef.current = window.setTimeout(async () => {
       setLoading(true)
       try {
@@ -51,17 +62,39 @@ function AddStockModal({ open, onClose, onAdd, existingCodes }: AddStockModalPro
 
   const handleSelect = (code: string) => {
     const normalized = normalizeCode(code)
-    if (!existingCodes.includes(normalized)) {
+
+    // 如果在分类下添加，检查是否已在该分类中
+    if (isInCategory && categoryExistingCodes) {
+      if (categoryExistingCodes.includes(normalized)) {
+        // 已在该分类中，不添加
+        onClose()
+        return
+      }
+      // 允许添加（即使已在全部列表中）
       onAdd(normalized)
+    } else {
+      // 在"自选股"下添加，检查是否已在全部列表中
+      if (!existingCodes.includes(normalized)) {
+        onAdd(normalized)
+      }
     }
     onClose()
+  }
+
+  // 检查股票是否已存在（用于显示状态）
+  const isExisting = (code: string) => {
+    const normalized = normalizeCode(code)
+    if (isInCategory && categoryExistingCodes) {
+      return categoryExistingCodes.includes(normalized)
+    }
+    return existingCodes.includes(normalized)
   }
 
   if (!open) return null
 
   return (
     <div className="modal-backdrop open" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-title">添加股票</div>
         <div className="form-group">
           <div className="search-container">
@@ -76,16 +109,22 @@ function AddStockModal({ open, onClose, onAdd, existingCodes }: AddStockModalPro
             />
             {results.length > 0 && (
               <div className="search-results show">
-                {results.map(item => (
-                  <div
-                    key={item.code}
-                    className="search-item"
-                    onClick={() => handleSelect(item.code)}
-                  >
-                    <span className="search-item-name">{item.name}</span>
-                    <span className="search-item-code">{item.code.toUpperCase()}</span>
-                  </div>
-                ))}
+                {results.map((item) => {
+                  const existing = isExisting(item.code)
+                  return (
+                    <div
+                      key={item.code}
+                      className={`search-item ${existing ? 'disabled' : ''}`}
+                      onClick={() => !existing && handleSelect(item.code)}
+                    >
+                      <span className="search-item-name">{item.name}</span>
+                      <span className="search-item-code">
+                        {item.code.toUpperCase()}
+                        {existing && <span className="search-item-tag">已添加</span>}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             )}
             {keyword && results.length === 0 && !loading && (

@@ -51,6 +51,13 @@ export interface AlertHistoryItem {
   price: number // 触发时的价格
 }
 
+// 股票分类
+export interface StockCategory {
+  id: string
+  name: string
+  codes: string[] // 该分类下的股票代码
+}
+
 // 用户配置
 export interface UserConfig {
   codes: string[]
@@ -65,6 +72,7 @@ export interface UserConfig {
   refreshOnlyInMarketHours?: boolean // 仅在交易时间刷新
   strategyCheckInterval?: number // 策略检查间隔（秒），用于非价格策略如配对监控、AH溢价等
   strategies?: unknown[] // 策略中心的策略列表（云同步）
+  categories?: StockCategory[] // 股票分类
 }
 
 // 用户资料

@@ -1,20 +1,84 @@
+import { useState, useRef, useEffect } from 'react'
+import type { StockCategory } from '@/types'
 import './ContextMenu.css'
 
 interface ContextMenuProps {
   open: boolean
   x: number
   y: number
+  code: string | null
+  categories?: StockCategory[]
   onClose: () => void
   onSetAlert: () => void
   onSetCost: () => void
   onDelete: () => void
+  onMoveToCategory?: (categoryId: string | null) => void
+  onCreateCategory?: (name: string) => void
 }
 
-function ContextMenu({ open, x, y, onClose, onSetAlert, onSetCost, onDelete }: ContextMenuProps) {
+function ContextMenu({
+  open,
+  x,
+  y,
+  code,
+  categories = [],
+  onClose,
+  onSetAlert,
+  onSetCost,
+  onDelete,
+  onMoveToCategory,
+  onCreateCategory
+}: ContextMenuProps) {
+  const [showCategoryMenu, setShowCategoryMenu] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const categoryMenuRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
   const menuWidth = 160
-  const menuHeight = 120
+  const menuHeight = 180
   const maxX = window.innerWidth - menuWidth - 10
   const maxY = window.innerHeight - menuHeight - 10
+
+  // 关闭时重置状态
+  useEffect(() => {
+    if (!open) {
+      setShowCategoryMenu(false)
+      setIsCreating(false)
+      setNewCategoryName('')
+    }
+  }, [open])
+
+  // 聚焦输入框
+  useEffect(() => {
+    if (isCreating && inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [isCreating])
+
+  // 检查股票是否在某个分类中
+  const isInCategory = (categoryId: string) => {
+    if (!code) return false
+    const category = categories.find((c) => c.id === categoryId)
+    return category?.codes.includes(code) ?? false
+  }
+
+  // 检查股票是否在任何分类中
+  const isInAnyCategory = () => {
+    if (!code) return false
+    return categories.some((c) => c.codes.includes(code))
+  }
+
+  // 创建新分类并添加
+  const handleCreateAndAdd = () => {
+    const name = newCategoryName.trim()
+    if (name && onCreateCategory) {
+      onCreateCategory(name)
+    }
+    setIsCreating(false)
+    setNewCategoryName('')
+    onClose()
+  }
 
   return (
     <div
@@ -24,15 +88,149 @@ function ContextMenu({ open, x, y, onClose, onSetAlert, onSetCost, onDelete }: C
         top: Math.min(y, maxY),
         display: open ? 'block' : 'none'
       }}
-      onClick={e => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
     >
-      <div className="context-menu-item" onClick={() => { onSetAlert(); onClose() }}>
+      <div
+        className="context-menu-item"
+        onClick={() => {
+          onSetAlert()
+          onClose()
+        }}
+      >
         设置价格预警
       </div>
-      <div className="context-menu-item" onClick={() => { onSetCost(); onClose() }}>
+      <div
+        className="context-menu-item"
+        onClick={() => {
+          onSetCost()
+          onClose()
+        }}
+      >
         设置持仓成本
       </div>
-      <div className="context-menu-item danger" onClick={() => { onDelete(); onClose() }}>
+
+      {/* 分类菜单 */}
+      {onMoveToCategory && (
+        <div
+          className="context-menu-item has-submenu"
+          onMouseEnter={() => setShowCategoryMenu(true)}
+          onMouseLeave={() => !isCreating && setShowCategoryMenu(false)}
+        >
+          <span>添加到分类</span>
+          <svg className="submenu-arrow" viewBox="0 0 24 24" width="14" height="14">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+
+          {/* 子菜单 */}
+          {showCategoryMenu && (
+            <div
+              ref={categoryMenuRef}
+              className="context-submenu"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 从所有分类中移除 */}
+              {isInAnyCategory() && (
+                <>
+                  <div
+                    className="context-menu-item"
+                    onClick={() => {
+                      onMoveToCategory(null)
+                      onClose()
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" width="14" height="14" className="menu-icon">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                    从所有分类移除
+                  </div>
+                  <div className="context-menu-divider" />
+                </>
+              )}
+
+              {/* 现有分类 - 点击切换勾选状态 */}
+              {categories.map((category) => {
+                const checked = isInCategory(category.id)
+                return (
+                  <div
+                    key={category.id}
+                    className={`context-menu-item ${checked ? 'active' : ''}`}
+                    onClick={() => {
+                      onMoveToCategory(category.id)
+                      // 不关闭菜单，允许继续选择其他分类
+                    }}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      className={`menu-icon check ${checked ? 'visible' : ''}`}
+                    >
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    <span>{category.name}</span>
+                  </div>
+                )
+              })}
+
+              {/* 分隔线 */}
+              {categories.length > 0 && <div className="context-menu-divider" />}
+
+              {/* 新建分类 */}
+              {isCreating ? (
+                <div className="context-menu-item creating">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    className="category-input"
+                    placeholder="输入分类名称"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleCreateAndAdd()
+                      if (e.key === 'Escape') {
+                        setIsCreating(false)
+                        setNewCategoryName('')
+                      }
+                    }}
+                    onBlur={() => {
+                      if (!newCategoryName.trim()) {
+                        setIsCreating(false)
+                      }
+                    }}
+                  />
+                  <button className="category-confirm-btn" onClick={handleCreateAndAdd}>
+                    确定
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className="context-menu-item add-category"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setIsCreating(true)
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" className="menu-icon">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  新建分类
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="context-menu-divider" />
+      <div
+        className="context-menu-item danger"
+        onClick={() => {
+          onDelete()
+          onClose()
+        }}
+      >
         删除此股票
       </div>
     </div>
