@@ -91,6 +91,7 @@ interface SidebarProps {
   user: UserProfile | null
   isLoggedIn?: boolean
   cloudUsername?: string | null
+  cloudNickname?: string | null
   syncing?: boolean
   isAdmin?: boolean
   expanded?: boolean
@@ -115,6 +116,7 @@ function Sidebar({
   onExpandedChange,
   onHoverChange,
   cloudUsername,
+  cloudNickname,
   syncing = false,
   isAdmin = false,
   insightOpen = false,
@@ -181,8 +183,8 @@ function Sidebar({
     }
   }
 
-  // 显示的用户名：优先云端用户名，其次本地用户资料
-  const displayUsername = cloudUsername || user?.username
+  // 显示的用户名：优先昵称，其次云端用户名，最后本地用户资料
+  const displayUsername = cloudNickname || cloudUsername || user?.username
 
   const openProfileModal = useCallback(() => {
     setEditUsername(cloudUsername || user?.username || '')

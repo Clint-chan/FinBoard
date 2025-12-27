@@ -120,7 +120,7 @@ function App() {
   )
 
   // 云同步
-  const { isLoggedIn, username: cloudUsername, syncing, login: cloudLogin, logout: cloudLogout, sync: cloudSync } = useCloudSync({
+  const { isLoggedIn, username: cloudUsername, nickname: cloudNickname, syncing, login: cloudLogin, logout: cloudLogout, sync: cloudSync, updateNickname } = useCloudSync({
     config,
     onConfigLoaded: (cloudConfig) => {
       setConfig(prev => ({ ...prev, ...cloudConfig }))
@@ -603,8 +603,8 @@ function App() {
   }, [fintellOpen, settingsModalOpen, authModalOpen, addStockOpen, alertModal.open, costModal.open, analysisDrawer.open, isMobile, mobileStockCode])
 
   // 处理登录成功
-  const handleAuthSuccess = useCallback((token: string, username: string) => {
-    cloudLogin(token, username)
+  const handleAuthSuccess = useCallback((token: string, username: string, nickname?: string | null) => {
+    cloudLogin(token, username, nickname)
     // 更新用户资料
     setUser(prev => prev ? { ...prev, username } : { username, avatar: '' })
     // 登录后立即刷新行情，显示新加的股票
@@ -684,6 +684,7 @@ function App() {
         user={user}
         isLoggedIn={isLoggedIn}
         cloudUsername={cloudUsername}
+        cloudNickname={cloudNickname}
         syncing={syncing}
         isAdmin={isAdmin}
         expanded={mobileSidebarOpen}
@@ -744,6 +745,7 @@ function App() {
           <MobileProfile
             isLoggedIn={isLoggedIn}
             username={cloudUsername || undefined}
+            nickname={cloudNickname || undefined}
             onLoginSuccess={handleAuthSuccess}
             onLogout={handleLogout}
             onSync={async () => {
@@ -981,6 +983,7 @@ function App() {
         onClose={() => setSettingsModalOpen(false)}
         isLoggedIn={isLoggedIn}
         username={cloudUsername || undefined}
+        nickname={cloudNickname}
         avatar={user?.avatar}
         token={localStorage.getItem('cloud_token')}
         config={{
@@ -998,6 +1001,7 @@ function App() {
           setUser(newProfile)
           updateConfig({ userProfile: newProfile })
         }}
+        onNicknameChange={updateNickname}
         onLoginSuccess={handleAuthSuccess}
       />
     </div>

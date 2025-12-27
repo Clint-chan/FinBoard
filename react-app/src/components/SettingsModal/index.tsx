@@ -26,6 +26,7 @@ interface SettingsModalProps {
   // 用户信息
   isLoggedIn: boolean
   username?: string
+  nickname?: string | null
   avatar?: string
   token?: string | null
   // 配置
@@ -47,7 +48,8 @@ interface SettingsModalProps {
   }) => void
   onLogout: () => void
   onAvatarChange?: (avatar: string) => void
-  onLoginSuccess?: (token: string, username: string) => void
+  onNicknameChange?: (nickname: string | null) => void
+  onLoginSuccess?: (token: string, username: string, nickname?: string | null) => void
 }
 
 // 导航图标
@@ -106,12 +108,14 @@ export function SettingsModal({
   onClose,
   isLoggedIn,
   username,
+  nickname: propNickname,
   avatar,
   token,
   config,
   onConfigChange,
   onLogout,
   onAvatarChange,
+  onNicknameChange,
   onLoginSuccess
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<NavTab>('profile')
@@ -153,17 +157,23 @@ export function SettingsModal({
   // 获取用户邮箱和昵称
   useEffect(() => {
     if (open && isLoggedIn) {
+      // 优先使用 props 传入的昵称
+      if (propNickname !== undefined) {
+        setNickname(propNickname || '')
+      }
       // 优先使用 props 传入的 token，否则从 localStorage 获取
       const currentToken = token || getAuthToken()
       if (currentToken) {
         getUserInfo(currentToken)
           .then(info => {
             setUserEmail(info.email)
-            setNickname(info.nickname || '')
+            // 如果 props 没有传昵称，从 API 获取
+            if (propNickname === undefined) {
+              setNickname(info.nickname || '')
+            }
           })
           .catch(() => {
             setUserEmail(null)
-            setNickname('')
           })
         
         // 获取日报订阅状态
@@ -172,7 +182,7 @@ export function SettingsModal({
           .catch(() => setDailySubscribed(false))
       }
     }
-  }, [open, isLoggedIn, token])
+  }, [open, isLoggedIn, token, propNickname])
 
   // 重置表单
   const resetEmailForm = useCallback(() => {
@@ -212,24 +222,15 @@ export function SettingsModal({
       await cloudChangeNickname(currentToken, nickname)
       setNicknameSuccess('昵称修改成功')
       setNicknameEditing(false)
-      // 更新本地存储的昵称
-      try {
-        const authStr = localStorage.getItem('market_board_auth')
-        if (authStr) {
-          const auth = JSON.parse(authStr)
-          auth.nickname = nickname || null
-          localStorage.setItem('market_board_auth', JSON.stringify(auth))
-        }
-      } catch {
-        // 忽略
-      }
+      // 通知父组件更新昵称
+      onNicknameChange?.(nickname || null)
       setTimeout(() => setNicknameSuccess(''), 2000)
     } catch (err) {
       setNicknameError(err instanceof Error ? err.message : '修改昵称失败')
     } finally {
       setNicknameLoading(false)
     }
-  }, [token, nickname])
+  }, [token, nickname, onNicknameChange])
 
   // 发送邮箱验证码
   const handleSendEmailCode = useCallback(async () => {

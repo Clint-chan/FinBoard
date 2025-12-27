@@ -20,7 +20,8 @@ type QuoteSource = 'eastmoney' | 'tencent' | 'sina'
 interface MobileProfileProps {
   isLoggedIn: boolean
   username?: string
-  onLoginSuccess: (token: string, username: string) => void
+  nickname?: string
+  onLoginSuccess: (token: string, username: string, nickname?: string) => void
   onLogout: () => void
   onSync?: () => void
   syncing?: boolean
@@ -48,6 +49,7 @@ type AuthMode = 'login' | 'register'
 export function MobileProfile({
   isLoggedIn,
   username,
+  nickname,
   onLoginSuccess,
   onLogout,
   onSync,
@@ -431,10 +433,10 @@ export function MobileProfile({
     <div className="mobile-profile">
       <div className="mp-user-section">
         <div className="mp-avatar">
-          {username?.charAt(0).toUpperCase() || 'U'}
+          {(nickname || username)?.charAt(0).toUpperCase() || 'U'}
         </div>
         <div className="mp-user-info">
-          <span className="mp-username">{username}</span>
+          <span className="mp-username">{nickname || username}</span>
           <span className="mp-status">已登录</span>
         </div>
         {onSync && (

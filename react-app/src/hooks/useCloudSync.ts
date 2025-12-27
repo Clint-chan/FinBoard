@@ -15,6 +15,7 @@ import type { UserConfig } from '@/types'
 interface CloudAuth {
   token: string
   username: string
+  nickname?: string | null
 }
 
 interface UseCloudSyncOptions {
@@ -68,8 +69,8 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
 
   // 登录成功
   const login = useCallback(
-    async (token: string, username: string) => {
-      const newAuth = { token, username }
+    async (token: string, username: string, nickname?: string | null) => {
+      const newAuth = { token, username, nickname }
       setAuth(newAuth)
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuth))
 
@@ -134,6 +135,14 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
     localStorage.removeItem(AUTH_STORAGE_KEY)
     setLastSyncTime(null)
   }, [])
+
+  // 更新昵称
+  const updateNickname = useCallback((nickname: string | null) => {
+    if (!auth) return
+    const newAuth = { ...auth, nickname }
+    setAuth(newAuth)
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newAuth))
+  }, [auth])
 
   // 保存配置到云端（防抖）- 使用 ref 获取最新 config
   const saveToCloud = useCallback(() => {
@@ -245,10 +254,12 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
   return {
     isLoggedIn: !!auth,
     username: auth?.username || null,
+    nickname: auth?.nickname || null,
     syncing,
     lastSyncTime,
     login,
     logout,
+    updateNickname,
     sync,
     triggerSave: saveToCloud // 暴露手动触发保存的方法
   }
