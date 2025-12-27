@@ -322,11 +322,7 @@ export function AnalysisDrawer({
     }
   }, [])
 
-  const startResize = useCallback(() => {
-    isResizing.current = true
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-  }, [])
+  // startResize 已移除 - 拖拽手柄改为点击展开/收起功能
 
   // 滚动到底部
   useEffect(() => {

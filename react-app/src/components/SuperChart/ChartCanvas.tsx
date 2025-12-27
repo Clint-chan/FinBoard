@@ -293,6 +293,12 @@ export function ChartCanvas({
 
     drawGrid(ctx, x, y, w, h, 4)
 
+    // 【关键修复】设置裁剪区域，防止价格线溢出到副图区域
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(x, y, w, h)
+    ctx.clip()
+
     // 昨收线
     const preY = y + h - ((preClose - priceRange.min) / (priceRange.max - priceRange.min)) * h
     ctx.strokeStyle = colors.textSecondary
@@ -346,7 +352,10 @@ export function ChartCanvas({
     ctx.lineWidth = 1
     ctx.stroke()
 
-    // Y轴 - 传入预警线价格用于防重叠
+    // 恢复裁剪区域
+    ctx.restore()
+
+    // Y轴 - 传入预警线价格用于防重叠（在裁剪区域外绘制）
     const alertPrices = alertLines.map(a => a.price)
     drawPriceAxis(ctx, x + w, y, h, priceRange, preClose, alertPrices)
   }, [colors, drawGrid, timeToX, drawPriceAxis, priceScale, panOffset, alertLines])
@@ -377,6 +386,12 @@ export function ChartCanvas({
     const gap = w / klines.length
     // 应用X轴平移偏移量
     const xOffset = panOffset.x
+
+    // 【关键修复】设置裁剪区域，防止蜡烛图溢出到副图区域
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(x, y, w, h)
+    ctx.clip()
 
     // BOLL 布林带
     if (showBoll) {
@@ -435,7 +450,10 @@ export function ChartCanvas({
       ctx.fillRect(px - barW / 2, bodyTop, barW, bodyH)
     })
 
-    // Y轴 - 传入预警线价格用于防重叠
+    // 恢复裁剪区域
+    ctx.restore()
+
+    // Y轴 - 传入预警线价格用于防重叠（在裁剪区域外绘制）
     const alertPrices = alertLines.map(a => a.price)
     drawPriceAxis(ctx, x + w, y, h, priceRange, undefined, alertPrices)
   }, [colors, drawGrid, showBoll, drawPriceAxis, priceScale, panOffset, alertLines])
