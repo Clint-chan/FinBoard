@@ -1,8 +1,8 @@
 /**
  * MobileStockList - 移动端自选股列表
  */
-import { useCallback, useRef, useEffect } from 'react'
-import type { StockData, AlertConfig } from '@/types'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import type { StockData, AlertConfig, StockCategory } from '@/types'
 import { calcPct } from '@/utils/format'
 import './MobileStockList.css'
 
@@ -22,7 +22,14 @@ interface MobileStockItemProps {
   onLongPress: (code: string, e: { clientX: number; clientY: number }) => void
 }
 
-function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: MobileStockItemProps) {
+function MobileStockItem({
+  code,
+  data,
+  cost,
+  hasAlert,
+  onTap,
+  onLongPress
+}: MobileStockItemProps) {
   const longPressTimer = useRef<number | null>(null)
   const touchStartPos = useRef<{ x: number; y: number } | null>(null)
 
@@ -31,7 +38,7 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
   const sign = pct > 0 ? '+' : ''
 
   // 安全数字检查
-  const safeNum = (v: unknown): number | undefined => 
+  const safeNum = (v: unknown): number | undefined =>
     typeof v === 'number' && !isNaN(v) ? v : undefined
 
   // 盈亏信息
@@ -39,27 +46,31 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
   const safePrice = safeNum(data?.price)
   const safeCost = safeNum(cost)
   if (safeCost && safePrice) {
-    const profitPct = (safePrice - safeCost) / safeCost * 100
+    const profitPct = ((safePrice - safeCost) / safeCost) * 100
     const profitClass = profitPct >= 0 ? 'is-up' : 'is-down'
     const profitSign = profitPct >= 0 ? '+' : ''
     profitInfo = (
       <span className={`msl-profit ${profitClass}`}>
-        {profitSign}{profitPct.toFixed(2)}%
+        {profitSign}
+        {profitPct.toFixed(2)}%
       </span>
     )
   }
 
   // 长按处理
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0]
-    touchStartPos.current = { x: touch.clientX, y: touch.clientY }
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      const touch = e.touches[0]
+      touchStartPos.current = { x: touch.clientX, y: touch.clientY }
 
-    longPressTimer.current = window.setTimeout(() => {
-      onLongPress(code, { clientX: touch.clientX, clientY: touch.clientY })
-      if (navigator.vibrate) navigator.vibrate(50)
-      longPressTimer.current = null
-    }, 500)
-  }, [code, onLongPress])
+      longPressTimer.current = window.setTimeout(() => {
+        onLongPress(code, { clientX: touch.clientX, clientY: touch.clientY })
+        if (navigator.vibrate) navigator.vibrate(50)
+        longPressTimer.current = null
+      }, 500)
+    },
+    [code, onLongPress]
+  )
 
   const handleTouchEnd = useCallback(() => {
     if (longPressTimer.current) {
@@ -135,11 +146,56 @@ function MobileStockItem({ code, data, cost, hasAlert, onTap, onLongPress }: Mob
   )
 }
 
+// 移动端分类标签组件
+interface MobileCategoryTabsProps {
+  categories: StockCategory[]
+  activeCategory: string | null
+  totalCount: number
+  onCategoryChange: (categoryId: string | null) => void
+}
+
+function MobileCategoryTabs({
+  categories,
+  activeCategory,
+  totalCount,
+  onCategoryChange
+}: MobileCategoryTabsProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  return (
+    <div className="msl-category-tabs" ref={scrollRef}>
+      {/* 自选股标签 */}
+      <div
+        className={`msl-category-tab ${activeCategory === null ? 'active' : ''}`}
+        onClick={() => onCategoryChange(null)}
+      >
+        <span>自选股</span>
+        <span className="msl-category-count">{totalCount}</span>
+      </div>
+
+      {/* 用户分类 */}
+      {categories.map((category) => (
+        <div
+          key={category.id}
+          className={`msl-category-tab ${activeCategory === category.id ? 'active' : ''}`}
+          onClick={() => onCategoryChange(category.id)}
+        >
+          <span>{category.name}</span>
+          <span className="msl-category-count">{category.codes.length}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 interface MobileStockListProps {
   codes: string[]
   stockData: Record<string, StockData>
   costs?: Record<string, number>
   alerts?: Record<string, AlertConfig>
+  categories?: StockCategory[]
+  activeCategory?: string | null
+  onCategoryChange?: (categoryId: string | null) => void
   onStockTap: (code: string) => void
   onStockLongPress: (code: string, pos: { clientX: number; clientY: number }) => void
   onAddStock: () => void
@@ -150,12 +206,40 @@ export function MobileStockList({
   stockData,
   costs,
   alerts,
+  categories = [],
+  activeCategory = null,
+  onCategoryChange,
   onStockTap,
   onStockLongPress,
-  onAddStock,
+  onAddStock
 }: MobileStockListProps) {
+  // 内部分类状态（如果外部没有传入控制）
+  const [internalActiveCategory, setInternalActiveCategory] = useState<string | null>(null)
+
+  const currentCategory = onCategoryChange ? activeCategory : internalActiveCategory
+  const handleCategoryChange = onCategoryChange || setInternalActiveCategory
+
+  // 根据分类筛选股票
+  const filteredCodes =
+    currentCategory === null
+      ? codes
+      : codes.filter((code) => {
+          const category = categories.find((c) => c.id === currentCategory)
+          return category?.codes.includes(code)
+        })
+
   return (
     <div className="mobile-stock-list">
+      {/* 分类标签栏 */}
+      {categories.length > 0 && (
+        <MobileCategoryTabs
+          categories={categories}
+          activeCategory={currentCategory}
+          totalCount={codes.length}
+          onCategoryChange={handleCategoryChange}
+        />
+      )}
+
       {/* 表头 */}
       <div className="msl-header">
         <div className="msl-col msl-col-name">名称/代码</div>
@@ -166,19 +250,26 @@ export function MobileStockList({
 
       {/* 股票列表 */}
       <div className="msl-list">
-        {codes.length === 0 ? (
+        {filteredCodes.length === 0 ? (
           <div className="msl-empty" onClick={onAddStock}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            >
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="8" x2="12" y2="16"></line>
               <line x1="8" y1="12" x2="16" y2="12"></line>
             </svg>
-            <p>暂无自选股</p>
+            <p>{currentCategory ? '该分类暂无股票' : '暂无自选股'}</p>
             <span>点击添加</span>
           </div>
         ) : (
           <>
-            {codes.map(code => (
+            {filteredCodes.map((code) => (
               <MobileStockItem
                 key={code}
                 code={code}
@@ -191,7 +282,14 @@ export function MobileStockList({
             ))}
             {/* 添加自选股按钮 - 放在列表最后 */}
             <div className="msl-add-row" onClick={onAddStock}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>

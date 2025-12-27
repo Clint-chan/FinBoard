@@ -10,6 +10,70 @@
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
 }
 
+/* 分类标签栏 */
+.msl-category-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: var(--bg-body);
+  border-bottom: 1px solid var(--border-light);
+  overflow-x: auto;
+  flex-shrink: 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.msl-category-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.msl-category-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.msl-category-tab:active {
+  transform: scale(0.96);
+}
+
+.msl-category-tab.active {
+  color: #fff;
+  background: #2c68ff;
+  border-color: #2c68ff;
+}
+
+[data-theme="dark"] .msl-category-tab.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.msl-category-count {
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.06);
+  color: inherit;
+}
+
+.msl-category-tab.active .msl-category-count {
+  background: rgba(255, 255, 255, 0.25);
+}
+
 /* 表头 */
 .msl-header {
   display: flex;

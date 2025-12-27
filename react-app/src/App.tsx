@@ -705,6 +705,9 @@ function App() {
             stockData={stockData}
             costs={config.costs}
             alerts={config.alerts}
+            categories={categories}
+            activeCategory={activeCategory}
+            onCategoryChange={setActiveCategory}
             onStockTap={(code) => {
               setMobileStockCode(code)
               setMobileTab('market')
