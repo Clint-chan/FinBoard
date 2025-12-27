@@ -29,10 +29,18 @@ export function CategoryTabs({
   })
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
-  
+  const [showRightArrow, setShowRightArrow] = useState(false)
+
   const inputRef = useRef<HTMLInputElement>(null)
   const editInputRef = useRef<HTMLInputElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // 检查是否需要显示右箭头
+  const checkArrows = useCallback(() => {
+    const container = scrollRef.current
+    if (!container) return
+    setShowRightArrow(container.scrollLeft < container.scrollWidth - container.clientWidth - 1)
+  }, [])
 
   // 聚焦输入框
   useEffect(() => {
@@ -56,6 +64,52 @@ export function CategoryTabs({
       return () => document.removeEventListener('click', handleClick)
     }
   }, [contextMenu.open])
+
+  // 滚轮横向滚动 + 检查箭头
+  useEffect(() => {
+    const container = scrollRef.current
+    if (!container) return
+
+    const handleWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaY) > 0) {
+        e.preventDefault()
+        container.scrollLeft += e.deltaY * 2 // 加速滚动
+      }
+    }
+
+    const handleScroll = () => checkArrows()
+
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    container.addEventListener('scroll', handleScroll)
+    
+    // 初始检查
+    checkArrows()
+    
+    // 监听窗口大小变化
+    window.addEventListener('resize', checkArrows)
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel)
+      container.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('resize', checkArrows)
+    }
+  }, [checkArrows])
+
+  // 分类变化时重新检查箭头
+  useEffect(() => {
+    checkArrows()
+  }, [categories, checkArrows])
+
+  // 滚动函数
+  const scroll = (direction: 'left' | 'right') => {
+    const container = scrollRef.current
+    if (!container) return
+    const scrollAmount = 200
+    container.scrollBy({
+      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      behavior: 'smooth'
+    })
+  }
 
   // 添加分类
   const handleAddCategory = () => {
@@ -130,7 +184,6 @@ export function CategoryTabs({
     setDraggingId(categoryId)
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', categoryId)
-    // 添加拖拽时的样式
     const target = e.target as HTMLElement
     setTimeout(() => target.classList.add('dragging'), 0)
   }, [])
@@ -164,101 +217,112 @@ export function CategoryTabs({
 
     const fromIndex = categories.findIndex(c => c.id === draggingId)
     const toIndex = categories.findIndex(c => c.id === targetId)
-    
+
     if (fromIndex === -1 || toIndex === -1) return
 
     const newCategories = [...categories]
     const [removed] = newCategories.splice(fromIndex, 1)
     newCategories.splice(toIndex, 0, removed)
-    
+
     onCategoriesChange(newCategories)
     setDraggingId(null)
     setDragOverId(null)
   }, [draggingId, categories, onCategoriesChange])
 
   return (
-    <div className="category-tabs-container" ref={containerRef}>
-      {/* 全部标签 - 不可拖拽 */}
-      <div
-        className={`category-tab ${activeCategory === null ? 'active' : ''}`}
-        onClick={() => onCategoryChange(null)}
-      >
-        <svg className="tab-icon" viewBox="0 0 24 24">
-          <rect x="3" y="3" width="7" height="7" rx="2"></rect>
-          <rect x="14" y="3" width="7" height="7" rx="2"></rect>
-          <rect x="14" y="14" width="7" height="7" rx="2"></rect>
-          <rect x="3" y="14" width="7" height="7" rx="2"></rect>
-        </svg>
-        <span className="tab-label">自选股</span>
-        <span className="count-badge">{totalCount}</span>
+    <div className="category-tabs-wrapper">
+      <div className="category-tabs-container" ref={scrollRef}>
+        {/* 全部标签 */}
+        <div
+          className={`category-tab ${activeCategory === null ? 'active' : ''}`}
+          onClick={() => onCategoryChange(null)}
+        >
+          <svg className="tab-icon" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" rx="2"></rect>
+            <rect x="14" y="3" width="7" height="7" rx="2"></rect>
+            <rect x="14" y="14" width="7" height="7" rx="2"></rect>
+            <rect x="3" y="14" width="7" height="7" rx="2"></rect>
+          </svg>
+          <span className="tab-label">自选股</span>
+          <span className="count-badge">{totalCount}</span>
+        </div>
+
+        {/* 用户分类 */}
+        {categories.map(category => (
+          <div
+            key={category.id}
+            className={`category-tab ${activeCategory === category.id ? 'active' : ''} ${dragOverId === category.id ? 'drag-over' : ''}`}
+            onClick={() => onCategoryChange(category.id)}
+            onContextMenu={(e) => handleContextMenu(e, category.id)}
+            draggable={editingId !== category.id}
+            onDragStart={(e) => handleDragStart(e, category.id)}
+            onDragEnd={handleDragEnd}
+            onDragOver={(e) => handleDragOver(e, category.id)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, category.id)}
+          >
+            {editingId === category.id ? (
+              <input
+                ref={editInputRef}
+                type="text"
+                className="category-edit-input"
+                value={editingName}
+                onChange={(e) => setEditingName(e.target.value)}
+                onBlur={handleSaveEdit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveEdit()
+                  if (e.key === 'Escape') setEditingId(null)
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <>
+                <span className="tab-label">{category.name}</span>
+                <span className="count-badge">{getCategoryCount(category)}</span>
+              </>
+            )}
+          </div>
+        ))}
+
+        {/* 添加分类按钮/输入框 */}
+        {isAdding ? (
+          <div className="category-tab adding">
+            <input
+              ref={inputRef}
+              type="text"
+              className="category-add-input"
+              placeholder="输入名称"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              onBlur={handleAddCategory}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddCategory()
+                if (e.key === 'Escape') {
+                  setIsAdding(false)
+                  setNewCategoryName('')
+                }
+              }}
+            />
+          </div>
+        ) : (
+          <button
+            className="category-add-btn"
+            onClick={() => setIsAdding(true)}
+            title="添加分类"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        )}
       </div>
 
-      {/* 用户分类 - 可拖拽排序 */}
-      {categories.map(category => (
-        <div
-          key={category.id}
-          className={`category-tab ${activeCategory === category.id ? 'active' : ''} ${dragOverId === category.id ? 'drag-over' : ''}`}
-          onClick={() => onCategoryChange(category.id)}
-          onContextMenu={(e) => handleContextMenu(e, category.id)}
-          draggable={editingId !== category.id}
-          onDragStart={(e) => handleDragStart(e, category.id)}
-          onDragEnd={handleDragEnd}
-          onDragOver={(e) => handleDragOver(e, category.id)}
-          onDragLeave={handleDragLeave}
-          onDrop={(e) => handleDrop(e, category.id)}
-        >
-          {editingId === category.id ? (
-            <input
-              ref={editInputRef}
-              type="text"
-              className="category-edit-input"
-              value={editingName}
-              onChange={(e) => setEditingName(e.target.value)}
-              onBlur={handleSaveEdit}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSaveEdit()
-                if (e.key === 'Escape') setEditingId(null)
-              }}
-              onClick={(e) => e.stopPropagation()}
-            />
-          ) : (
-            <>
-              <span className="tab-label">{category.name}</span>
-              <span className="count-badge">{getCategoryCount(category)}</span>
-            </>
-          )}
-        </div>
-      ))}
-
-      {/* 添加分类按钮/输入框 */}
-      {isAdding ? (
-        <div className="category-tab adding">
-          <input
-            ref={inputRef}
-            type="text"
-            className="category-add-input"
-            placeholder="输入名称"
-            value={newCategoryName}
-            onChange={(e) => setNewCategoryName(e.target.value)}
-            onBlur={handleAddCategory}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleAddCategory()
-              if (e.key === 'Escape') {
-                setIsAdding(false)
-                setNewCategoryName('')
-              }
-            }}
-          />
-        </div>
-      ) : (
-        <button
-          className="category-add-btn"
-          onClick={() => setIsAdding(true)}
-          title="添加分类"
-        >
+      {/* 右箭头 */}
+      {showRightArrow && (
+        <button className="category-scroll-btn right" onClick={() => scroll('right')}>
           <svg viewBox="0 0 24 24" width="16" height="16">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
         </button>
       )}

@@ -141,7 +141,7 @@ body {
   flex: 1;
   padding: 24px;
   min-width: 0; /* 防止 flex item 溢出 */
-  overflow-x: hidden;
+  overflow-x: clip; /* 使用 clip 替代 hidden，允许子元素独立滚动 */
 }
 
 .page {

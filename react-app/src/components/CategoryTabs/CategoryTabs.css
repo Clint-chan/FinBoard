@@ -1,59 +1,116 @@
+/* 外层包装器 */
+.category-tabs-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 12px;
+  position: relative;
+}
+
 /* 分类标签容器 */
 .category-tabs-container {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 20px;
-  padding: 4px;
-  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
   position: relative;
+  flex: 1;
+  min-width: 0;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.category-tabs-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* 滚动箭头按钮 */
+.category-scroll-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.category-scroll-btn svg {
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.category-scroll-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+[data-theme="dark"] .category-scroll-btn {
+  background: var(--bg-hover);
+}
+
+[data-theme="dark"] .category-scroll-btn:hover {
+  background: var(--border-light);
 }
 
 /* 单个分类标签 */
 .category-tab {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: 8px;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 16px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  background: transparent;
-  border: 1px solid transparent;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
   position: relative;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .category-tab:hover {
   color: var(--text-primary);
-  background-color: rgba(0, 0, 0, 0.03);
+  border-color: var(--border-color);
 }
 
 [data-theme="dark"] .category-tab:hover {
-  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* 选中状态 */
+/* 选中状态 - 简洁风格 */
 .category-tab.active {
-  background-color: var(--bg-surface);
-  color: #2c68ff;
-  box-shadow: var(--shadow-sm);
-  border-color: var(--border-light);
-  font-weight: 600;
+  background: #2c68ff;
+  color: #ffffff;
+  border-color: #2c68ff;
+  font-weight: 500;
 }
 
 [data-theme="dark"] .category-tab.active {
-  color: #60a5fa;
-  background-color: var(--bg-hover);
+  background: #3b82f6;
+  border-color: #3b82f6;
 }
 
 /* Tab 图标 */
 .tab-icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   stroke: currentColor;
   stroke-width: 1.8;
   stroke-linecap: round;
@@ -75,9 +132,9 @@
   font-size: 11px;
   padding: 1px 6px;
   border-radius: 10px;
-  background-color: #f0f2f5;
+  background-color: rgba(0, 0, 0, 0.05);
   color: var(--text-tertiary);
-  transition: background 0.2s, color 0.2s;
+  transition: all 0.2s;
   font-weight: 500;
 }
 
@@ -86,13 +143,8 @@
 }
 
 .category-tab.active .count-badge {
-  background-color: #eef4ff;
-  color: #2c68ff;
-}
-
-[data-theme="dark"] .category-tab.active .count-badge {
-  background-color: rgba(96, 165, 250, 0.2);
-  color: #60a5fa;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
 }
 
 /* 添加分类按钮 */
@@ -100,16 +152,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: 1px dashed var(--border-light);
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 14px;
   transition: all 0.2s;
-  box-shadow: none;
+  flex-shrink: 0;
 }
 
 .category-add-btn svg {
@@ -121,13 +173,11 @@
 .category-add-btn:hover {
   color: #2c68ff;
   border-color: #2c68ff;
-  background-color: rgba(44, 104, 255, 0.05);
 }
 
 [data-theme="dark"] .category-add-btn:hover {
   color: #60a5fa;
   border-color: #60a5fa;
-  background-color: rgba(96, 165, 250, 0.1);
 }
 
 /* 添加分类输入框状态 */
@@ -135,12 +185,10 @@
   padding: 6px 10px;
   background-color: var(--bg-surface);
   border: 1px solid #2c68ff;
-  box-shadow: 0 0 0 3px rgba(44, 104, 255, 0.1);
 }
 
 [data-theme="dark"] .category-tab.adding {
   border-color: #60a5fa;
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
 }
 
 .category-add-input,
@@ -170,17 +218,14 @@
 
 .category-tab.dragging {
   opacity: 0.5;
-  transform: scale(0.95);
 }
 
 .category-tab.drag-over {
   border-color: #2c68ff;
-  background-color: rgba(44, 104, 255, 0.08);
 }
 
 [data-theme="dark"] .category-tab.drag-over {
   border-color: #60a5fa;
-  background-color: rgba(96, 165, 250, 0.15);
 }
 
 /* 右键菜单 */
@@ -245,7 +290,7 @@
 @keyframes tabIn {
   from {
     opacity: 0;
-    transform: scale(0.9);
+    transform: scale(0.95);
   }
   to {
     opacity: 1;
@@ -254,34 +299,27 @@
 }
 
 .category-tab {
-  animation: tabIn 0.2s ease-out;
+  animation: tabIn 0.15s ease-out;
 }
 
 /* 移动端适配 */
 @media (max-width: 768px) {
-  .category-tabs-container {
-    padding: 4px 0;
-    gap: 6px;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+  .category-tabs-wrapper {
+    margin-bottom: 10px;
   }
 
-  .category-tabs-container::-webkit-scrollbar {
-    display: none;
+  .category-tabs-container {
+    gap: 6px;
   }
 
   .category-tab {
-    padding: 8px 12px;
-    font-size: 13px;
-    flex-shrink: 0;
+    padding: 5px 10px;
+    font-size: 12px;
   }
 
   .tab-icon {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
 
   .count-badge {
@@ -290,9 +328,12 @@
   }
 
   .category-add-btn {
-    width: 32px;
-    height: 32px;
-    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+  }
+
+  .category-scroll-btn {
+    display: none;
   }
 
   .category-context-menu {
