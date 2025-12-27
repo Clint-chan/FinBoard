@@ -8,7 +8,7 @@ import './Modal.css'
 interface AuthModalProps {
   open: boolean
   onClose: () => void
-  onSuccess: (token: string, username: string) => void
+  onSuccess: (token: string, username: string, nickname?: string | null) => void
 }
 
 type AuthMode = 'login' | 'register' | 'reset'
@@ -17,6 +17,7 @@ export function AuthModal({ open, onClose, onSuccess }: AuthModalProps) {
   const [mode, setMode] = useState<AuthMode>('login')
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
+  const [nickname, setNickname] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [verifyCode, setVerifyCode] = useState('')
@@ -29,6 +30,7 @@ export function AuthModal({ open, onClose, onSuccess }: AuthModalProps) {
   const resetForm = useCallback(() => {
     setUsername('')
     setEmail('')
+    setNickname('')
     setPassword('')
     setConfirmPassword('')
     setVerifyCode('')
@@ -111,6 +113,11 @@ export function AuthModal({ open, onClose, onSuccess }: AuthModalProps) {
         return
       }
 
+      if (nickname && nickname.length > 20) {
+        setError('昵称不能超过 20 个字符')
+        return
+      }
+
       if (password !== confirmPassword) {
         setError('两次密码输入不一致')
         return
@@ -143,11 +150,11 @@ export function AuthModal({ open, onClose, onSuccess }: AuthModalProps) {
     try {
       if (mode === 'login') {
         const result = await cloudLogin(username.trim(), password)
-        onSuccess(result.token, result.username)
+        onSuccess(result.token, result.username, result.nickname)
         handleClose()
       } else if (mode === 'register') {
-        const result = await cloudRegister(email.trim(), password, verifyCode.trim())
-        onSuccess(result.token, result.username)
+        const result = await cloudRegister(email.trim(), password, verifyCode.trim(), nickname.trim() || undefined)
+        onSuccess(result.token, result.username, result.nickname)
         handleClose()
       } else if (mode === 'reset') {
         await resetPassword(email.trim(), verifyCode.trim(), password)
@@ -243,6 +250,18 @@ export function AuthModal({ open, onClose, onSuccess }: AuthModalProps) {
                     onChange={e => setVerifyCode(e.target.value)}
                     placeholder="请输入邮箱验证码"
                     maxLength={6}
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>昵称 <span className="optional-hint">（选填）</span></label>
+                  <input
+                    type="text"
+                    value={nickname}
+                    onChange={e => setNickname(e.target.value)}
+                    placeholder="给自己取个名字吧"
+                    maxLength={20}
                     disabled={loading}
                   />
                 </div>

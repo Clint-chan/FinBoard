@@ -402,6 +402,14 @@ async function initDB(db) {
       // 字段可能已存在，忽略
     }
     
+    // 尝试添加 nickname 字段到 users 表（如果不存在）
+    try {
+      await db.prepare(`ALTER TABLE users ADD COLUMN nickname TEXT`).run()
+      console.log('已添加 nickname 字段')
+    } catch (e) {
+      // 字段可能已存在，忽略
+    }
+    
     // 尝试创建索引（如果已存在会忽略）
     try {
       await db.prepare(`CREATE INDEX IF NOT EXISTS idx_daily_reports_date ON daily_reports(report_date DESC)`).run()
@@ -485,11 +493,19 @@ async function getUserByEmailFromDB(db, email) {
 /**
  * 创建用户到 D1（邮箱注册，email 同时作为 username）
  */
-async function createUserInDB(db, email, passwordHash, registerIp) {
+async function createUserInDB(db, email, passwordHash, registerIp, nickname = null) {
   const result = await db.prepare(
-    'INSERT INTO users (username, email, password_hash, ai_quota, register_ip) VALUES (?, ?, ?, ?, ?)'
-  ).bind(email, email, passwordHash, DEFAULT_AI_QUOTA, registerIp).run()
+    'INSERT INTO users (username, email, password_hash, ai_quota, register_ip, nickname) VALUES (?, ?, ?, ?, ?, ?)'
+  ).bind(email, email, passwordHash, DEFAULT_AI_QUOTA, registerIp, nickname).run()
   return result.meta.last_row_id
+}
+
+/**
+ * 更新用户昵称
+ */
+async function updateNicknameInDB(db, email, nickname) {
+  await db.prepare('UPDATE users SET nickname = ?, updated_at = CURRENT_TIMESTAMP WHERE email = ?')
+    .bind(nickname, email).run()
 }
 
 /**
@@ -631,7 +647,7 @@ export default {
 
       // POST /api/register - 注册（需要验证码）
       if (path === '/api/register' && request.method === 'POST') {
-        const { email, password, code } = await request.json();
+        const { email, password, code, nickname } = await request.json();
         
         if (!email || !password || !code) {
           return jsonResponse({ error: '邮箱、密码和验证码不能为空' }, 400);
@@ -645,6 +661,11 @@ export default {
         
         if (password.length < 6) {
           return jsonResponse({ error: '密码至少 6 位' }, 400);
+        }
+        
+        // 昵称长度验证（可选）
+        if (nickname && nickname.length > 20) {
+          return jsonResponse({ error: '昵称不能超过 20 个字符' }, 400);
         }
         
         // 验证验证码（使用 D1）
@@ -685,7 +706,7 @@ export default {
               return jsonResponse({ error: '该 IP 已注册过账号' }, 400);
             }
             
-            await createUserInDB(env.DB, email, passwordHash, clientIP);
+            await createUserInDB(env.DB, email, passwordHash, clientIP, nickname || null);
             
             // 注册成功后删除验证码
             await deleteVerifyCode(env.DB, codeKey);
@@ -741,14 +762,16 @@ export default {
         let userData = null;
         let fromD1 = false;
         let kvData = null; // 保存 KV 原始数据用于迁移
+        let nickname = null;
 
         // 优先从 D1 查询
         if (env.DB) {
           try {
-            userData = await getUserFromDB(env.DB, username);
-            if (userData) {
+            const dbUser = await getUserFromDB(env.DB, username);
+            if (dbUser) {
               fromD1 = true;
-              userData = { passwordHash: userData.password_hash };
+              userData = { passwordHash: dbUser.password_hash };
+              nickname = dbUser.nickname;
             }
           } catch (e) {
             console.error('D1 login error:', e);
@@ -759,6 +782,9 @@ export default {
         if (!userData) {
           kvData = await env.CONFIG_KV.get(`user:${username}`, 'json');
           userData = kvData;
+          if (kvData) {
+            nickname = kvData.nickname || null;
+          }
         }
 
         if (!userData) {
@@ -776,14 +802,15 @@ export default {
           try {
             await initDB(env.DB);
             await env.DB.prepare(`
-              INSERT INTO users (username, password_hash, ai_quota, register_ip, created_at)
-              VALUES (?, ?, ?, ?, datetime(?, 'unixepoch'))
+              INSERT INTO users (username, password_hash, ai_quota, register_ip, created_at, nickname)
+              VALUES (?, ?, ?, ?, datetime(?, 'unixepoch'), ?)
             `).bind(
               username,
               kvData.passwordHash,
               kvData.aiQuota || DEFAULT_AI_QUOTA,
               kvData.registerIp || '',
-              Math.floor((kvData.createdAt || Date.now()) / 1000)
+              Math.floor((kvData.createdAt || Date.now()) / 1000),
+              kvData.nickname || null
             ).run();
             console.log(`[Auto-migrate] 用户 ${username} 已从 KV 迁移到 D1`);
           } catch (e) {
@@ -795,7 +822,7 @@ export default {
         // 生成 token
         const token = await generateToken(username);
         
-        return jsonResponse({ success: true, token, username });
+        return jsonResponse({ success: true, token, username, nickname });
       }
 
       // POST /api/change-password - 修改密码 (需要 token)
@@ -866,6 +893,47 @@ export default {
         }
 
         return jsonResponse({ success: true, message: '密码修改成功' });
+      }
+
+      // POST /api/change-nickname - 修改昵称 (需要 token)
+      if (path === '/api/change-nickname' && request.method === 'POST') {
+        const username = await verifyToken(request, env);
+        if (!username) {
+          return jsonResponse({ error: '未登录' }, 401);
+        }
+
+        const { nickname } = await request.json();
+        
+        if (nickname === undefined) {
+          return jsonResponse({ error: '昵称不能为空' }, 400);
+        }
+
+        // 昵称可以为空字符串（清除昵称），但不能超过20字符
+        if (nickname && nickname.length > 20) {
+          return jsonResponse({ error: '昵称不能超过 20 个字符' }, 400);
+        }
+
+        // 更新昵称
+        if (env.DB) {
+          try {
+            await initDB(env.DB);
+            await updateNicknameInDB(env.DB, username, nickname || null);
+            return jsonResponse({ success: true, message: '昵称修改成功', nickname: nickname || null });
+          } catch (e) {
+            console.error('D1 update nickname error:', e);
+            return jsonResponse({ error: '修改昵称失败' }, 500);
+          }
+        }
+
+        // KV 回退
+        const userData = await env.CONFIG_KV.get(`user:${username}`, 'json');
+        if (userData) {
+          userData.nickname = nickname || null;
+          await env.CONFIG_KV.put(`user:${username}`, JSON.stringify(userData));
+          return jsonResponse({ success: true, message: '昵称修改成功', nickname: nickname || null });
+        }
+
+        return jsonResponse({ error: '用户不存在' }, 404);
       }
 
       // POST /api/reset-password/send-code - 找回密码：发送验证码
@@ -1099,6 +1167,7 @@ export default {
                 username: user.username,
                 email: user.email,
                 aiQuota: user.ai_quota,
+                nickname: user.nickname || null,
                 createdAt: user.created_at
               });
             }
@@ -1107,7 +1176,7 @@ export default {
           }
         }
 
-        return jsonResponse({ username, email: username });
+        return jsonResponse({ username, email: username, nickname: null });
       }
 
       // POST /api/bind-email/send-code - 绑定邮箱：发送验证码（针对没有邮箱的老用户）

@@ -11,6 +11,7 @@ const SYNC_API = 'https://market-api.newestgpt.com'
 export interface AuthResponse {
   token: string
   username: string
+  nickname?: string | null
 }
 
 // 错误响应
@@ -38,11 +39,11 @@ export async function cloudLogin(username: string, password: string): Promise<Au
 /**
  * 用户注册（需要邮箱验证码）
  */
-export async function cloudRegister(email: string, password: string, code: string): Promise<AuthResponse> {
+export async function cloudRegister(email: string, password: string, code: string, nickname?: string): Promise<AuthResponse> {
   const res = await fetch(`${SYNC_API}/api/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, code })
+    body: JSON.stringify({ email, password, code, nickname })
   })
 
   const data = await res.json()
@@ -151,6 +152,28 @@ export async function cloudChangePassword(token: string, oldPassword: string, ne
 }
 
 /**
+ * 修改昵称
+ */
+export async function cloudChangeNickname(token: string, nickname: string): Promise<string | null> {
+  if (!token) throw new Error('未登录')
+
+  const res = await fetch(`${SYNC_API}/api/change-nickname`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ nickname })
+  })
+
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error((data as ErrorResponse).error || '修改昵称失败')
+  }
+  return (data as { nickname: string | null }).nickname
+}
+
+/**
  * 找回密码 - 发送验证码
  */
 export async function sendResetPasswordCode(email: string): Promise<void> {
@@ -228,7 +251,7 @@ export async function changeEmail(token: string, newEmail: string, code: string)
 /**
  * 获取用户信息
  */
-export async function getUserInfo(token: string): Promise<{ username: string; email: string | null; aiQuota: number }> {
+export async function getUserInfo(token: string): Promise<{ username: string; email: string | null; aiQuota: number; nickname: string | null }> {
   if (!token) throw new Error('未登录')
 
   const res = await fetch(`${SYNC_API}/api/user/info`, {

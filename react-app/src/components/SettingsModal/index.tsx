@@ -11,6 +11,7 @@ import {
   sendChangeEmailCode,
   changeEmail,
   cloudChangePassword,
+  cloudChangeNickname,
   getDailySubscribeStatus,
   setDailySubscribe
 } from '@/services/cloudService'
@@ -118,6 +119,13 @@ export function SettingsModal({
 
   // 用户邮箱
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  
+  // 昵称修改状态
+  const [nickname, setNickname] = useState('')
+  const [nicknameEditing, setNicknameEditing] = useState(false)
+  const [nicknameLoading, setNicknameLoading] = useState(false)
+  const [nicknameError, setNicknameError] = useState('')
+  const [nicknameSuccess, setNicknameSuccess] = useState('')
 
   // 邮箱绑定/换绑状态
   const [emailMode, setEmailMode] = useState<'bind' | 'change' | null>(null)
@@ -142,15 +150,21 @@ export function SettingsModal({
   const [dailySubscribeLoading, setDailySubscribeLoading] = useState(false)
   const [dailySubscribeError, setDailySubscribeError] = useState('')
 
-  // 获取用户邮箱
+  // 获取用户邮箱和昵称
   useEffect(() => {
     if (open && isLoggedIn) {
       // 优先使用 props 传入的 token，否则从 localStorage 获取
       const currentToken = token || getAuthToken()
       if (currentToken) {
         getUserInfo(currentToken)
-          .then(info => setUserEmail(info.email))
-          .catch(() => setUserEmail(null))
+          .then(info => {
+            setUserEmail(info.email)
+            setNickname(info.nickname || '')
+          })
+          .catch(() => {
+            setUserEmail(null)
+            setNickname('')
+          })
         
         // 获取日报订阅状态
         getDailySubscribeStatus(currentToken)
@@ -176,6 +190,46 @@ export function SettingsModal({
     setPasswordError('')
     setPasswordSuccess('')
   }, [])
+
+  // 保存昵称
+  const handleSaveNickname = useCallback(async () => {
+    const currentToken = token || getAuthToken()
+    if (!currentToken) {
+      setNicknameError('请先登录')
+      return
+    }
+
+    if (nickname.length > 20) {
+      setNicknameError('昵称不能超过 20 个字符')
+      return
+    }
+
+    setNicknameLoading(true)
+    setNicknameError('')
+    setNicknameSuccess('')
+
+    try {
+      await cloudChangeNickname(currentToken, nickname)
+      setNicknameSuccess('昵称修改成功')
+      setNicknameEditing(false)
+      // 更新本地存储的昵称
+      try {
+        const authStr = localStorage.getItem('market_board_auth')
+        if (authStr) {
+          const auth = JSON.parse(authStr)
+          auth.nickname = nickname || null
+          localStorage.setItem('market_board_auth', JSON.stringify(auth))
+        }
+      } catch {
+        // 忽略
+      }
+      setTimeout(() => setNicknameSuccess(''), 2000)
+    } catch (err) {
+      setNicknameError(err instanceof Error ? err.message : '修改昵称失败')
+    } finally {
+      setNicknameLoading(false)
+    }
+  }, [token, nickname])
 
   // 发送邮箱验证码
   const handleSendEmailCode = useCallback(async () => {
@@ -411,14 +465,52 @@ export function SettingsModal({
         </div>
 
         <div className="settings-form-group">
-          <label className="settings-form-label">用户名</label>
-          <input
-            type="text"
-            className="settings-form-input"
-            value={username || ''}
-            disabled
-          />
-          <div className="settings-form-hint">用户名由系统分配，暂不支持修改</div>
+          <label className="settings-form-label">昵称</label>
+          {nicknameError && <div className="settings-message error">{nicknameError}</div>}
+          {nicknameSuccess && <div className="settings-message success">{nicknameSuccess}</div>}
+          {nicknameEditing ? (
+            <div className="settings-nickname-edit">
+              <input
+                type="text"
+                className="settings-form-input"
+                value={nickname}
+                onChange={e => setNickname(e.target.value)}
+                placeholder="给自己取个名字吧"
+                maxLength={20}
+                disabled={nicknameLoading}
+              />
+              <div className="settings-nickname-actions">
+                <button
+                  className="settings-btn-save"
+                  onClick={handleSaveNickname}
+                  disabled={nicknameLoading}
+                >
+                  {nicknameLoading ? '保存中...' : '保存'}
+                </button>
+                <button
+                  className="settings-btn-cancel"
+                  onClick={() => {
+                    setNicknameEditing(false)
+                    setNicknameError('')
+                  }}
+                  disabled={nicknameLoading}
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="settings-nickname-display">
+              <span className="settings-nickname-value">{nickname || '未设置'}</span>
+              <button
+                className="settings-btn-edit"
+                onClick={() => setNicknameEditing(true)}
+              >
+                修改
+              </button>
+            </div>
+          )}
+          <div className="settings-form-hint">昵称用于显示，最多 20 个字符</div>
         </div>
       </div>
 

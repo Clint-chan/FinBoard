@@ -600,3 +600,89 @@
     right: 12px;
   }
 }
+
+
+/* 昵称编辑 */
+.settings-nickname-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-nickname-value {
+  flex: 1;
+  padding: 10px 12px;
+  background: var(--bg-body);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.settings-nickname-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-nickname-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-btn-edit {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #6366f1;
+  background: transparent;
+  border: 1px solid #6366f1;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.settings-btn-edit:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.settings-btn-save {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: white;
+  background: #6366f1;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.settings-btn-save:hover {
+  background: #5558e3;
+}
+
+.settings-btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.settings-btn-cancel {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.settings-btn-cancel:hover {
+  background: var(--bg-hover);
+}
+
+/* 注册表单选填提示 */
+.optional-hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-weight: normal;
+}
