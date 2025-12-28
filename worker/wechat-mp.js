@@ -214,7 +214,7 @@ function buildPredictionSection(prediction) {
     
     <!-- 核心逻辑 -->
     <section style="padding: 14px 16px; border-bottom: 1px solid #e5e7eb;">
-      <section style="font-size: 14px; line-height: 1.85; color: #374151; text-indent: 2em;">
+      <section style="font-size: 14px; line-height: 1.85; color: #374151;">
         ${(prediction.summary || '').replace(/class="[^"]*"/g, 'style="font-weight:600;"').replace(/class='[^']*'/g, 'style="font-weight:600;"')}
       </section>
     </section>
