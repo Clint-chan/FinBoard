@@ -214,8 +214,14 @@ function buildPredictionSection(prediction) {
     
     <!-- 核心逻辑 -->
     <section style="padding: 14px 16px; border-bottom: 1px solid #e5e7eb;">
-      <section style="font-size: 14px; line-height: 1.85; color: #374151; text-indent: 0;">
-        ${(prediction.summary || '').trim().replace(/^[\s\u3000]+/, '').replace(/class="[^"]*"/g, 'style="font-weight:600;"').replace(/class='[^']*'/g, 'style="font-weight:600;"')}
+      <section style="font-size: 14px; line-height: 1.85; color: #374151; text-indent: 0; margin: 0; padding: 0;">
+        ${(prediction.summary || '')
+          .trim()
+          .replace(/^[\s\u3000]+/, '')
+          .replace(/<span[^>]*class="[^"]*text-bear-text[^"]*"[^>]*>/g, '<span style="color:#059669;font-weight:600;">')
+          .replace(/<span[^>]*class="[^"]*text-bull-text[^"]*"[^>]*>/g, '<span style="color:#dc2626;font-weight:600;">')
+          .replace(/class="[^"]*"/g, '')
+          .replace(/class='[^']*'/g, '')}
       </section>
     </section>
     
