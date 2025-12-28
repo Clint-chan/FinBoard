@@ -367,7 +367,7 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
-              关注替代
+              重点关注
             </div>
             <div className="actionable-box-value">{report.actionable.focus}</div>
           </div>
