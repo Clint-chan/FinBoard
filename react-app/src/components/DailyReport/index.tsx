@@ -234,7 +234,8 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
         
         {/* 底部信息 */}
         <div className="cover-footer">
-          <span className="cover-footer-text">A股投资早报 · 每日6点更新</span>
+          <span className="cover-footer-text">A股投资早报</span>
+          <span className="cover-footer-url">board.newestgpt.com</span>
         </div>
         
         {/* 装饰元素 */}

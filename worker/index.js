@@ -241,8 +241,8 @@ function generateCoverScreenshotUrl(date, env) {
   if (!env.SCREENSHOT_API_KEY) return null
   
   const siteUrl = env.SITE_URL || 'https://board.newestgpt.com'
-  // 添加 v=3 强制刷新缓存（封面图已美化）
-  const pageUrl = `${siteUrl}/?page=daily&date=${date}&cover=1&v=3`
+  // 添加 v=4 强制刷新缓存（封面图字体优化）
+  const pageUrl = `${siteUrl}/?page=daily&date=${date}&cover=1&v=4`
   
   const screenshotUrl = new URL('https://api.screenshotone.com/take')
   screenshotUrl.searchParams.set('access_key', env.SCREENSHOT_API_KEY)
