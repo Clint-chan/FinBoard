@@ -265,47 +265,47 @@ function buildPredictionSection(prediction) {
  * 构建板块分析部分
  */
 function buildSectorSection(sectors) {
-  // SVG 图标
-  const bullishIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>`
-  const bearishIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`
+  // 更精美的 SVG 图标 - 火箭上升和降落伞下降
+  const bullishIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>`
+  const bearishIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><path d="M12 22V8"/><path d="m5 12 7-4 7 4"/><path d="m5 12v4a7 7 0 0 0 7 6 7 7 0 0 0 7-6v-4"/></svg>`
   
   return `
 <!-- ========== 板块分析 ========== -->
-<section style="margin: 0 16px 28px;">
-  <section style="display: flex; align-items: center; gap: 10px; margin-bottom: 18px;">
-    <section style="width: 4px; height: 22px; background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%); border-radius: 2px;"></section>
+<section style="margin: 0 16px 24px;">
+  <section style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+    <section style="width: 4px; height: 20px; background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%); border-radius: 2px;"></section>
     <section style="font-size: 14px; font-weight: 700; color: #374151;">板块分析</section>
-    <section style="font-size: 11px; color: #9ca3af; letter-spacing: 0.5px;">Sector Analysis</section>
+    <section style="font-size: 10px; color: #9ca3af; letter-spacing: 0.5px;">Sector Analysis</section>
   </section>
   
-  <!-- 双栏布局 -->
-  <section style="display: flex; gap: 12px;">
+  <!-- 双栏布局 - 使用 table 确保左右对齐 -->
+  <section style="display: flex; gap: 10px; align-items: stretch;">
     <!-- 利好板块 -->
     ${sectors.bullish?.length > 0 ? `
-    <section style="flex: 1; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <section style="flex: 1; min-width: 0; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.04); display: flex; flex-direction: column;">
       <!-- 头部 -->
-      <section style="padding: 12px 14px; background: #dc2626; display: flex; align-items: center; gap: 10px;">
-        <section style="width: 32px; height: 32px; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-          ${bullishIcon.replace('stroke="#dc2626"', 'stroke="white"')}
+      <section style="padding: 10px 12px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); display: flex; align-items: center; gap: 8px;">
+        <section style="width: 28px; height: 28px; background: rgba(255,255,255,0.2); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+          ${bullishIcon}
         </section>
         <section style="flex: 1;">
-          <section style="font-size: 14px; font-weight: 700; color: #ffffff;">利好板块</section>
+          <section style="font-size: 13px; font-weight: 700; color: #ffffff;">利好板块</section>
         </section>
-        <section style="font-size: 10px; color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 12px;">看涨</section>
+        <section style="font-size: 9px; color: rgba(255,255,255,0.95); background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 10px;">看涨</section>
       </section>
       <!-- 内容 -->
-      <section style="padding: 14px;">
+      <section style="padding: 10px; flex: 1;">
         ${sectors.bullish.map((s, idx) => `
-        <section style="padding: 12px; margin-bottom: ${idx === sectors.bullish.length - 1 ? '0' : '10px'}; background: #fafafa; border-radius: 8px; border-left: 3px solid #fca5a5;">
-          <section style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-            <span style="font-size: 14px; font-weight: 700; color: #1a1a1a;">${s.name}</span>
-            ${s.tagText ? `<span style="font-size: 10px; color: #dc2626; background: #fef2f2; padding: 2px 8px; border-radius: 10px; border: 1px solid #fecaca;">${s.tagText}</span>` : ''}
+        <section style="padding: 10px; margin-bottom: ${idx === sectors.bullish.length - 1 ? '0' : '8px'}; background: #fafafa; border-radius: 6px; border-left: 3px solid #fca5a5;">
+          <section style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+            <span style="font-size: 13px; font-weight: 700; color: #1a1a1a;">${s.name}</span>
+            ${s.tagText ? `<span style="font-size: 9px; color: #dc2626; background: #fef2f2; padding: 1px 6px; border-radius: 8px; border: 1px solid #fecaca;">${s.tagText}</span>` : ''}
           </section>
-          <section style="font-size: 13px; color: #64748b; line-height: 1.7;">${s.reason || ''}</section>
+          <section style="font-size: 12px; color: #64748b; line-height: 1.6;">${s.reason || ''}</section>
           ${s.focus ? `
-          <section style="margin-top: 10px; padding: 8px 10px; background: #fff5f5; border-radius: 6px; display: flex; align-items: center; gap: 6px;">
-            <section style="font-size: 11px; color: #9ca3af;">关注</section>
-            <section style="font-size: 12px; color: #dc2626; font-weight: 600;">${s.focus.replace('关注：', '').replace('关注:', '')}</section>
+          <section style="margin-top: 8px; padding: 6px 8px; background: #fff5f5; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
+            <section style="font-size: 10px; color: #9ca3af;">关注</section>
+            <section style="font-size: 11px; color: #dc2626; font-weight: 600;">${s.focus.replace('关注：', '').replace('关注:', '')}</section>
           </section>
           ` : ''}
         </section>
@@ -316,30 +316,30 @@ function buildSectorSection(sectors) {
     
     <!-- 承压板块 -->
     ${sectors.bearish?.length > 0 ? `
-    <section style="flex: 1; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <section style="flex: 1; min-width: 0; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.04); display: flex; flex-direction: column;">
       <!-- 头部 -->
-      <section style="padding: 12px 14px; background: #059669; display: flex; align-items: center; gap: 10px;">
-        <section style="width: 32px; height: 32px; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-          ${bearishIcon.replace('stroke="#059669"', 'stroke="white"')}
+      <section style="padding: 10px 12px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); display: flex; align-items: center; gap: 8px;">
+        <section style="width: 28px; height: 28px; background: rgba(255,255,255,0.2); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+          ${bearishIcon}
         </section>
         <section style="flex: 1;">
-          <section style="font-size: 14px; font-weight: 700; color: #ffffff;">承压板块</section>
+          <section style="font-size: 13px; font-weight: 700; color: #ffffff;">承压板块</section>
         </section>
-        <section style="font-size: 10px; color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.2); padding: 3px 10px; border-radius: 12px;">看跌</section>
+        <section style="font-size: 9px; color: rgba(255,255,255,0.95); background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 10px;">看跌</section>
       </section>
       <!-- 内容 -->
-      <section style="padding: 14px;">
+      <section style="padding: 10px; flex: 1;">
         ${sectors.bearish.map((s, idx) => `
-        <section style="padding: 12px; margin-bottom: ${idx === sectors.bearish.length - 1 ? '0' : '10px'}; background: #fafafa; border-radius: 8px; border-left: 3px solid #6ee7b7;">
-          <section style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-            <span style="font-size: 14px; font-weight: 700; color: #1a1a1a;">${s.name}</span>
-            ${s.tagText ? `<span style="font-size: 10px; color: #059669; background: #ecfdf5; padding: 2px 8px; border-radius: 10px; border: 1px solid #a7f3d0;">${s.tagText}</span>` : ''}
+        <section style="padding: 10px; margin-bottom: ${idx === sectors.bearish.length - 1 ? '0' : '8px'}; background: #fafafa; border-radius: 6px; border-left: 3px solid #6ee7b7;">
+          <section style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+            <span style="font-size: 13px; font-weight: 700; color: #1a1a1a;">${s.name}</span>
+            ${s.tagText ? `<span style="font-size: 9px; color: #059669; background: #ecfdf5; padding: 1px 6px; border-radius: 8px; border: 1px solid #a7f3d0;">${s.tagText}</span>` : ''}
           </section>
-          <section style="font-size: 13px; color: #64748b; line-height: 1.7;">${s.reason || ''}</section>
+          <section style="font-size: 12px; color: #64748b; line-height: 1.6;">${s.reason || ''}</section>
           ${s.focus ? `
-          <section style="margin-top: 10px; padding: 8px 10px; background: #f0fdf4; border-radius: 6px; display: flex; align-items: center; gap: 6px;">
-            <section style="font-size: 11px; color: #9ca3af;">关注</section>
-            <section style="font-size: 12px; color: #059669; font-weight: 600;">${s.focus.replace('关注：', '').replace('关注:', '')}</section>
+          <section style="margin-top: 8px; padding: 6px 8px; background: #f0fdf4; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
+            <section style="font-size: 10px; color: #9ca3af;">关注</section>
+            <section style="font-size: 11px; color: #059669; font-weight: 600;">${s.focus.replace('关注：', '').replace('关注:', '')}</section>
           </section>
           ` : ''}
         </section>
