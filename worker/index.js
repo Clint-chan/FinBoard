@@ -241,7 +241,8 @@ function generateCoverScreenshotUrl(date, env) {
   if (!env.SCREENSHOT_API_KEY) return null
   
   const siteUrl = env.SITE_URL || 'https://board.newestgpt.com'
-  const pageUrl = `${siteUrl}/?page=daily&date=${date}&cover=1`
+  // 添加 v=2 强制刷新缓存（之前的缓存可能是错误的页面）
+  const pageUrl = `${siteUrl}/?page=daily&date=${date}&cover=1&v=2`
   
   const screenshotUrl = new URL('https://api.screenshotone.com/take')
   screenshotUrl.searchParams.set('access_key', env.SCREENSHOT_API_KEY)
@@ -250,7 +251,7 @@ function generateCoverScreenshotUrl(date, env) {
   screenshotUrl.searchParams.set('viewport_width', '900')
   screenshotUrl.searchParams.set('viewport_height', '500')
   screenshotUrl.searchParams.set('full_page', 'false')
-  screenshotUrl.searchParams.set('delay', '2')
+  screenshotUrl.searchParams.set('delay', '3')  // 增加延迟确保页面加载完成
   screenshotUrl.searchParams.set('block_ads', 'true')
   screenshotUrl.searchParams.set('device_scale_factor', '2')
   screenshotUrl.searchParams.set('cache', 'true')

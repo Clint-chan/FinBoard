@@ -6,65 +6,6 @@
 const ACCESS_TOKEN_KEY = 'wechat_mp_access_token'
 
 /**
- * 生成 Market Tone 封面图 SVG
- * 直接在后端生成，不需要截图服务
- */
-function generateCoverSVG(prediction, date) {
-  const tone = prediction.tone || '震荡整理'
-  const subtitle = prediction.subtitle || '关注结构性机会'
-  const formattedDate = date.replace(/-/g, '.')
-  
-  // 计算文字长度来调整字体大小
-  const toneSize = tone.length <= 4 ? 72 : tone.length <= 6 ? 60 : 48
-  
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg width="900" height="500" viewBox="0 0 900 500" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1e1b4b"/>
-      <stop offset="40%" style="stop-color:#312e81"/>
-      <stop offset="100%" style="stop-color:#4c1d95"/>
-    </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="#000" flood-opacity="0.3"/>
-    </filter>
-  </defs>
-  
-  <!-- 背景 -->
-  <rect width="900" height="500" fill="url(#bg)"/>
-  
-  <!-- 装饰圆 -->
-  <circle cx="820" cy="80" r="120" fill="rgba(255,255,255,0.03)"/>
-  <circle cx="100" cy="450" r="100" fill="rgba(255,255,255,0.02)"/>
-  <circle cx="750" cy="400" r="60" fill="rgba(255,255,255,0.02)"/>
-  
-  <!-- MARKET TONE 标签 -->
-  <text x="450" y="160" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-family="Arial, sans-serif" font-size="14" letter-spacing="4">MARKET TONE</text>
-  
-  <!-- 主标题 -->
-  <text x="450" y="260" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="${toneSize}" font-weight="800" letter-spacing="4" filter="url(#shadow)">${tone}</text>
-  
-  <!-- 副标题 -->
-  <text x="450" y="320" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-family="Arial, sans-serif" font-size="20">${subtitle}</text>
-  
-  <!-- 日期 -->
-  <text x="450" y="400" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-family="Arial, sans-serif" font-size="16" letter-spacing="2">${formattedDate}</text>
-  
-  <!-- 底部品牌 -->
-  <text x="450" y="460" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-family="Arial, sans-serif" font-size="12" letter-spacing="1">Fintell · A股投资早报</text>
-</svg>`
-}
-
-/**
- * 将 SVG 转换为 PNG（通过 Cloudflare 的 resvg）
- * 注意：Cloudflare Workers 原生不支持 SVG 转 PNG
- * 但微信支持直接上传 SVG 作为图片素材（会自动转换）
- */
-function svgToBuffer(svg) {
-  return new TextEncoder().encode(svg)
-}
-
-/**
  * 获取 Access Token（带缓存）
  */
 export async function getAccessToken(env) {
@@ -95,42 +36,6 @@ export async function getAccessToken(env) {
   }
 
   return data.access_token
-}
-
-/**
- * 上传 SVG 作为永久图片素材
- * 微信会自动将 SVG 转换为 PNG
- */
-async function uploadSVGAsImage(accessToken, svgContent) {
-  const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2)
-  
-  // SVG 文件内容
-  const svgBytes = new TextEncoder().encode(svgContent)
-  
-  const header = `--${boundary}\r\nContent-Disposition: form-data; name="media"; filename="cover.svg"\r\nContent-Type: image/svg+xml\r\n\r\n`
-  const footer = `\r\n--${boundary}--\r\n`
-  
-  const headerBytes = new TextEncoder().encode(header)
-  const footerBytes = new TextEncoder().encode(footer)
-  
-  const body = new Uint8Array(headerBytes.length + svgBytes.length + footerBytes.length)
-  body.set(headerBytes, 0)
-  body.set(svgBytes, headerBytes.length)
-  body.set(footerBytes, headerBytes.length + svgBytes.length)
-  
-  const response = await fetch(
-    `https://api.weixin.qq.com/cgi-bin/material/add_material?access_token=${accessToken}&type=image`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
-      body: body
-    }
-  )
-  
-  const data = await response.json()
-  if (data.errcode) throw new Error(`上传 SVG 失败: ${data.errcode} ${data.errmsg}`)
-  
-  return { media_id: data.media_id, url: data.url }
 }
 
 /**
@@ -193,7 +98,8 @@ function buildArticleDigest(reportContent) {
 
 /**
  * 构建完整公众号文章 HTML
- * 顺序：情报矩阵 → 大盘研判 → 板块分析 → 今日策略 → 截图 → 页脚
+ * 参考网页端 DailyReport.css 的优雅设计
+ * 顺序：题头图 → 情报矩阵 → 大盘研判 → 板块分析 → 今日策略 → 页脚
  */
 function buildArticleContent(reportContent, date, coverImageUrl) {
   const formattedDate = date.replace(/-/g, '.')
@@ -202,54 +108,58 @@ function buildArticleContent(reportContent, date, coverImageUrl) {
   const intelligence = reportContent.intelligence || []
   const actionable = reportContent.actionable || {}
 
-  // 分类颜色映射
+  // 分类颜色映射（参考网页端）
   const categoryColors = {
-    tech: { bg: '#eff6ff', border: '#3b82f6', text: '#1d4ed8' },
-    fin: { bg: '#f0fdf4', border: '#22c55e', text: '#15803d' },
-    geo: { bg: '#fff7ed', border: '#f97316', text: '#c2410c' },
-    soc: { bg: '#faf5ff', border: '#a855f7', text: '#7e22ce' },
-    other: { bg: '#f9fafb', border: '#6b7280', text: '#374151' }
+    tech: { bg: 'rgba(59, 130, 246, 0.08)', border: '#3b82f6', text: '#3b82f6' },
+    fin: { bg: 'rgba(16, 185, 129, 0.08)', border: '#10b981', text: '#10b981' },
+    geo: { bg: 'rgba(245, 158, 11, 0.08)', border: '#f59e0b', text: '#f59e0b' },
+    soc: { bg: 'rgba(99, 102, 241, 0.08)', border: '#6366f1', text: '#6366f1' },
+    other: { bg: 'rgba(107, 114, 128, 0.08)', border: '#6b7280', text: '#6b7280' }
   }
 
-  // 标签颜色
+  // 标签颜色（参考网页端：红涨绿跌）
   const tagColors = {
-    bullish: { bg: '#dcfce7', color: '#15803d' },
-    bearish: { bg: '#fee2e2', color: '#b91c1c' },
-    neutral: { bg: '#f3f4f6', color: '#4b5563' }
+    bullish: { bg: '#fef2f2', color: '#dc2626', border: '#fecaca' },
+    bearish: { bg: '#ecfdf5', color: '#059669', border: '#a7f3d0' },
+    neutral: { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' }
   }
 
   let html = `
-<section style="max-width: 100%; margin: 0 auto; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; color: #1a1a1a; line-height: 1.75; font-size: 15px;">
+<section style="max-width: 100%; margin: 0 auto; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; color: #1a1a1a; line-height: 1.75; font-size: 15px; background: #ffffff;">
+
+<!-- 题头图（Market Tone 封面） -->
+${coverImageUrl ? `
+<section style="margin: 0 0 24px;">
+  <img src="${coverImageUrl}" style="width: 100%; display: block;" />
+</section>
+` : ''}
 
 <!-- 顶部日期 -->
-<section style="text-align: center; padding: 16px 0 20px; color: #9ca3af; font-size: 13px;">${formattedDate} · A股投资早报</section>
+<section style="text-align: center; padding: 8px 0 24px; color: #9ca3af; font-size: 13px; letter-spacing: 1px;">${formattedDate} · A股投资早报</section>
 
 <!-- ========== 情报矩阵 Intelligence Matrix ========== -->
-<section style="margin: 0 16px 28px;">
-  <section style="position: relative; margin-bottom: 24px;">
-    <section style="display: flex; align-items: center; gap: 12px;">
-      <section style="width: 6px; height: 28px; background: linear-gradient(180deg, #667eea 0%, #764ba2 100%); border-radius: 3px;"></section>
-      <section style="font-size: 18px; font-weight: 700; color: #1a1a1a; letter-spacing: 1px;">情报矩阵</section>
-      <section style="font-size: 12px; color: #9ca3af; letter-spacing: 1px;">Intelligence Matrix</section>
-    </section>
+<section style="margin: 0 16px 32px;">
+  <section style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+    <section style="width: 4px; height: 24px; background: linear-gradient(180deg, #3b82f6 0%, #6366f1 100%); border-radius: 2px;"></section>
+    <section style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">情报矩阵 Intelligence Matrix</section>
   </section>
   
   ${intelligence.map(cat => {
     const colors = categoryColors[cat.color] || categoryColors.other
+    // 显示所有新闻，不限制数量
     return `
   <!-- ${cat.category} -->
-  <section style="margin-bottom: 20px;">
-    <section style="display: inline-block; background: ${colors.bg}; color: ${colors.text}; font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 4px; margin-bottom: 12px; border-left: 3px solid ${colors.border};">${cat.category}</section>
-    
+  <section style="margin-bottom: 20px; background: #fafafa; border-radius: 8px; overflow: hidden; border-top: 3px solid ${colors.border};">
+    <section style="padding: 10px 14px; background: ${colors.bg}; font-size: 11px; font-weight: 700; color: ${colors.text};">${cat.category}</section>
     ${(cat.items || []).map(item => {
       const tag = tagColors[item.tag] || tagColors.neutral
       return `
-    <section style="margin-bottom: 14px; padding-left: 12px; border-left: 2px solid #e5e7eb;">
-      <section style="display: flex; align-items: center; margin-bottom: 4px;">
-        <span style="font-size: 15px; font-weight: 600; color: #1a1a1a;">${item.title}</span>
-        <span style="margin-left: 8px; background: ${tag.bg}; color: ${tag.color}; font-size: 11px; padding: 1px 6px; border-radius: 3px;">${item.tagText}</span>
+    <section style="padding: 12px 14px; border-bottom: 1px solid #f0f0f0;">
+      <section style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+        <span style="font-size: 13px; font-weight: 700; color: #1a1a1a; flex: 1;">${item.title}</span>
+        <span style="margin-left: 8px; background: ${tag.bg}; color: ${tag.color}; font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 600; border: 1px solid ${tag.border}; white-space: nowrap;">${item.tagText}</span>
       </section>
-      <section style="font-size: 14px; color: #4b5563; line-height: 1.7;">${item.summary}</section>
+      <section style="font-size: 12px; color: #64748b; line-height: 1.6;">${item.summary}</section>
     </section>
       `
     }).join('')}
@@ -257,159 +167,203 @@ function buildArticleContent(reportContent, date, coverImageUrl) {
     `
   }).join('')}
 </section>
+`
 
-<!-- 分割线 -->
-<section style="margin: 0 16px 28px; border-top: 1px dashed #d1d5db;"></section>
+  // 继续构建 HTML（大盘研判部分）
+  html += buildPredictionSection(prediction)
+  
+  // 板块分析
+  html += buildSectorSection(sectors)
+  
+  // 今日策略
+  html += buildActionableSection(actionable)
+  
+  // 页脚
+  html += buildFooter()
 
+  return html
+}
+
+
+/**
+ * 构建大盘核心研判部分
+ */
+function buildPredictionSection(prediction) {
+  return `
 <!-- ========== 大盘核心研判 Core Prediction ========== -->
-<section style="margin: 0 16px 28px;">
-  <section style="position: relative; margin-bottom: 24px;">
-    <section style="display: flex; align-items: center; gap: 12px;">
-      <section style="width: 6px; height: 28px; background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%); border-radius: 3px;"></section>
-      <section style="font-size: 18px; font-weight: 700; color: #1a1a1a; letter-spacing: 1px;">大盘核心研判</section>
-      <section style="font-size: 12px; color: #9ca3af; letter-spacing: 1px;">Core Prediction</section>
-    </section>
+<section style="margin: 0 16px 32px;">
+  <section style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+    <section style="width: 4px; height: 24px; background: linear-gradient(180deg, #7c3aed 0%, #5b21b6 100%); border-radius: 2px;"></section>
+    <section style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">大盘核心研判 Core Prediction</section>
   </section>
   
-  <!-- 核心逻辑 -->
-  <section style="background: #f8fafc; border-radius: 8px; padding: 16px; margin-bottom: 20px; border-left: 3px solid #6366f1;">
-    <section style="font-size: 14px; line-height: 1.85; color: #374151;">
-      ${(prediction.summary || '').replace(/class="[^"]*"/g, 'style="font-weight:600;"').replace(/class='[^']*'/g, 'style="font-weight:600;"')}
+  <!-- 预测卡片 -->
+  <section style="background: #fafafa; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb;">
+    <!-- Market Tone 头部 -->
+    <section style="padding: 20px; border-bottom: 1px solid #e5e7eb;">
+      <section style="display: inline-block; padding: 3px 10px; background: #f3f0ff; color: #7c3aed; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; border-radius: 4px; margin-bottom: 10px; border: 1px solid #e9e3ff;">Market Tone</section>
+      <section style="font-size: 26px; font-weight: 800; color: #1a1a1a; margin-bottom: 6px; letter-spacing: -0.02em;">${prediction.tone || '震荡整理'}</section>
+      <section style="font-size: 14px; font-weight: 600; color: #374151;">${prediction.subtitle || ''}</section>
     </section>
-  </section>
-  
-  <!-- 资金与情绪面 -->
-  <section style="margin-bottom: 20px;">
-    <section style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 12px;">资金与情绪面</section>
-    <section style="display: flex; gap: 12px;">
-      <section style="flex: 1; background: #fafafa; border-radius: 8px; padding: 14px;">
-        <section style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">北向资金/外资</section>
-        <section style="font-size: 13px; color: #374151; line-height: 1.7;">${prediction.northbound || '--'}</section>
-      </section>
-      <section style="flex: 1; background: #fafafa; border-radius: 8px; padding: 14px;">
-        <section style="font-size: 12px; color: #6b7280; margin-bottom: 6px;">成交量预期</section>
-        <section style="font-size: 13px; color: #374151; line-height: 1.7;">${prediction.volume || '--'}</section>
+    
+    <!-- 核心逻辑 -->
+    <section style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb;">
+      <section style="font-size: 14px; line-height: 1.9; color: #374151;">
+        ${(prediction.summary || '').replace(/class="[^"]*"/g, 'style="font-weight:600;"').replace(/class='[^']*'/g, 'style="font-weight:600;"')}
       </section>
     </section>
-  </section>
-  
-  <!-- 全天剧本推演 -->
-  ${prediction.scenarios?.length > 0 ? `
-  <section>
-    <section style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 12px;">A股全天剧本推演</section>
-    ${prediction.scenarios.map((s, i) => `
-    <section style="display: flex; align-items: flex-start; margin-bottom: 12px;">
-      <section style="width: 8px; height: 8px; border-radius: 50%; background: ${s.active ? '#10b981' : '#d1d5db'}; margin-top: 6px; margin-right: 12px; flex-shrink: 0;"></section>
-      <section style="flex: 1;">
-        <section style="font-size: 14px; font-weight: 500; color: ${s.active ? '#059669' : '#374151'};">${s.title}</section>
-        <section style="font-size: 13px; color: #6b7280; margin-top: 2px;">${s.desc || ''}</section>
+    
+    <!-- 资金与情绪面 -->
+    <section style="padding: 16px 20px; border-bottom: 1px solid #e5e7eb;">
+      <section style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.05em;">资金与情绪面</section>
+      <section style="display: flex; gap: 12px;">
+        <section style="flex: 1; background: #ffffff; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0;">
+          <section style="font-size: 12px; font-weight: 700; color: #1a1a1a; margin-bottom: 6px;">北向资金/外资</section>
+          <section style="font-size: 12px; color: #64748b; line-height: 1.6;">${prediction.northbound || '--'}</section>
+        </section>
+        <section style="flex: 1; background: #ffffff; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0;">
+          <section style="font-size: 12px; font-weight: 700; color: #1a1a1a; margin-bottom: 6px;">成交量预期</section>
+          <section style="font-size: 12px; color: #64748b; line-height: 1.6;">${prediction.volume || '--'}</section>
+        </section>
       </section>
     </section>
-    `).join('')}
+    
+    <!-- 全天剧本推演（时间轴） -->
+    ${prediction.scenarios?.length > 0 ? `
+    <section style="padding: 16px 20px;">
+      <section style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 16px; letter-spacing: 0.05em;">A股全天剧本推演</section>
+      <section style="padding-left: 8px;">
+        ${prediction.scenarios.map((s, idx) => `
+        <section style="position: relative; padding-left: 28px; padding-bottom: ${idx === prediction.scenarios.length - 1 ? '0' : '16px'};">
+          <!-- 时间轴线 -->
+          ${idx !== prediction.scenarios.length - 1 ? `<section style="position: absolute; left: 5px; top: 14px; bottom: 0; width: 2px; background: linear-gradient(to bottom, #e2e8f0, transparent);"></section>` : ''}
+          <!-- 时间轴圆点（空心设计） -->
+          <section style="position: absolute; left: 0; top: 3px; width: 12px; height: 12px; border-radius: 50%; background: #ffffff; border: 2px solid ${s.active ? '#7c3aed' : '#d1d5db'}; ${s.active ? 'box-shadow: 0 0 8px rgba(124, 58, 237, 0.3);' : ''}"></section>
+          <!-- 内容 -->
+          <section style="font-size: 13px; font-weight: 700; color: ${s.active ? '#7c3aed' : '#1a1a1a'}; margin-bottom: 4px; line-height: 1.4;">${s.title}</section>
+          <section style="font-size: 12px; color: #64748b; line-height: 1.5;">${s.desc || ''}</section>
+        </section>
+        `).join('')}
+      </section>
+    </section>
+    ` : ''}
   </section>
-  ` : ''}
 </section>
+`
+}
 
-<!-- 分割线 -->
-<section style="margin: 0 16px 28px; border-top: 1px dashed #d1d5db;"></section>
-
+/**
+ * 构建板块分析部分
+ */
+function buildSectorSection(sectors) {
+  return `
 <!-- ========== 板块分析 Sector Analysis ========== -->
-<section style="margin: 0 16px 28px;">
-  <section style="position: relative; margin-bottom: 24px;">
-    <section style="display: flex; align-items: center; gap: 12px;">
-      <section style="width: 6px; height: 28px; background: linear-gradient(180deg, #f97316 0%, #ea580c 100%); border-radius: 3px;"></section>
-      <section style="font-size: 18px; font-weight: 700; color: #1a1a1a; letter-spacing: 1px;">板块分析</section>
-      <section style="font-size: 12px; color: #9ca3af; letter-spacing: 1px;">Sector Analysis</section>
-    </section>
+<section style="margin: 0 16px 32px;">
+  <section style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+    <section style="width: 4px; height: 24px; background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%); border-radius: 2px;"></section>
+    <section style="font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b;">板块分析 Sector Analysis</section>
   </section>
   
-  <!-- 看多板块 -->
+  <!-- 看多板块（红色系，淡雅） -->
   ${sectors.bullish?.length > 0 ? `
-  <section style="margin-bottom: 24px;">
-    <section style="font-size: 15px; font-weight: 600; color: #059669; margin-bottom: 14px;">看多板块</section>
-    ${sectors.bullish.map(s => `
-    <section style="margin-bottom: 16px; padding: 16px; background: #f0fdf4; border-radius: 8px; border-left: 3px solid #22c55e;">
-      <section style="display: flex; align-items: center; margin-bottom: 8px;">
-        <span style="font-size: 15px; font-weight: 600; color: #15803d;">${s.name}</span>
-        <span style="margin-left: 8px; background: #dcfce7; color: #15803d; font-size: 11px; padding: 2px 8px; border-radius: 3px;">${s.tagText || '利好'}</span>
-      </section>
-      <section style="font-size: 14px; color: #374151; line-height: 1.8; margin-bottom: 8px;">${s.reason || ''}</section>
-      ${s.focus ? `<section style="font-size: 13px; color: #047857;">${s.focus}</section>` : ''}
+  <section style="margin-bottom: 20px; background: #fafafa; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; border-top: 4px solid #fca5a5;">
+    <section style="padding: 12px 16px; background: rgba(254, 242, 242, 0.5); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #fde8e8;">
+      <section style="font-size: 14px; font-weight: 700; color: #dc2626;">📈 避险与利好板块</section>
+      <section style="font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 4px; background: #ffffff; color: #dc2626; border: 1px solid #fca5a5;">可能上涨</section>
     </section>
-    `).join('')}
+    <section style="padding: 16px;">
+      ${sectors.bullish.map((s, idx) => `
+      <section style="margin-bottom: ${idx === sectors.bullish.length - 1 ? '0' : '16px'}; padding-bottom: ${idx === sectors.bullish.length - 1 ? '0' : '16px'}; border-bottom: ${idx === sectors.bullish.length - 1 ? 'none' : '1px solid #f0f0f0'};">
+        <section style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+          <span style="font-size: 14px; font-weight: 700; color: #1a1a1a;">${s.name}</span>
+          <span style="background: #fef2f2; color: #dc2626; font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 600; border: 1px solid #fecaca;">${s.tagText || '利好'}</span>
+        </section>
+        <section style="font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 4px;">${s.reason || ''}</section>
+        ${s.focus ? `<section style="font-size: 11px; color: #9ca3af;">${s.focus}</section>` : ''}
+      </section>
+      `).join('')}
+    </section>
   </section>
   ` : ''}
   
-  <!-- 看空板块 -->
+  <!-- 看空板块（绿色系，淡雅） -->
   ${sectors.bearish?.length > 0 ? `
-  <section>
-    <section style="font-size: 15px; font-weight: 600; color: #dc2626; margin-bottom: 14px;">风险提示</section>
-    ${sectors.bearish.map(s => `
-    <section style="margin-bottom: 16px; padding: 16px; background: #fef2f2; border-radius: 8px; border-left: 3px solid #ef4444;">
-      <section style="display: flex; align-items: center; margin-bottom: 8px;">
-        <span style="font-size: 15px; font-weight: 600; color: #b91c1c;">${s.name}</span>
-        <span style="margin-left: 8px; background: #fee2e2; color: #b91c1c; font-size: 11px; padding: 2px 8px; border-radius: 3px;">${s.tagText || '利空'}</span>
-      </section>
-      <section style="font-size: 14px; color: #374151; line-height: 1.8; margin-bottom: 8px;">${s.reason || ''}</section>
-      ${s.focus ? `<section style="font-size: 13px; color: #991b1b;">${s.focus}</section>` : ''}
+  <section style="background: #fafafa; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; border-top: 4px solid #6ee7b7;">
+    <section style="padding: 12px 16px; background: rgba(236, 253, 245, 0.5); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #d1fae5;">
+      <section style="font-size: 14px; font-weight: 700; color: #059669;">📉 承压与利空板块</section>
+      <section style="font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 4px; background: #ffffff; color: #059669; border: 1px solid #6ee7b7;">可能下跌</section>
     </section>
-    `).join('')}
+    <section style="padding: 16px;">
+      ${sectors.bearish.map((s, idx) => `
+      <section style="margin-bottom: ${idx === sectors.bearish.length - 1 ? '0' : '16px'}; padding-bottom: ${idx === sectors.bearish.length - 1 ? '0' : '16px'}; border-bottom: ${idx === sectors.bearish.length - 1 ? 'none' : '1px solid #f0f0f0'};">
+        <section style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+          <span style="font-size: 14px; font-weight: 700; color: #1a1a1a;">${s.name}</span>
+          <span style="background: #ecfdf5; color: #059669; font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 600; border: 1px solid #a7f3d0;">${s.tagText || '利空'}</span>
+        </section>
+        <section style="font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 4px;">${s.reason || ''}</section>
+        ${s.focus ? `<section style="font-size: 11px; color: #9ca3af;">${s.focus}</section>` : ''}
+      </section>
+      `).join('')}
+    </section>
   </section>
   ` : ''}
 </section>
+`
+}
 
-<!-- 分割线 -->
-<section style="margin: 0 16px 28px; border-top: 1px dashed #d1d5db;"></section>
 
-<!-- ========== 今日策略 ========== -->
-${(actionable.focus || actionable.avoid) ? `
-<section style="margin: 0 16px 28px;">
-  <section style="position: relative; margin-bottom: 24px;">
-    <section style="display: flex; align-items: center; gap: 12px;">
-      <section style="width: 6px; height: 28px; background: linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%); border-radius: 3px;"></section>
-      <section style="font-size: 18px; font-weight: 700; color: #1a1a1a; letter-spacing: 1px;">今日策略</section>
-      <section style="font-size: 12px; color: #9ca3af; letter-spacing: 1px;">Strategy</section>
-    </section>
-  </section>
+/**
+ * 构建今日策略部分
+ */
+function buildActionableSection(actionable) {
+  if (!actionable.focus && !actionable.avoid) return ''
   
-  <section style="display: flex; gap: 12px;">
-    ${actionable.focus ? `
-    <section style="flex: 1; background: #f0fdf4; border-radius: 8px; padding: 16px; border: 1px solid #bbf7d0;">
-      <section style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">重点关注</section>
-      <section style="font-size: 15px; font-weight: 600; color: #15803d;">${actionable.focus}</section>
+  return `
+<!-- ========== 今日策略 Actionable Summary ========== -->
+<section style="margin: 0 16px 32px;">
+  <section style="background: linear-gradient(to right, rgba(124, 58, 237, 0.05), transparent); border: 1px solid rgba(124, 58, 237, 0.2); border-radius: 12px; padding: 16px 20px;">
+    <section style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+      <section style="padding: 6px; background: rgba(124, 58, 237, 0.1); border-radius: 6px; color: #7c3aed;">📋</section>
+      <section>
+        <section style="font-size: 10px; font-weight: 700; color: #5b21b6; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 2px;">Actionable Summary</section>
+        <section style="font-size: 14px; font-weight: 700; color: #1a1a1a;">今日交易策略关键词</section>
+      </section>
     </section>
-    ` : ''}
-    ${actionable.avoid ? `
-    <section style="flex: 1; background: #fef2f2; border-radius: 8px; padding: 16px; border: 1px solid #fecaca;">
-      <section style="font-size: 12px; color: #6b7280; margin-bottom: 8px;">注意规避</section>
-      <section style="font-size: 15px; font-weight: 600; color: #b91c1c;">${actionable.avoid}</section>
+    <section style="display: flex; gap: 10px;">
+      ${actionable.avoid ? `
+      <section style="flex: 1; display: flex; align-items: center; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px;">
+        <section style="padding-right: 10px; border-right: 1px solid #e5e7eb; font-size: 12px; font-weight: 700; color: #64748b; white-space: nowrap;">🛡️ 防守避雷</section>
+        <section style="padding-left: 10px; font-size: 11px; font-weight: 500; color: #9ca3af;">${actionable.avoid}</section>
+      </section>
+      ` : ''}
+      ${actionable.focus ? `
+      <section style="flex: 1; display: flex; align-items: center; background: rgba(124, 58, 237, 0.05); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 6px; padding: 10px 12px;">
+        <section style="padding-right: 10px; border-right: 1px solid rgba(124, 58, 237, 0.2); font-size: 12px; font-weight: 700; color: #5b21b6; white-space: nowrap;">⚡ 关注替代</section>
+        <section style="padding-left: 10px; font-size: 11px; font-weight: 700; color: #7c3aed;">${actionable.focus}</section>
+      </section>
+      ` : ''}
     </section>
-    ` : ''}
   </section>
 </section>
-` : ''}
+`
+}
 
-<!-- 日报截图 -->
-${coverImageUrl ? `
-<section style="margin: 0 16px 28px;">
-  <section style="font-size: 13px; color: #9ca3af; margin-bottom: 10px; text-align: center;">${formattedDate}</section>
-  <img src="${coverImageUrl}" style="width: 100%; border-radius: 8px;" />
-</section>
-` : ''}
-
+/**
+ * 构建页脚
+ */
+function buildFooter() {
+  return `
 <!-- 页脚 -->
 <section style="margin: 32px 16px 0; padding: 24px 0; border-top: 1px solid #e5e7eb; text-align: center;">
-  <section style="width: 40px; height: 40px; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border-radius: 10px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;">
+  <section style="width: 40px; height: 40px; background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); border-radius: 10px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);">
     <span style="color: white; font-size: 20px; font-weight: 700;">F</span>
   </section>
-  <section style="font-size: 16px; font-weight: 600; color: #6366f1; margin-bottom: 4px;">Fintell</section>
+  <section style="font-size: 16px; font-weight: 600; color: #7c3aed; margin-bottom: 4px;">Fintell</section>
   <section style="font-size: 13px; color: #9ca3af; margin-bottom: 8px;">您的私人投资助理</section>
   <section style="font-size: 12px; color: #6b7280;">board.newestgpt.com</section>
 </section>
 
 </section>`
-
-  return html
 }
 
 /**
@@ -472,36 +426,25 @@ export async function publishToWechatMP(reportContent, date, env, coverImageUrl 
     
     // 上传封面图（Market Tone 卡片截图）
     let thumbMediaId = null
+    let contentCoverUrl = null
     if (coverImageUrl) {
       try {
         console.log('上传封面图...')
         const coverResult = await uploadPermanentImage(accessToken, coverImageUrl)
         thumbMediaId = coverResult.media_id
+        contentCoverUrl = coverResult.url  // 用于文章题头图
         console.log('封面图上传成功')
       } catch (e) {
         console.warn('封面图上传失败:', e.message)
       }
     }
     
-    // 上传日报截图（放在文章底部）
-    let contentImageUrl = null
-    if (reportImageUrl) {
-      try {
-        console.log('上传日报截图...')
-        const reportResult = await uploadPermanentImage(accessToken, reportImageUrl)
-        contentImageUrl = reportResult.url
-        console.log('日报截图上传成功')
-      } catch (e) {
-        console.warn('日报截图上传失败:', e.message)
-      }
-    }
-    
-    // 构建文章
+    // 构建文章（题头图使用封面图）
     const article = {
       title: buildArticleTitle(reportContent, date),
       author: 'Fintell',
       digest: buildArticleDigest(reportContent),
-      content: buildArticleContent(reportContent, date, contentImageUrl),
+      content: buildArticleContent(reportContent, date, contentCoverUrl),
       content_source_url: `https://board.newestgpt.com/?page=daily&date=${date}`,
       need_open_comment: 1,
       only_fans_can_comment: 0
