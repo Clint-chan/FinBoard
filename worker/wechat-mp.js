@@ -206,28 +206,28 @@ function buildPredictionSection(prediction) {
   <!-- 预测卡片 -->
   <section style="background: #fafafa; border-radius: 10px; overflow: hidden; border: 1px solid #e5e7eb;">
     <!-- Market Tone 头部 -->
-    <section style="padding: 14px 16px; border-bottom: 1px solid #e5e7eb;">
+    <section style="padding: 12px 14px; border-bottom: 1px solid #e5e7eb;">
       <section style="display: inline-block; padding: 3px 10px; background: #f3f0ff; color: #7c3aed; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; border-radius: 4px; margin-bottom: 10px; border: 1px solid #e9e3ff;">Market Tone</section>
       <section style="font-size: 24px; font-weight: 800; color: #1a1a1a; margin-bottom: 6px;">${prediction.tone || '震荡整理'}</section>
       <section style="font-size: 14px; font-weight: 600; color: #374151;">${prediction.subtitle || ''}</section>
     </section>
     
     <!-- 核心逻辑 -->
-    <section style="padding: 14px 16px; border-bottom: 1px solid #e5e7eb;">
+    <section style="padding: 12px 14px; border-bottom: 1px solid #e5e7eb;">
       <section style="font-size: 14px; line-height: 1.85; color: #374151;">
         ${(prediction.summary || '').replace(/class="[^"]*"/g, 'style="font-weight:600;"').replace(/class='[^']*'/g, 'style="font-weight:600;"')}
       </section>
     </section>
     
     <!-- 资金与情绪面 -->
-    <section style="padding: 14px 16px; border-bottom: 1px solid #e5e7eb;">
+    <section style="padding: 12px 14px; border-bottom: 1px solid #e5e7eb;">
       <section style="font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 12px;">资金与情绪面</section>
-      <section style="display: flex; gap: 12px;">
-        <section style="flex: 1; background: #ffffff; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0;">
+      <section style="display: flex; gap: 10px;">
+        <section style="flex: 1; background: #ffffff; border-radius: 8px; padding: 10px; border: 1px solid #e2e8f0;">
           <section style="font-size: 12px; font-weight: 700; color: #1a1a1a; margin-bottom: 6px;">北向资金/外资</section>
           <section style="font-size: 13px; color: #64748b; line-height: 1.6;">${prediction.northbound || '--'}</section>
         </section>
-        <section style="flex: 1; background: #ffffff; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0;">
+        <section style="flex: 1; background: #ffffff; border-radius: 8px; padding: 10px; border: 1px solid #e2e8f0;">
           <section style="font-size: 12px; font-weight: 700; color: #1a1a1a; margin-bottom: 6px;">成交量预期</section>
           <section style="font-size: 13px; color: #64748b; line-height: 1.6;">${prediction.volume || '--'}</section>
         </section>
@@ -236,7 +236,7 @@ function buildPredictionSection(prediction) {
     
     <!-- 全天剧本推演（时间轴 - 使用表格布局） -->
     ${prediction.scenarios?.length > 0 ? `
-    <section style="padding: 14px 16px;">
+    <section style="padding: 12px 14px;">
       <section style="font-size: 13px; font-weight: 700; color: #374151; margin-bottom: 16px;">A股全天剧本推演</section>
       ${prediction.scenarios.map((s, idx) => `
       <section style="display: flex; margin-bottom: ${idx === prediction.scenarios.length - 1 ? '0' : '0'};">
