@@ -26,3 +26,7 @@ SITE_URL = "https://board.newestgpt.com"
 # 敏感信息请使用 Cloudflare Secrets 配置：
 # npx wrangler secret put BREVO_API_KEY
 # npx wrangler secret put SCREENSHOT_API_KEY
+
+# 微信公众号配置（认证服务号）：
+# npx wrangler secret put WECHAT_MP_APPID
+# npx wrangler secret put WECHAT_MP_SECRET

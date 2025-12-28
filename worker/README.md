@@ -30,7 +30,47 @@ npx wrangler secret put JWT_SECRET
 ```bash
 # ScreenshotOne API（用于日报邮件截图）
 npx wrangler secret put SCREENSHOT_API_KEY
+
+# 微信公众号（认证服务号，用于自动发布日报文章）
+npx wrangler secret put WECHAT_MP_APPID
+npx wrangler secret put WECHAT_MP_SECRET
 ```
+
+## 微信公众号自动发布
+
+### 前提条件
+
+- 认证服务号（个人订阅号不支持）
+- 已开通「发布功能」权限
+
+### 配置步骤
+
+1. 登录 [微信公众平台](https://mp.weixin.qq.com)
+2. 进入「设置与开发」→「基本配置」
+3. 获取 AppID 和 AppSecret
+4. 配置到 Worker:
+   ```bash
+   npx wrangler secret put WECHAT_MP_APPID
+   # 输入你的 AppID
+   
+   npx wrangler secret put WECHAT_MP_SECRET
+   # 输入你的 AppSecret
+   ```
+
+### 工作原理
+
+1. 每日 6 点（北京时间）生成日报
+2. 发送邮件给订阅用户
+3. 自动发布到微信公众号：
+   - 调用 `draft/add` 创建草稿
+   - 调用 `freepublish/submit` 发布文章
+4. 文章包含：大盘预判、看多/看空板块、操作建议、重要资讯
+
+### 注意事项
+
+- 服务号每天只能群发 1 次（最多 8 篇文章）
+- 如果当天已发布过，API 会返回错误
+- 建议在非交易日手动检查发布状态
 
 ## 日报邮件截图功能
 

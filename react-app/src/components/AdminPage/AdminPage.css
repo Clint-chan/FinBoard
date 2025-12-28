@@ -501,3 +501,36 @@
 [data-theme="dark"] .date-badge {
   background: rgba(124, 58, 237, 0.2);
 }
+
+/* 微信公众号 */
+.wechat-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wechat-status {
+  font-size: 0.85rem;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.wechat-status.success {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.wechat-status.warning {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.test-email-btn.primary {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+}
+
+.test-email-btn.primary:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}

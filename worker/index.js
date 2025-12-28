@@ -1851,6 +1851,90 @@ export default {
         }
       }
 
+      // POST /api/admin/test-wechat-mp - 测试发布到微信公众号（管理员）
+      if (path === '/api/admin/test-wechat-mp' && request.method === 'POST') {
+        const username = await verifyToken(request, env);
+        if (!username || !ADMIN_USERS.includes(username)) {
+          return jsonResponse({ error: '无权限' }, 403);
+        }
+        
+        const { autoPublish = false } = await request.json().catch(() => ({}));
+        
+        try {
+          // 检查微信配置
+          const { checkWechatMPConfig, publishToWechatMP } = await import('./wechat-mp.js');
+          const wechatConfig = checkWechatMPConfig(env);
+          
+          if (!wechatConfig.configured) {
+            return jsonResponse({ 
+              error: '微信公众号未配置',
+              config: wechatConfig,
+              hint: '请配置 WECHAT_MP_APPID 和 WECHAT_MP_SECRET'
+            }, 400);
+          }
+          
+          if (!env.DB) {
+            return jsonResponse({ error: '数据库未配置' }, 500);
+          }
+          
+          await initDB(env.DB);
+          
+          // 获取最新日报
+          const result = await env.DB.prepare(`
+            SELECT report_date, content FROM daily_reports 
+            ORDER BY report_date DESC LIMIT 1
+          `).first();
+          
+          if (!result) {
+            return jsonResponse({ error: '暂无日报，请先生成日报' }, 404);
+          }
+          
+          const reportContent = JSON.parse(result.content);
+          
+          // 生成截图 URL
+          const screenshotUrl = generateDailyReportScreenshotUrl(result.report_date, env);
+          console.log('微信测试截图 URL:', screenshotUrl ? '已生成' : '未生成');
+          
+          // 发布到微信公众号
+          const wechatResult = await publishToWechatMP(
+            reportContent, 
+            result.report_date, 
+            env, 
+            screenshotUrl,
+            autoPublish // 默认只创建草稿，不自动发布
+          );
+          
+          return jsonResponse({ 
+            success: wechatResult.success,
+            date: result.report_date,
+            hasScreenshot: !!screenshotUrl,
+            autoPublish,
+            ...wechatResult
+          });
+        } catch (e) {
+          console.error('测试微信公众号发布失败:', e);
+          return jsonResponse({ error: e.message }, 500);
+        }
+      }
+
+      // GET /api/admin/wechat-config - 获取微信公众号配置状态（管理员）
+      if (path === '/api/admin/wechat-config' && request.method === 'GET') {
+        const username = await verifyToken(request, env);
+        if (!username || !ADMIN_USERS.includes(username)) {
+          return jsonResponse({ error: '无权限' }, 403);
+        }
+        
+        const { checkWechatMPConfig } = await import('./wechat-mp.js');
+        const config = checkWechatMPConfig(env);
+        
+        return jsonResponse({
+          ...config,
+          hint: config.configured 
+            ? '微信公众号已配置，可以发布文章' 
+            : '请配置 WECHAT_MP_APPID 和 WECHAT_MP_SECRET'
+        });
+      }
+
       return jsonResponse({ error: 'Not found' }, 404);
     } catch (err) {
       return jsonResponse({ error: err.message }, 500);
@@ -2942,7 +3026,26 @@ async function generateDailyReport(env, isScheduled = false) {
     console.error('获取订阅用户失败:', e);
   }
   
-  return { success: true, date: today, newsCount: newsList.length };
+  // 发布到微信公众号
+  let wechatResult = null;
+  try {
+    const { publishToWechatMP, checkWechatMPConfig } = await import('./wechat-mp.js');
+    const wechatConfig = checkWechatMPConfig(env);
+    
+    if (wechatConfig.configured) {
+      // 使用日报截图作为封面图（如果有）
+      const coverImageUrl = generateDailyReportScreenshotUrl(today, env);
+      wechatResult = await publishToWechatMP(reportJson, today, env, coverImageUrl);
+      console.log('微信公众号发布结果:', wechatResult);
+    } else {
+      console.log('微信公众号未配置，跳过发布');
+    }
+  } catch (e) {
+    console.error('发布到微信公众号失败:', e);
+    wechatResult = { success: false, error: e.message };
+  }
+  
+  return { success: true, date: today, newsCount: newsList.length, wechat: wechatResult };
 }
 
 /**

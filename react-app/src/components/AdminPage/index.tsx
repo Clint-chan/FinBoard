@@ -67,6 +67,10 @@ export function AdminPage() {
   // 测试邮件
   const [testEmail, setTestEmail] = useState('')
   const [sendingTestEmail, setSendingTestEmail] = useState(false)
+  
+  // 微信公众号
+  const [wechatConfig, setWechatConfig] = useState<{ configured: boolean; hasAppId: boolean; hasSecret: boolean } | null>(null)
+  const [testingWechat, setTestingWechat] = useState(false)
 
   // 加载用户列表
   const loadUsers = useCallback(async () => {
@@ -122,7 +126,24 @@ export function AdminPage() {
     loadUsers()
     loadAIConfig()
     loadDailyReports()
+    loadWechatConfig()
   }, [loadUsers, loadAIConfig])
+  
+  // 加载微信公众号配置状态
+  const loadWechatConfig = async () => {
+    if (!token) return
+    try {
+      const res = await fetch(`${SYNC_API}/api/admin/wechat-config`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setWechatConfig(data)
+      }
+    } catch (err) {
+      console.error('Failed to load wechat config:', err)
+    }
+  }
   
   // 加载日报列表
   const loadDailyReports = async () => {
@@ -193,6 +214,38 @@ export function AdminPage() {
       setError(err instanceof Error ? err.message : '发送测试邮件失败')
     } finally {
       setSendingTestEmail(false)
+    }
+  }
+  
+  // 测试微信公众号发布
+  const testWechatPublish = async (autoPublish: boolean = false) => {
+    if (!token || testingWechat) return
+    setTestingWechat(true)
+    setError('')
+    
+    try {
+      const res = await fetch(`${SYNC_API}/api/admin/test-wechat-mp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ autoPublish })
+      })
+      
+      const data = await res.json()
+      if (data.success) {
+        const msg = autoPublish 
+          ? `文章已发布！日期: ${data.date}, 发布ID: ${data.publishId}`
+          : `草稿已创建！日期: ${data.date}, 草稿ID: ${data.draftMediaId}\n请在公众号后台查看并发布`
+        alert(msg)
+      } else {
+        throw new Error(data.error || '发布失败')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '测试微信发布失败')
+    } finally {
+      setTestingWechat(false)
     }
   }
 
@@ -379,6 +432,40 @@ export function AdminPage() {
             </button>
           </div>
           <p className="test-email-hint">将最新日报发送到指定邮箱进行测试</p>
+        </div>
+        
+        <div className="test-email-section">
+          <div className="test-email-title">📱 微信公众号发布</div>
+          {wechatConfig ? (
+            wechatConfig.configured ? (
+              <div className="wechat-actions">
+                <div className="wechat-status success">✓ 已配置</div>
+                <div className="test-email-form">
+                  <button 
+                    className="test-email-btn"
+                    onClick={() => testWechatPublish(false)}
+                    disabled={testingWechat}
+                  >
+                    {testingWechat ? '处理中...' : '创建草稿'}
+                  </button>
+                  <button 
+                    className="test-email-btn primary"
+                    onClick={() => testWechatPublish(true)}
+                    disabled={testingWechat}
+                  >
+                    {testingWechat ? '处理中...' : '直接发布'}
+                  </button>
+                </div>
+                <p className="test-email-hint">创建草稿后可在公众号后台预览，直接发布会立即群发</p>
+              </div>
+            ) : (
+              <div className="wechat-status warning">
+                ⚠️ 未配置 - 请设置 WECHAT_MP_APPID 和 WECHAT_MP_SECRET
+              </div>
+            )
+          ) : (
+            <div className="wechat-status">加载中...</div>
+          )}
         </div>
         
         <div className="daily-list">
