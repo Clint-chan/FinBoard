@@ -54,8 +54,15 @@ function App() {
   // 配置状态
   const [config, setConfig] = useLocalStorage<UserConfig>('market_board_config', DEFAULT_CONFIG)
   
-  // UI 状态
-  const [activePage, setActivePage] = useState<PageType>('watchlist')
+  // UI 状态 - 根据 URL 参数初始化
+  const [activePage, setActivePage] = useState<PageType>(() => {
+    const params = new URLSearchParams(window.location.search)
+    const page = params.get('page')
+    if (page === 'daily') return 'daily'
+    if (page === 'strategies') return 'strategies'
+    if (page === 'admin') return 'admin'
+    return 'watchlist'
+  })
   const [addStockOpen, setAddStockOpen] = useState(false)
   const [alertModal, setAlertModal] = useState<{ open: boolean; code: string | null; initialPrice?: number; editIndex?: number }>({ open: false, code: null })
   const [costModal, setCostModal] = useState<{ open: boolean; code: string | null }>({ open: false, code: null })

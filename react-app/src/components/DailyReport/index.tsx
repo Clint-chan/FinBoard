@@ -46,7 +46,12 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
     try {
       // 检查 URL 是否指定了日期
       const params = new URLSearchParams(window.location.search)
-      const urlDate = params.get('date')
+      let urlDate = params.get('date')
+      
+      // 支持 20251228 格式转换为 2025-12-28
+      if (urlDate && urlDate.length === 8 && !urlDate.includes('-')) {
+        urlDate = `${urlDate.slice(0, 4)}-${urlDate.slice(4, 6)}-${urlDate.slice(6, 8)}`
+      }
       
       // 获取今天的日期
       const today = new Date()
