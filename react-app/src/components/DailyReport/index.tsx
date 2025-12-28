@@ -20,6 +20,12 @@ const isScreenshotMode = () => {
   return params.get('screenshot') === '1'
 }
 
+// 检测是否为封面模式（只显示 Market Tone 卡片）
+const isCoverMode = () => {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('cover') === '1'
+}
+
 export function DailyReport({ isAdmin, token }: DailyReportProps) {
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
@@ -32,6 +38,7 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
   
   // 截图模式标记
   const screenshotMode = isScreenshotMode()
+  const coverMode = isCoverMode()
 
   // 获取今日日报（或 URL 指定日期）
   const fetchTodayReport = useCallback(async () => {
@@ -195,6 +202,20 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
               {generating ? '生成中...' : '生成今日日报'}
             </button>
           )}
+        </div>
+      </div>
+    )
+  }
+
+  // 封面模式：只渲染 Market Tone 卡片
+  if (coverMode && report) {
+    return (
+      <div className="daily-cover-mode">
+        <div className="cover-card">
+          <span className="cover-label">MARKET TONE</span>
+          <h1 className="cover-tone">{report.prediction.tone}</h1>
+          <p className="cover-subtitle">{report.prediction.subtitle}</p>
+          <div className="cover-date">{currentDate?.replace(/-/g, '.')}</div>
         </div>
       </div>
     )

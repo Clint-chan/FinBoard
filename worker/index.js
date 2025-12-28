@@ -232,6 +232,34 @@ function generateDailyReportScreenshotUrl(date, env) {
 }
 
 /**
+ * 生成 Market Tone 封面图 URL（用于公众号封面）
+ * @param {string} date - 日报日期
+ * @param {object} env - 环境变量
+ * @returns {string|null} 截图 URL 或 null
+ */
+function generateCoverScreenshotUrl(date, env) {
+  if (!env.SCREENSHOT_API_KEY) return null
+  
+  const siteUrl = env.SITE_URL || 'https://board.newestgpt.com'
+  const pageUrl = `${siteUrl}/?page=daily&date=${date}&cover=1`
+  
+  const screenshotUrl = new URL('https://api.screenshotone.com/take')
+  screenshotUrl.searchParams.set('access_key', env.SCREENSHOT_API_KEY)
+  screenshotUrl.searchParams.set('url', pageUrl)
+  screenshotUrl.searchParams.set('format', 'png')
+  screenshotUrl.searchParams.set('viewport_width', '900')
+  screenshotUrl.searchParams.set('viewport_height', '500')
+  screenshotUrl.searchParams.set('full_page', 'false')
+  screenshotUrl.searchParams.set('delay', '2')
+  screenshotUrl.searchParams.set('block_ads', 'true')
+  screenshotUrl.searchParams.set('device_scale_factor', '2')
+  screenshotUrl.searchParams.set('cache', 'true')
+  screenshotUrl.searchParams.set('cache_ttl', '86400')
+  
+  return screenshotUrl.toString()
+}
+
+/**
  * 发送日报订阅邮件
  * @param {string} email - 收件人邮箱
  * @param {string} date - 日报日期
@@ -1891,23 +1919,28 @@ export default {
           
           const reportContent = JSON.parse(result.content);
           
-          // 生成截图 URL
-          const screenshotUrl = generateDailyReportScreenshotUrl(result.report_date, env);
-          console.log('微信测试截图 URL:', screenshotUrl ? '已生成' : '未生成');
+          // 封面图：Market Tone 卡片截图
+          const coverImageUrl = generateCoverScreenshotUrl(result.report_date, env);
+          // 日报截图（放在文章底部）
+          const reportImageUrl = generateDailyReportScreenshotUrl(result.report_date, env);
+          console.log('微信测试封面图:', coverImageUrl ? '已生成' : '未生成');
+          console.log('微信测试日报截图:', reportImageUrl ? '已生成' : '未生成');
           
           // 发布到微信公众号
           const wechatResult = await publishToWechatMP(
             reportContent, 
             result.report_date, 
             env, 
-            screenshotUrl,
-            autoPublish // 默认只创建草稿，不自动发布
+            coverImageUrl,
+            reportImageUrl,
+            autoPublish
           );
           
           return jsonResponse({ 
             success: wechatResult.success,
             date: result.report_date,
-            hasScreenshot: !!screenshotUrl,
+            hasCoverImage: !!coverImageUrl,
+            hasReportImage: !!reportImageUrl,
             autoPublish,
             ...wechatResult
           });
@@ -3033,9 +3066,11 @@ async function generateDailyReport(env, isScheduled = false) {
     const wechatConfig = checkWechatMPConfig(env);
     
     if (wechatConfig.configured) {
-      // 使用日报截图作为封面图（如果有）
-      const coverImageUrl = generateDailyReportScreenshotUrl(today, env);
-      wechatResult = await publishToWechatMP(reportJson, today, env, coverImageUrl);
+      // 封面图：Market Tone 卡片截图
+      const coverImageUrl = generateCoverScreenshotUrl(today, env);
+      // 日报截图（放在文章底部）
+      const reportImageUrl = generateDailyReportScreenshotUrl(today, env);
+      wechatResult = await publishToWechatMP(reportJson, today, env, coverImageUrl, reportImageUrl);
       console.log('微信公众号发布结果:', wechatResult);
     } else {
       console.log('微信公众号未配置，跳过发布');

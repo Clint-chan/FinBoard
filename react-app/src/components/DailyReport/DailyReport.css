@@ -977,3 +977,77 @@
   letter-spacing: 0.05em;
   border-top: 1px solid var(--border-lighter);
 }
+
+
+/* ========== 封面模式 Cover Mode ========== */
+.daily-cover-mode {
+  width: 900px;
+  height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4c1d95 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 装饰圆 */
+.daily-cover-mode::before {
+  content: '';
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 300px;
+  height: 300px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 50%;
+}
+
+.daily-cover-mode::after {
+  content: '';
+  position: absolute;
+  bottom: -100px;
+  left: -50px;
+  width: 250px;
+  height: 250px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 50%;
+}
+
+.cover-card {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 40px 60px;
+}
+
+.cover-label {
+  display: inline-block;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+  letter-spacing: 4px;
+  margin-bottom: 20px;
+}
+
+.cover-tone {
+  color: white;
+  font-size: 72px;
+  font-weight: 800;
+  margin: 0 0 16px;
+  letter-spacing: 4px;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.cover-subtitle {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 22px;
+  margin: 0 0 32px;
+  font-weight: 400;
+  max-width: 600px;
+}
+
+.cover-date {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 16px;
+  letter-spacing: 2px;
+}
