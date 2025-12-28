@@ -134,16 +134,10 @@ function buildArticleContent(reportContent, date, coverImageUrl) {
   let html = `
 <section style="max-width: 100%; margin: 0 auto; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; color: #1a1a1a; line-height: 1.75; font-size: 15px; background: #ffffff;">
 
-<!-- 题头图（带 Fintell 品牌） -->
+<!-- 题头图 -->
 ${coverImageUrl ? `
-<section style="margin: 0 0 20px; position: relative;">
-  <img src="${coverImageUrl}" style="width: 100%; display: block;" />
-  <section style="position: absolute; bottom: 12px; left: 16px; display: flex; align-items: center; gap: 8px;">
-    <section style="width: 28px; height: 28px; background: rgba(255,255,255,0.95); border-radius: 6px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
-      <span style="color: #7c3aed; font-size: 14px; font-weight: 700;">F</span>
-    </section>
-    <section style="color: rgba(255,255,255,0.95); font-size: 13px; font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,0.3);">Fintell</section>
-  </section>
+<section style="margin: 0 0 20px;">
+  <img src="${coverImageUrl}" style="width: 100%; display: block; border-radius: 0;" />
 </section>
 ` : ''}
 

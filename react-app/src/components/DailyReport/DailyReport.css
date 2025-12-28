@@ -984,66 +984,156 @@
   width: 900px;
   height: 500px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4c1d95 100%);
+  background: linear-gradient(135deg, #0f0a1e 0%, #1a1145 30%, #2d1b69 60%, #3d2080 100%);
   position: relative;
   overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', sans-serif;
 }
 
-/* 装饰圆 */
-.daily-cover-mode::before {
-  content: '';
+/* 顶部品牌栏 */
+.cover-header {
   position: absolute;
-  top: -80px;
-  right: -80px;
-  width: 300px;
-  height: 300px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 50%;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 24px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
 }
 
-.daily-cover-mode::after {
-  content: '';
-  position: absolute;
-  bottom: -100px;
-  left: -50px;
-  width: 250px;
-  height: 250px;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 50%;
+.cover-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
+.cover-logo {
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 18px;
+  font-weight: 800;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cover-brand-name {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.cover-header-date {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+/* 主内容卡片 */
 .cover-card {
   position: relative;
-  z-index: 1;
+  z-index: 5;
   text-align: center;
-  padding: 40px 60px;
+  padding: 20px 60px;
 }
 
 .cover-label {
   display: inline-block;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 14px;
-  letter-spacing: 4px;
-  margin-bottom: 20px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 6px;
+  margin-bottom: 16px;
+  padding: 6px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .cover-tone {
   color: white;
-  font-size: 72px;
-  font-weight: 800;
-  margin: 0 0 16px;
-  letter-spacing: 4px;
-  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  font-size: 80px;
+  font-weight: 900;
+  margin: 0 0 20px;
+  letter-spacing: 8px;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.4), 0 0 60px rgba(124, 58, 237, 0.3);
+  line-height: 1;
 }
 
 .cover-subtitle {
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 22px;
-  margin: 0 0 32px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 20px;
+  margin: 0;
   font-weight: 400;
+  letter-spacing: 2px;
   max-width: 600px;
+}
+
+/* 底部信息 */
+.cover-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px 32px;
+  text-align: center;
+  z-index: 10;
+}
+
+.cover-footer-text {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+
+/* 装饰元素 */
+.cover-decoration {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.cover-decoration-1 {
+  top: -100px;
+  right: -100px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.15) 0%, transparent 70%);
+}
+
+.cover-decoration-2 {
+  bottom: -150px;
+  left: -100px;
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 70%);
+}
+
+.cover-decoration-3 {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, transparent 50%);
+}
+
+/* 移除旧的伪元素装饰 */
+.daily-cover-mode::before,
+.daily-cover-mode::after {
+  display: none;
 }
 
 .cover-date {

@@ -212,16 +212,35 @@ export function DailyReport({ isAdmin, token }: DailyReportProps) {
     )
   }
 
-  // 封面模式：只渲染 Market Tone 卡片
+  // 封面模式：只渲染 Market Tone 卡片（专业版）
   if (coverMode && report) {
     return (
       <div className="daily-cover-mode">
+        {/* 顶部品牌栏 */}
+        <div className="cover-header">
+          <div className="cover-brand">
+            <div className="cover-logo">F</div>
+            <span className="cover-brand-name">Fintell</span>
+          </div>
+          <div className="cover-header-date">{currentDate?.replace(/-/g, '.')}</div>
+        </div>
+        
+        {/* 主内容 */}
         <div className="cover-card">
           <span className="cover-label">MARKET TONE</span>
           <h1 className="cover-tone">{report.prediction.tone}</h1>
           <p className="cover-subtitle">{report.prediction.subtitle}</p>
-          <div className="cover-date">{currentDate?.replace(/-/g, '.')}</div>
         </div>
+        
+        {/* 底部信息 */}
+        <div className="cover-footer">
+          <span className="cover-footer-text">A股投资早报 · 每日6点更新</span>
+        </div>
+        
+        {/* 装饰元素 */}
+        <div className="cover-decoration cover-decoration-1" />
+        <div className="cover-decoration cover-decoration-2" />
+        <div className="cover-decoration cover-decoration-3" />
       </div>
     )
   }
