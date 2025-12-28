@@ -41,6 +41,12 @@ const isScreenshotMode = () => {
   return params.get('screenshot') === '1'
 }
 
+// 检测是否为封面模式（只显示 Market Tone 卡片）
+const isCoverMode = () => {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('cover') === '1'
+}
+
 function App() {
   // 截图模式：直接渲染日报，不显示其他 UI
   if (isScreenshotMode()) {
@@ -49,6 +55,11 @@ function App() {
         <DailyReport />
       </div>
     )
+  }
+
+  // 封面模式：直接渲染日报封面，不显示其他 UI
+  if (isCoverMode()) {
+    return <DailyReport />
   }
 
   // 配置状态
