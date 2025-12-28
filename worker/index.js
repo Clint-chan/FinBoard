@@ -1975,10 +1975,19 @@ export default {
     }
   },
   
-  // 定时任务 - 每日北京时间6点生成日报，邮件7点推送
+  // 定时任务
+  // - 6:00 (UTC 22:00): 生成日报 + 邮件 + 微信草稿
+  // - 7:30 (UTC 23:30): 检查微信是否已发布，未发布则自动发布
   async scheduled(event, env, ctx) {
-    console.log('Daily report cron triggered:', event.cron, new Date().toISOString());
-    ctx.waitUntil(generateDailyReport(env, true)); // isScheduled = true
+    console.log('Cron triggered:', event.cron, new Date().toISOString());
+    
+    if (event.cron === '0 22 * * *') {
+      // 6:00 - 生成日报，微信只创建草稿不发布
+      ctx.waitUntil(generateDailyReport(env, true, false)); // isScheduled=true, autoPublishWechat=false
+    } else if (event.cron === '30 23 * * *') {
+      // 7:30 - 检查并发布微信
+      ctx.waitUntil(checkAndPublishWechat(env));
+    }
   }
 };
 
@@ -2865,11 +2874,12 @@ async function handleAIConfig(request, env) {
  * 生成每日早报
  * @param {Object} env - Worker 环境
  * @param {boolean} isScheduled - 是否是定时任务触发（6点自动生成，邮件7点推送）
+ * @param {boolean} autoPublishWechat - 是否自动发布微信（false=只创建草稿）
  * 
  * 手动触发：读取过去24小时的新闻
  * 定时触发：读取昨天6点到今天6点的新闻
  */
-async function generateDailyReport(env, isScheduled = false) {
+async function generateDailyReport(env, isScheduled = false, autoPublishWechat = true) {
   if (!env.DB) {
     throw new Error('数据库未配置');
   }
@@ -3060,7 +3070,7 @@ async function generateDailyReport(env, isScheduled = false) {
     console.error('获取订阅用户失败:', e);
   }
   
-  // 发布到微信公众号
+  // 发布到微信公众号（根据 autoPublishWechat 决定是否直接发布）
   let wechatResult = null;
   try {
     const { publishToWechatMP, checkWechatMPConfig } = await import('./wechat-mp.js');
@@ -3071,8 +3081,8 @@ async function generateDailyReport(env, isScheduled = false) {
       const coverImageUrl = generateCoverScreenshotUrl(today, env);
       // 日报截图（放在文章底部）
       const reportImageUrl = generateDailyReportScreenshotUrl(today, env);
-      wechatResult = await publishToWechatMP(reportJson, today, env, coverImageUrl, reportImageUrl);
-      console.log('微信公众号发布结果:', wechatResult);
+      wechatResult = await publishToWechatMP(reportJson, today, env, coverImageUrl, reportImageUrl, autoPublishWechat);
+      console.log('微信公众号结果:', wechatResult);
     } else {
       console.log('微信公众号未配置，跳过发布');
     }
@@ -3082,6 +3092,47 @@ async function generateDailyReport(env, isScheduled = false) {
   }
   
   return { success: true, date: today, newsCount: newsList.length, wechat: wechatResult };
+}
+
+/**
+ * 检查今日微信是否已发布，未发布则自动发布
+ * 在 7:30 触发，给用户 1.5 小时手动审核和发布的时间
+ */
+async function checkAndPublishWechat(env) {
+  console.log('检查微信公众号发布状态...');
+  
+  const { checkWechatMPConfig, getAccessToken, checkTodayPublished, publishDraft } = await import('./wechat-mp.js');
+  const wechatConfig = checkWechatMPConfig(env);
+  
+  if (!wechatConfig.configured) {
+    console.log('微信公众号未配置，跳过检查');
+    return { success: false, reason: '未配置' };
+  }
+  
+  try {
+    const accessToken = await getAccessToken(env);
+    
+    // 检查今天是否已发布
+    const isPublished = await checkTodayPublished(accessToken);
+    
+    if (isPublished) {
+      console.log('今日已有发布内容，跳过自动发布');
+      return { success: true, action: 'skipped', reason: '今日已发布' };
+    }
+    
+    // 获取今天的草稿并发布
+    const now = new Date();
+    const beijingNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const today = beijingNow.toISOString().split('T')[0];
+    
+    const result = await publishDraft(accessToken, today, env);
+    console.log('自动发布结果:', result);
+    
+    return result;
+  } catch (e) {
+    console.error('检查/发布失败:', e);
+    return { success: false, error: e.message };
+  }
 }
 
 /**
