@@ -1,5 +1,5 @@
 // Cloudflare Worker - Market Board 配置同步 API (带登录功能)
-// 支持 KV（配置存储）和 D1（用户管理、AI 统计）
+// 所有数据存储使用 D1 数据库（用户、配置、AI 统计等）
 
 // 验证码有效期（5分钟）
 const CODE_EXPIRE_SECONDS = 300
@@ -439,12 +439,34 @@ async function initDB(db) {
       // 字段可能已存在，忽略
     }
     
+    // 创建用户配置表（替代 KV config:{username}）
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS user_configs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        config TEXT NOT NULL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run()
+    
+    // 创建系统配置表（替代 KV ai_config 等）
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS system_configs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        config_key TEXT UNIQUE NOT NULL,
+        config_value TEXT NOT NULL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run()
+    
     // 尝试创建索引（如果已存在会忽略）
     try {
       await db.prepare(`CREATE INDEX IF NOT EXISTS idx_daily_reports_date ON daily_reports(report_date DESC)`).run()
       await db.prepare(`CREATE INDEX IF NOT EXISTS idx_news_published ON daily_news(published_at DESC)`).run()
       await db.prepare(`CREATE INDEX IF NOT EXISTS idx_verify_codes_key ON verify_codes(code_key)`).run()
       await db.prepare(`CREATE INDEX IF NOT EXISTS idx_verify_codes_expires ON verify_codes(expires_at)`).run()
+      await db.prepare(`CREATE INDEX IF NOT EXISTS idx_user_configs_username ON user_configs(username)`).run()
+      await db.prepare(`CREATE INDEX IF NOT EXISTS idx_system_configs_key ON system_configs(config_key)`).run()
     } catch (e) {
       // 索引可能已存在，忽略
     }
@@ -611,6 +633,48 @@ async function updateUserQuotaInDB(db, username, quota) {
     .bind(quota, username).run()
 }
 
+// ============ 用户配置 D1 操作（替代 KV config:{username}）============
+
+/**
+ * 获取用户配置
+ */
+async function getUserConfigFromDB(db, username) {
+  const result = await db.prepare('SELECT config FROM user_configs WHERE username = ?').bind(username).first()
+  return result ? JSON.parse(result.config) : null
+}
+
+/**
+ * 保存用户配置
+ */
+async function saveUserConfigToDB(db, username, config) {
+  await db.prepare(`
+    INSERT INTO user_configs (username, config, updated_at) 
+    VALUES (?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(username) DO UPDATE SET config = ?, updated_at = CURRENT_TIMESTAMP
+  `).bind(username, JSON.stringify(config), JSON.stringify(config)).run()
+}
+
+// ============ 系统配置 D1 操作（替代 KV ai_config 等）============
+
+/**
+ * 获取系统配置
+ */
+async function getSystemConfigFromDB(db, configKey) {
+  const result = await db.prepare('SELECT config_value FROM system_configs WHERE config_key = ?').bind(configKey).first()
+  return result ? JSON.parse(result.config_value) : null
+}
+
+/**
+ * 保存系统配置
+ */
+async function saveSystemConfigToDB(db, configKey, configValue) {
+  await db.prepare(`
+    INSERT INTO system_configs (config_key, config_value, updated_at) 
+    VALUES (?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(config_key) DO UPDATE SET config_value = ?, updated_at = CURRENT_TIMESTAMP
+  `).bind(configKey, JSON.stringify(configValue), JSON.stringify(configValue)).run()
+}
+
 export default {
   async fetch(request, env) {
     // CORS 处理
@@ -718,69 +782,39 @@ export default {
 
         const passwordHash = await hashPassword(password);
 
-        // 优先使用 D1
-        if (env.DB) {
-          try {
-            await initDB(env.DB);
-            
-            // 检查邮箱是否已注册（用 email 作为 username）
-            const existing = await getUserFromDB(env.DB, email);
-            if (existing) {
-              return jsonResponse({ error: '该邮箱已注册' }, 400);
-            }
-            
-            // 检查 IP 是否已注册过
-            const ipRegistered = await checkIPRegistered(env.DB, clientIP);
-            if (ipRegistered) {
-              return jsonResponse({ error: '该 IP 已注册过账号' }, 400);
-            }
-            
-            await createUserInDB(env.DB, email, passwordHash, clientIP, nickname || null);
-            
-            // 注册成功后删除验证码
-            await deleteVerifyCode(env.DB, codeKey);
-            
-            return jsonResponse({ success: true, message: '注册成功' });
-          } catch (e) {
-            console.error('D1 register error:', e);
-            // 回退到 KV
+        // 使用 D1 存储用户数据
+        if (!env.DB) {
+          return jsonResponse({ error: 'D1 数据库未配置' }, 500);
+        }
+        
+        try {
+          await initDB(env.DB);
+          
+          // 检查邮箱是否已注册（用 email 作为 username）
+          const existing = await getUserFromDB(env.DB, email);
+          if (existing) {
+            return jsonResponse({ error: '该邮箱已注册' }, 400);
           }
-        }
-
-        // KV 回退
-        const existing = await env.CONFIG_KV.get(`user:${email}`);
-        if (existing) {
-          return jsonResponse({ error: '该邮箱已注册' }, 400);
-        }
-        
-        // KV 中也检查 IP（简单实现）
-        const ipKey = `ip:${clientIP}`;
-        const ipExists = await env.CONFIG_KV.get(ipKey);
-        if (ipExists) {
-          return jsonResponse({ error: '该 IP 已注册过账号' }, 400);
-        }
-        
-        await env.CONFIG_KV.put(`user:${email}`, JSON.stringify({
-          passwordHash,
-          registerIp: clientIP,
-          createdAt: Date.now(),
-          aiQuota: DEFAULT_AI_QUOTA,
-          aiUsedToday: 0,
-          aiUsedDate: getTodayStr()
-        }));
-        
-        // 记录 IP
-        await env.CONFIG_KV.put(ipKey, email);
-        
-        // 注册成功后删除验证码（D1）
-        if (env.DB) {
+          
+          // 检查 IP 是否已注册过
+          const ipRegistered = await checkIPRegistered(env.DB, clientIP);
+          if (ipRegistered) {
+            return jsonResponse({ error: '该 IP 已注册过账号' }, 400);
+          }
+          
+          await createUserInDB(env.DB, email, passwordHash, clientIP, nickname || null);
+          
+          // 注册成功后删除验证码
           await deleteVerifyCode(env.DB, codeKey);
+          
+          return jsonResponse({ success: true, message: '注册成功' });
+        } catch (e) {
+          console.error('D1 register error:', e);
+          return jsonResponse({ error: '注册失败: ' + e.message }, 500);
         }
-
-        return jsonResponse({ success: true, message: '注册成功' });
       }
 
-      // POST /api/login - 登录（优先 D1，回退 KV，自动迁移）
+      // POST /api/login - 登录（仅使用 D1）
       if (path === '/api/login' && request.method === 'POST') {
         const { username, password } = await request.json();
         
@@ -788,70 +822,31 @@ export default {
           return jsonResponse({ error: '用户名和密码不能为空' }, 400);
         }
 
-        let userData = null;
-        let fromD1 = false;
-        let kvData = null; // 保存 KV 原始数据用于迁移
-        let nickname = null;
+        // 仅使用 D1
+        if (!env.DB) {
+          return jsonResponse({ error: 'D1 数据库未配置' }, 500);
+        }
 
-        // 优先从 D1 查询
-        if (env.DB) {
-          try {
-            const dbUser = await getUserFromDB(env.DB, username);
-            if (dbUser) {
-              fromD1 = true;
-              userData = { passwordHash: dbUser.password_hash };
-              nickname = dbUser.nickname;
-            }
-          } catch (e) {
-            console.error('D1 login error:', e);
+        try {
+          const dbUser = await getUserFromDB(env.DB, username);
+          if (!dbUser) {
+            return jsonResponse({ error: '用户名或密码错误' }, 401);
           }
-        }
 
-        // 回退到 KV
-        if (!userData) {
-          kvData = await env.CONFIG_KV.get(`user:${username}`, 'json');
-          userData = kvData;
-          if (kvData) {
-            nickname = kvData.nickname || null;
+          // 验证密码
+          const valid = await verifyPassword(password, dbUser.password_hash);
+          if (!valid) {
+            return jsonResponse({ error: '用户名或密码错误' }, 401);
           }
-        }
 
-        if (!userData) {
-          return jsonResponse({ error: '用户名或密码错误' }, 401);
+          // 生成 token
+          const token = await generateToken(username);
+          
+          return jsonResponse({ success: true, token, username, nickname: dbUser.nickname });
+        } catch (e) {
+          console.error('D1 login error:', e);
+          return jsonResponse({ error: '登录失败' }, 500);
         }
-
-        // 验证密码
-        const valid = await verifyPassword(password, userData.passwordHash);
-        if (!valid) {
-          return jsonResponse({ error: '用户名或密码错误' }, 401);
-        }
-
-        // 如果用户在 KV 但不在 D1，自动迁移到 D1
-        if (!fromD1 && kvData && env.DB) {
-          try {
-            await initDB(env.DB);
-            await env.DB.prepare(`
-              INSERT INTO users (username, password_hash, ai_quota, register_ip, created_at, nickname)
-              VALUES (?, ?, ?, ?, datetime(?, 'unixepoch'), ?)
-            `).bind(
-              username,
-              kvData.passwordHash,
-              kvData.aiQuota || DEFAULT_AI_QUOTA,
-              kvData.registerIp || '',
-              Math.floor((kvData.createdAt || Date.now()) / 1000),
-              kvData.nickname || null
-            ).run();
-            console.log(`[Auto-migrate] 用户 ${username} 已从 KV 迁移到 D1`);
-          } catch (e) {
-            // 迁移失败不影响登录，只记录日志
-            console.error(`[Auto-migrate] 用户 ${username} 迁移失败:`, e.message);
-          }
-        }
-
-        // 生成 token
-        const token = await generateToken(username);
-        
-        return jsonResponse({ success: true, token, username, nickname });
       }
 
       // POST /api/change-password - 修改密码 (需要 token)
@@ -871,57 +866,34 @@ export default {
           return jsonResponse({ error: '新密码至少 6 位' }, 400);
         }
 
-        let userData = null;
-        let fromD1 = false;
+        // 仅使用 D1
+        if (!env.DB) {
+          return jsonResponse({ error: 'D1 数据库未配置' }, 500);
+        }
 
-        // 优先从 D1 查询
-        if (env.DB) {
-          try {
-            userData = await getUserFromDB(env.DB, username);
-            if (userData) {
-              fromD1 = true;
-            }
-          } catch (e) {
-            console.error('D1 change password error:', e);
+        try {
+          const userData = await getUserFromDB(env.DB, username);
+          if (!userData) {
+            return jsonResponse({ error: '用户不存在' }, 404);
           }
-        }
 
-        // 回退到 KV
-        if (!userData) {
-          userData = await env.CONFIG_KV.get(`user:${username}`, 'json');
-        }
-
-        if (!userData) {
-          return jsonResponse({ error: '用户不存在' }, 404);
-        }
-
-        // 验证旧密码
-        const passwordHash = fromD1 ? userData.password_hash : userData.passwordHash;
-        const valid = await verifyPassword(oldPassword, passwordHash);
-        if (!valid) {
-          return jsonResponse({ error: '旧密码错误' }, 401);
-        }
-
-        // 生成新密码哈希
-        const newPasswordHash = await hashPassword(newPassword);
-
-        // 更新密码
-        if (fromD1 && env.DB) {
-          try {
-            await env.DB.prepare('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?')
-              .bind(newPasswordHash, username)
-              .run();
-          } catch (e) {
-            console.error('D1 update password error:', e);
-            return jsonResponse({ error: '修改密码失败' }, 500);
+          // 验证旧密码
+          const valid = await verifyPassword(oldPassword, userData.password_hash);
+          if (!valid) {
+            return jsonResponse({ error: '旧密码错误' }, 401);
           }
-        } else {
-          // 更新 KV
-          userData.passwordHash = newPasswordHash;
-          await env.CONFIG_KV.put(`user:${username}`, JSON.stringify(userData));
-        }
 
-        return jsonResponse({ success: true, message: '密码修改成功' });
+          // 生成新密码哈希并更新
+          const newPasswordHash = await hashPassword(newPassword);
+          await env.DB.prepare('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?')
+            .bind(newPasswordHash, username)
+            .run();
+
+          return jsonResponse({ success: true, message: '密码修改成功' });
+        } catch (e) {
+          console.error('D1 change password error:', e);
+          return jsonResponse({ error: '修改密码失败' }, 500);
+        }
       }
 
       // POST /api/change-nickname - 修改昵称 (需要 token)
@@ -942,27 +914,19 @@ export default {
           return jsonResponse({ error: '昵称不能超过 20 个字符' }, 400);
         }
 
-        // 更新昵称
-        if (env.DB) {
-          try {
-            await initDB(env.DB);
-            await updateNicknameInDB(env.DB, username, nickname || null);
-            return jsonResponse({ success: true, message: '昵称修改成功', nickname: nickname || null });
-          } catch (e) {
-            console.error('D1 update nickname error:', e);
-            return jsonResponse({ error: '修改昵称失败' }, 500);
-          }
+        // 仅使用 D1
+        if (!env.DB) {
+          return jsonResponse({ error: 'D1 数据库未配置' }, 500);
         }
 
-        // KV 回退
-        const userData = await env.CONFIG_KV.get(`user:${username}`, 'json');
-        if (userData) {
-          userData.nickname = nickname || null;
-          await env.CONFIG_KV.put(`user:${username}`, JSON.stringify(userData));
+        try {
+          await initDB(env.DB);
+          await updateNicknameInDB(env.DB, username, nickname || null);
           return jsonResponse({ success: true, message: '昵称修改成功', nickname: nickname || null });
+        } catch (e) {
+          console.error('D1 update nickname error:', e);
+          return jsonResponse({ error: '修改昵称失败' }, 500);
         }
-
-        return jsonResponse({ error: '用户不存在' }, 404);
       }
 
       // POST /api/reset-password/send-code - 找回密码：发送验证码
@@ -1320,8 +1284,13 @@ export default {
           return jsonResponse({ error: '未登录' }, 401);
         }
 
-        const config = await env.CONFIG_KV.get(`config:${username}`, 'json');
-        return jsonResponse({ config: config || null });
+        // 使用 D1 存储用户配置
+        if (env.DB) {
+          await initDB(env.DB);
+          const config = await getUserConfigFromDB(env.DB, username);
+          return jsonResponse({ config: config || null });
+        }
+        return jsonResponse({ error: 'D1 数据库未配置' }, 500);
       }
 
       // POST /api/config - 保存配置 (需要 token)
@@ -1336,8 +1305,13 @@ export default {
           return jsonResponse({ error: '配置不能为空' }, 400);
         }
 
-        await env.CONFIG_KV.put(`config:${username}`, JSON.stringify(config));
-        return jsonResponse({ success: true });
+        // 使用 D1 存储用户配置
+        if (env.DB) {
+          await initDB(env.DB);
+          await saveUserConfigToDB(env.DB, username, config);
+          return jsonResponse({ success: true });
+        }
+        return jsonResponse({ error: 'D1 数据库未配置' }, 500);
       }
 
       // GET /api/stock/comments/:code - 获取股吧评论（代理百度接口）
@@ -1410,7 +1384,7 @@ export default {
         return handleAIConfig(request, env);
       }
 
-      // GET /api/user/quota - 获取用户 AI 配额（优先 D1）
+      // GET /api/user/quota - 获取用户 AI 配额
       if (path === '/api/user/quota' && request.method === 'GET') {
         const username = await verifyToken(request, env);
         if (!username) {
@@ -1418,49 +1392,32 @@ export default {
         }
 
         const isAdmin = ADMIN_USERS.includes(username);
-        let quota = DEFAULT_AI_QUOTA;
-        let aiUsedToday = 0;
 
-        // 优先从 D1 查询
-        if (env.DB) {
-          try {
-            const user = await getUserFromDB(env.DB, username);
-            if (user) {
-              quota = user.ai_quota || DEFAULT_AI_QUOTA;
-              aiUsedToday = await getTodayUsageFromDB(env.DB, user.id);
-              return jsonResponse({
-                quota,
-                used: aiUsedToday,
-                remaining: Math.max(0, quota - aiUsedToday),
-                isAdmin
-              });
-            }
-          } catch (e) {
-            console.error('D1 quota error:', e);
+        // 仅使用 D1
+        if (!env.DB) {
+          return jsonResponse({ error: 'D1 数据库未配置' }, 500);
+        }
+
+        try {
+          const user = await getUserFromDB(env.DB, username);
+          if (!user) {
+            return jsonResponse({ error: '用户不存在' }, 404);
           }
+          const quota = user.ai_quota || DEFAULT_AI_QUOTA;
+          const aiUsedToday = await getTodayUsageFromDB(env.DB, user.id);
+          return jsonResponse({
+            quota,
+            used: aiUsedToday,
+            remaining: Math.max(0, quota - aiUsedToday),
+            isAdmin
+          });
+        } catch (e) {
+          console.error('D1 quota error:', e);
+          return jsonResponse({ error: '获取配额失败' }, 500);
         }
-
-        // 回退到 KV
-        const userData = await env.CONFIG_KV.get(`user:${username}`, 'json');
-        if (!userData) {
-          return jsonResponse({ error: '用户不存在' }, 404);
-        }
-
-        const today = getTodayStr();
-        aiUsedToday = userData.aiUsedToday || 0;
-        if (userData.aiUsedDate !== today) {
-          aiUsedToday = 0;
-        }
-        quota = userData.aiQuota || DEFAULT_AI_QUOTA;
-
-        return jsonResponse({
-          quota,
-          used: aiUsedToday,
-          remaining: Math.max(0, quota - aiUsedToday)
-        });
       }
 
-      // GET /api/admin/users - 管理员获取用户列表（合并 D1 和 KV）
+      // GET /api/admin/users - 管理员获取用户列表
       if (path === '/api/admin/users' && request.method === 'GET') {
         const username = await verifyToken(request, env);
         if (!username) {
@@ -1472,66 +1429,34 @@ export default {
           return jsonResponse({ error: '无权限' }, 403);
         }
 
-        const allUsers = [];
-        const usernames = new Set(); // 用于去重
-        const today = getTodayStr();
-
-        // 从 D1 查询
-        if (env.DB) {
-          try {
-            await initDB(env.DB);
-            const dbUsers = await getAllUsersFromDB(env.DB);
-            for (const u of dbUsers) {
-              usernames.add(u.username);
-              allUsers.push({
-                username: u.username,
-                createdAt: new Date(u.created_at).getTime(),
-                registerIp: u.register_ip || '',
-                aiQuota: u.ai_quota || DEFAULT_AI_QUOTA,
-                aiUsedToday: u.ai_used_today || 0,
-                source: 'd1'
-              });
-            }
-          } catch (e) {
-            console.error('D1 admin users error:', e);
-          }
+        // 仅使用 D1
+        if (!env.DB) {
+          return jsonResponse({ error: 'D1 数据库未配置' }, 500);
         }
 
-        // 从 KV 查询（补充 D1 中没有的用户）
         try {
-          const userList = await env.CONFIG_KV.list({ prefix: 'user:' });
-          for (const key of userList.keys) {
-            const uname = key.name.replace('user:', '');
-            // 跳过已在 D1 中的用户
-            if (usernames.has(uname)) continue;
-            
-            const userData = await env.CONFIG_KV.get(key.name, 'json');
-            if (userData) {
-              let aiUsedToday = userData.aiUsedToday || 0;
-              if (userData.aiUsedDate !== today) {
-                aiUsedToday = 0;
-              }
-              allUsers.push({
-                username: uname,
-                createdAt: userData.createdAt,
-                registerIp: userData.registerIp || '',
-                aiQuota: userData.aiQuota || DEFAULT_AI_QUOTA,
-                aiUsedToday,
-                source: 'kv'
-              });
-            }
-          }
+          await initDB(env.DB);
+          const dbUsers = await getAllUsersFromDB(env.DB);
+          const allUsers = dbUsers.map(u => ({
+            username: u.username,
+            createdAt: new Date(u.created_at).getTime(),
+            registerIp: u.register_ip || '',
+            aiQuota: u.ai_quota || DEFAULT_AI_QUOTA,
+            aiUsedToday: u.ai_used_today || 0,
+            source: 'd1'
+          }));
+
+          // 按创建时间倒序排列
+          allUsers.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+          return jsonResponse({ users: allUsers });
         } catch (e) {
-          console.error('KV admin users error:', e);
+          console.error('D1 admin users error:', e);
+          return jsonResponse({ error: '获取用户列表失败' }, 500);
         }
-
-        // 按创建时间倒序排列
-        allUsers.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
-        return jsonResponse({ users: allUsers });
       }
 
-      // POST /api/admin/user/quota - 管理员设置用户配额（优先 D1）
+      // POST /api/admin/user/quota - 管理员设置用户配额
       if (path === '/api/admin/user/quota' && request.method === 'POST') {
         const adminUsername = await verifyToken(request, env);
         if (!adminUsername) {
@@ -1548,107 +1473,21 @@ export default {
           return jsonResponse({ error: '参数错误' }, 400);
         }
 
-        // 优先更新 D1
-        if (env.DB) {
-          try {
-            const user = await getUserFromDB(env.DB, username);
-            if (user) {
-              await updateUserQuotaInDB(env.DB, username, quota);
-              return jsonResponse({ success: true, source: 'd1' });
-            }
-          } catch (e) {
-            console.error('D1 update quota error:', e);
-          }
-        }
-
-        // 回退到 KV
-        const userData = await env.CONFIG_KV.get(`user:${username}`, 'json');
-        if (!userData) {
-          return jsonResponse({ error: '用户不存在' }, 404);
-        }
-
-        // 更新配额
-        userData.aiQuota = quota;
-        await env.CONFIG_KV.put(`user:${username}`, JSON.stringify(userData));
-
-        return jsonResponse({ success: true });
-      }
-
-      // POST /api/admin/migrate-users - 管理员迁移 KV 用户到 D1
-      if (path === '/api/admin/migrate-users' && request.method === 'POST') {
-        const adminUsername = await verifyToken(request, env);
-        if (!adminUsername) {
-          return jsonResponse({ error: '未登录' }, 401);
-        }
-
-        if (!ADMIN_USERS.includes(adminUsername)) {
-          return jsonResponse({ error: '无权限' }, 403);
-        }
-
+        // 仅使用 D1
         if (!env.DB) {
           return jsonResponse({ error: 'D1 数据库未配置' }, 500);
         }
 
         try {
-          await initDB(env.DB);
-          
-          // 获取 KV 中所有用户
-          const userList = await env.CONFIG_KV.list({ prefix: 'user:' });
-          const results = { migrated: [], skipped: [], failed: [] };
-
-          for (const key of userList.keys) {
-            const username = key.name.replace('user:', '');
-            
-            try {
-              // 检查 D1 中是否已存在
-              const existingUser = await getUserFromDB(env.DB, username);
-              if (existingUser) {
-                results.skipped.push({ username, reason: '已存在于 D1' });
-                continue;
-              }
-
-              // 获取 KV 用户数据
-              const kvData = await env.CONFIG_KV.get(key.name, 'json');
-              if (!kvData || !kvData.passwordHash) {
-                results.skipped.push({ username, reason: '数据不完整' });
-                continue;
-              }
-
-              // 插入到 D1
-              await env.DB.prepare(`
-                INSERT INTO users (username, password_hash, ai_quota, register_ip, created_at)
-                VALUES (?, ?, ?, ?, datetime(?, 'unixepoch'))
-              `).bind(
-                username,
-                kvData.passwordHash,
-                kvData.aiQuota || DEFAULT_AI_QUOTA,
-                kvData.registerIp || '',
-                Math.floor((kvData.createdAt || Date.now()) / 1000)
-              ).run();
-
-              results.migrated.push({ username, quota: kvData.aiQuota || DEFAULT_AI_QUOTA });
-              
-              // 可选：迁移成功后删除 KV 中的用户数据（保留配置）
-              // await env.CONFIG_KV.delete(key.name);
-              
-            } catch (e) {
-              results.failed.push({ username, error: e.message });
-            }
+          const user = await getUserFromDB(env.DB, username);
+          if (!user) {
+            return jsonResponse({ error: '用户不存在' }, 404);
           }
-
-          return jsonResponse({
-            success: true,
-            summary: {
-              total: userList.keys.length,
-              migrated: results.migrated.length,
-              skipped: results.skipped.length,
-              failed: results.failed.length
-            },
-            details: results
-          });
+          await updateUserQuotaInDB(env.DB, username, quota);
+          return jsonResponse({ success: true });
         } catch (e) {
-          console.error('Migration error:', e);
-          return jsonResponse({ error: '迁移失败: ' + e.message }, 500);
+          console.error('D1 update quota error:', e);
+          return jsonResponse({ error: '更新配额失败' }, 500);
         }
       }
 
@@ -2558,65 +2397,36 @@ async function handleAIChat(request, env) {
     let userInfo = null; // 保存用户信息，用于后续扣除配额
     
     if (username) {
-      let quotaChecked = false;
-      
-      // 优先使用 D1
-      if (env.DB) {
-        try {
-          const user = await getUserFromDB(env.DB, username);
-          if (user) {
-            const quota = user.ai_quota || DEFAULT_AI_QUOTA;
-            const aiUsedToday = await getTodayUsageFromDB(env.DB, user.id);
-            console.log('D1 Quota check:', aiUsedToday, '/', quota, 'isAdmin:', ADMIN_USERS.includes(username))
-            
-            // 管理员不受配额限制
-            if (!ADMIN_USERS.includes(username) && aiUsedToday >= quota) {
-              return jsonResponse({ 
-                error: '今日 AI 使用次数已用完',
-                quota,
-                used: aiUsedToday
-              }, 429);
-            }
-            
-            // 保存用户信息，等 AI 成功后再扣除
-            userInfo = { type: 'd1', user, mode, stockData };
-            console.log('D1 Quota check passed, will record after AI success')
-            quotaChecked = true;
-          }
-        } catch (e) {
-          console.error('D1 quota check error:', e);
-        }
+      // 仅使用 D1
+      if (!env.DB) {
+        return jsonResponse({ error: 'D1 数据库未配置' }, 500);
       }
       
-      // 回退到 KV
-      if (!quotaChecked && env.CONFIG_KV) {
-        const userData = await env.CONFIG_KV.get(`user:${username}`, 'json');
-        console.log('KV User data:', userData ? 'found' : 'not found')
-        
-        if (userData) {
-          const today = getTodayStr();
-          let aiUsedToday = userData.aiUsedToday || 0;
-          
-          if (userData.aiUsedDate !== today) {
-            console.log('New day, resetting quota')
-            aiUsedToday = 0;
-          }
-          
-          const quota = userData.aiQuota || DEFAULT_AI_QUOTA;
-          console.log('KV Quota check:', aiUsedToday, '/', quota)
-          
-          if (!ADMIN_USERS.includes(username) && aiUsedToday >= quota) {
-            return jsonResponse({ 
-              error: '今日 AI 使用次数已用完',
-              quota,
-              used: aiUsedToday
-            }, 429);
-          }
-          
-          // 保存用户信息，等 AI 成功后再扣除
-          userInfo = { type: 'kv', username, userData, today };
-          console.log('KV Quota check passed, will update after AI success')
+      try {
+        const user = await getUserFromDB(env.DB, username);
+        if (!user) {
+          return jsonResponse({ error: '用户不存在' }, 404);
         }
+        
+        const quota = user.ai_quota || DEFAULT_AI_QUOTA;
+        const aiUsedToday = await getTodayUsageFromDB(env.DB, user.id);
+        console.log('D1 Quota check:', aiUsedToday, '/', quota, 'isAdmin:', ADMIN_USERS.includes(username))
+        
+        // 管理员不受配额限制
+        if (!ADMIN_USERS.includes(username) && aiUsedToday >= quota) {
+          return jsonResponse({ 
+            error: '今日 AI 使用次数已用完',
+            quota,
+            used: aiUsedToday
+          }, 429);
+        }
+        
+        // 保存用户信息，等 AI 成功后再扣除
+        userInfo = { type: 'd1', user, mode, stockData };
+        console.log('D1 Quota check passed, will record after AI success')
+      } catch (e) {
+        console.error('D1 quota check error:', e);
+        return jsonResponse({ error: '配额检查失败' }, 500);
       }
     } else {
       // 未登录用户不允许使用 AI
@@ -2627,10 +2437,11 @@ async function handleAIChat(request, env) {
       }, 401)
     }
     
-    // 获取配置
-    if (env.CONFIG_KV) {
-      const saved = await env.CONFIG_KV.get('ai_config', 'json')
-      if (saved) config = { ...AI_DEFAULT_CONFIG, ...saved }
+    // 获取 AI 配置（从 D1）
+    if (env.DB) {
+      await initDB(env.DB);
+      const saved = await getSystemConfigFromDB(env.DB, 'ai_config');
+      if (saved) config = { ...AI_DEFAULT_CONFIG, ...saved };
     }
 
     // 构建系统提示词（根据模式路由）
@@ -2712,19 +2523,6 @@ async function handleAIChat(request, env) {
           console.log('D1 Usage recorded after AI success')
         } catch (e) {
           console.error('Failed to record D1 usage:', e);
-        }
-      } else if (userInfo.type === 'kv' && env.CONFIG_KV) {
-        try {
-          const { username, userData, today } = userInfo;
-          userData.aiUsedToday = (userData.aiUsedToday || 0) + 1;
-          userData.aiUsedDate = today;
-          if (!userData.aiQuota) {
-            userData.aiQuota = DEFAULT_AI_QUOTA;
-          }
-          await env.CONFIG_KV.put(`user:${username}`, JSON.stringify(userData));
-          console.log('KV Quota updated after AI success:', userData.aiUsedToday)
-        } catch (e) {
-          console.error('Failed to update KV quota:', e);
         }
       }
     }
@@ -2836,9 +2634,11 @@ async function handleAIConfig(request, env) {
     const isAdmin = username && ADMIN_USERS.includes(username);
     
     let config = AI_DEFAULT_CONFIG
-    if (env.CONFIG_KV) {
-      const saved = await env.CONFIG_KV.get('ai_config', 'json')
-      if (saved) config = { ...AI_DEFAULT_CONFIG, ...saved }
+    // 从 D1 获取 AI 配置
+    if (env.DB) {
+      await initDB(env.DB);
+      const saved = await getSystemConfigFromDB(env.DB, 'ai_config');
+      if (saved) config = { ...AI_DEFAULT_CONFIG, ...saved };
     }
     
     // 管理员返回完整配置，普通用户只返回模型信息
@@ -2869,13 +2669,18 @@ async function handleAIConfig(request, env) {
     }
     
     const { apiUrl, apiKey, model } = await request.json()
-    if (!env.CONFIG_KV) return jsonResponse({ error: 'KV not configured' }, 500)
     
-    await env.CONFIG_KV.put('ai_config', JSON.stringify({
+    // 使用 D1 存储 AI 配置
+    if (!env.DB) {
+      return jsonResponse({ error: 'D1 数据库未配置' }, 500);
+    }
+    
+    await initDB(env.DB);
+    await saveSystemConfigToDB(env.DB, 'ai_config', {
       apiUrl: apiUrl || AI_DEFAULT_CONFIG.apiUrl,
       apiKey: apiKey || AI_DEFAULT_CONFIG.apiKey,
       model: model || AI_DEFAULT_CONFIG.model
-    }))
+    });
     
     return jsonResponse({ success: true })
   }
@@ -2952,10 +2757,11 @@ async function generateDailyReport(env, isScheduled = false, autoPublishWechat =
   // 构建精简的新闻输入
   const newsInput = newsList.map((n, i) => `${i + 1}. ${n.title}`).join('\n');
   
-  // 获取 AI 配置
+  // 获取 AI 配置（从 D1）
   let config = AI_DEFAULT_CONFIG;
-  if (env.CONFIG_KV) {
-    const saved = await env.CONFIG_KV.get('ai_config', 'json');
+  if (env.DB) {
+    await initDB(env.DB);
+    const saved = await getSystemConfigFromDB(env.DB, 'ai_config');
     if (saved) config = { ...AI_DEFAULT_CONFIG, ...saved };
   }
   

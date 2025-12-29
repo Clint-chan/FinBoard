@@ -2,12 +2,7 @@ name = "market-board-api"
 main = "index.js"
 compatibility_date = "2024-01-01"
 
-# KV 绑定 - 用于用户配置存储（JSON 结构，读多写少）
-[[kv_namespaces]]
-binding = "CONFIG_KV"
-id = "581a1195af51480b9b65fd50826fb33b"
-
-# D1 数据库绑定 - 用于用户管理和 AI 使用统计
+# D1 数据库绑定 - 用于所有数据存储（用户、配置、AI 统计等）
 [[d1_databases]]
 binding = "DB"
 database_name = "fintell-db"
