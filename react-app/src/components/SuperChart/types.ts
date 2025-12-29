@@ -96,6 +96,28 @@ export const DARK_THEME: ChartTheme = {
   border: '#475569'
 }
 
+// 获取 CSS 变量值
+function getCSSVar(name: string, fallback: string): string {
+  if (typeof window === 'undefined') return fallback
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  return value || fallback
+}
+
+// 获取当前主题（支持低调模式）
+export function getTheme(isDark: boolean): ChartTheme {
+  const base = isDark ? DARK_THEME : LIGHT_THEME
+  // 从 CSS 变量读取涨跌颜色，支持低调模式
+  const upColor = getCSSVar('--color-up', base.up)
+  const downColor = getCSSVar('--color-down', base.down)
+  return {
+    ...base,
+    up: upColor,
+    down: downColor,
+    macdUp: upColor,
+    macdDown: downColor
+  }
+}
+
 // 布局参数
 export interface ChartLayout {
   padding: { top: number; right: number; bottom: number; left: number }

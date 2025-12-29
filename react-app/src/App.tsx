@@ -121,6 +121,16 @@ function App() {
     setTheme(config.theme)
   }, [config.theme, setTheme])
   
+  // 监听 config.colorMode 变化，应用颜色模式
+  useEffect(() => {
+    const colorMode = config.colorMode || 'normal'
+    if (colorMode === 'stealth') {
+      document.documentElement.setAttribute('data-color-mode', 'stealth')
+    } else {
+      document.documentElement.removeAttribute('data-color-mode')
+    }
+  }, [config.colorMode])
+  
   // 固定页面标题
   useEffect(() => {
     document.title = 'Fintell'
@@ -1016,6 +1026,7 @@ function App() {
           refreshOnlyInMarketHours: config.refreshOnlyInMarketHours ?? true,
           quoteSource: config.quoteSource || 'eastmoney',
           theme: config.theme,
+          colorMode: config.colorMode || 'normal',
           strategyCheckInterval: config.strategyCheckInterval ?? 30
         }}
         onConfigChange={updateConfig}

@@ -115,6 +115,29 @@
   --down-color: #34d399;
 }
 
+/* 低调模式 - 黑白配色，适合上班摸鱼 */
+[data-color-mode="stealth"] {
+  --color-up: #6b7280;
+  --color-up-rgb: 107, 114, 128;
+  --color-up-bg: rgba(107, 114, 128, 0.1);
+  --color-down: #9ca3af;
+  --color-down-rgb: 156, 163, 175;
+  --color-down-bg: rgba(156, 163, 175, 0.1);
+  --up-color: #6b7280;
+  --down-color: #9ca3af;
+}
+
+[data-theme="dark"][data-color-mode="stealth"] {
+  --color-up: #94a3b8;
+  --color-up-rgb: 148, 163, 184;
+  --color-up-bg: rgba(148, 163, 184, 0.15);
+  --color-down: #64748b;
+  --color-down-rgb: 100, 116, 139;
+  --color-down-bg: rgba(100, 116, 139, 0.15);
+  --up-color: #94a3b8;
+  --down-color: #64748b;
+}
+
 * {
   box-sizing: border-box;
   outline: none;

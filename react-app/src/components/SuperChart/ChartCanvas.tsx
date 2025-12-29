@@ -5,7 +5,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react'
 import type { ChartData } from '@/services/chartService'
 import type { SubIndicator, ProcessedKlineData } from './types'
-import { LIGHT_THEME, DARK_THEME, getLayout } from './types'
+import { getTheme, getLayout } from './types'
 import { isETF } from '@/utils/format'
 
 interface AlertLine {
@@ -66,7 +66,7 @@ export function ChartCanvas({
   // ETF 价格显示 3 位小数
   const priceDigits = code && isETF(code) ? 3 : 2
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const colors = isDark ? DARK_THEME : LIGHT_THEME
+  const colors = getTheme(isDark)
   const layout = getLayout(width) // 根据宽度动态获取布局参数
   const dprRef = useRef(window.devicePixelRatio || 1)
   

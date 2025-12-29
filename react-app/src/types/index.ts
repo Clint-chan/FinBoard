@@ -16,6 +16,9 @@ export interface StockData {
 // 数据源类型
 export type QuoteSource = 'eastmoney' | 'tencent' | 'sina'
 
+// 颜色模式类型
+export type ColorMode = 'normal' | 'stealth'
+
 // 预警条件
 export interface AlertCondition {
   type: 'price' | 'pct'
@@ -66,6 +69,7 @@ export interface UserConfig {
   alerts: Record<string, AlertConfig>
   costs: Record<string, number>
   theme: 'light' | 'dark' | 'auto'
+  colorMode?: ColorMode // 颜色模式：normal=红涨绿跌，stealth=低调黑白
   quoteSource?: QuoteSource // 数据源
   userProfile?: UserProfile
   alertHistory?: StrategyAlertHistoryItem[] // 策略预警历史记录（云同步）

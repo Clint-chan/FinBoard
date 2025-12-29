@@ -18,6 +18,7 @@ import {
 import './SettingsModal.css'
 
 type QuoteSource = 'eastmoney' | 'tencent' | 'sina'
+type ColorMode = 'normal' | 'stealth'
 type NavTab = 'profile' | 'security' | 'notification' | 'preferences'
 
 interface SettingsModalProps {
@@ -36,6 +37,7 @@ interface SettingsModalProps {
     refreshOnlyInMarketHours: boolean
     quoteSource: QuoteSource
     theme: 'light' | 'dark' | 'auto'
+    colorMode?: ColorMode
     strategyCheckInterval?: number
   }
   onConfigChange: (updates: {
@@ -44,6 +46,7 @@ interface SettingsModalProps {
     refreshOnlyInMarketHours?: boolean
     quoteSource?: QuoteSource
     theme?: 'light' | 'dark' | 'auto'
+    colorMode?: ColorMode
     strategyCheckInterval?: number
   }) => void
   onLogout: () => void
@@ -790,6 +793,23 @@ export function SettingsModal({
               <option value="auto">跟随系统</option>
               <option value="light">浅色</option>
               <option value="dark">深色</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="settings-item-row">
+          <div className="settings-item-label">
+            <span>涨跌颜色</span>
+            <div className="settings-item-hint">低调模式使用黑白配色，适合上班摸鱼</div>
+          </div>
+          <div className="settings-item-control">
+            <select
+              className="settings-select"
+              value={config.colorMode || 'normal'}
+              onChange={e => onConfigChange({ colorMode: e.target.value as ColorMode })}
+            >
+              <option value="normal">红涨绿跌</option>
+              <option value="stealth">低调模式</option>
             </select>
           </div>
         </div>
