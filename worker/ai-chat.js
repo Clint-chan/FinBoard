@@ -82,12 +82,27 @@ async function fetchRealtimeData(symbol) {
   }
 }
 
+// 上海指数代码列表（000开头的上海指数）
+const SH_INDEX_CODES = [
+  '000001', '000002', '000003', '000010', '000016', '000017',
+  '000300', '000688', '000905', '000852'
+]
+
+/**
+ * 获取市场代码（上海=1，深圳=0）
+ */
+function getMarketCode(symbol) {
+  if (symbol.startsWith('6')) return 1
+  if (SH_INDEX_CODES.includes(symbol)) return 1
+  return 0
+}
+
 /**
  * 从东方财富获取K线数据
  * 接口: stock_zh_a_hist
  */
 async function fetchKlineData(symbol, period = 'daily', limit = 30) {
-  const marketCode = symbol.startsWith('6') ? 1 : 0
+  const marketCode = getMarketCode(symbol)
   const periodMap = { 'daily': '101', '15': '15', '30': '30', '60': '60' }
   
   const url = 'https://push2his.eastmoney.com/api/qt/stock/kline/get'

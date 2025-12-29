@@ -21,6 +21,12 @@ export interface QuoteData {
   marketCap?: number // 总市值
 }
 
+// 上海指数代码列表（000开头的上海指数）
+const SH_INDEX_CODES = [
+  '000001', '000002', '000003', '000010', '000016', '000017',
+  '000300', '000688', '000905', '000852'
+]
+
 /**
  * 获取市场代码
  * 优先使用 sh/sz 前缀判断，避免 ETF 等特殊代码判断错误
@@ -30,7 +36,9 @@ function getMarketCode(code: string): string {
   if (code.startsWith('sz')) return '0'
   // 回退：根据数字判断
   const symbol = code.replace(/^(sh|sz)/, '')
-  return symbol.startsWith('6') ? '1' : '0'
+  if (symbol.startsWith('6')) return '1'
+  if (SH_INDEX_CODES.includes(symbol)) return '1'
+  return '0'
 }
 
 /**

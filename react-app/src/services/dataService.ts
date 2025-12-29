@@ -7,6 +7,20 @@ export function safeFloat(value: string, fallback = 0): number {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+// 上海指数代码列表（000开头的上海指数）
+const SH_INDEX_CODES = [
+  '000001', // 上证指数
+  '000002', // 上证A股指数
+  '000003', // 上证B股指数
+  '000010', // 上证180
+  '000016', // 上证50
+  '000017', // 新综指
+  '000300', // 沪深300
+  '000688', // 科创50
+  '000905', // 中证500
+  '000852', // 中证1000
+]
+
 // 标准化股票代码
 export function normalizeCode(code: string): string {
   code = code.trim().toLowerCase()
@@ -15,7 +29,11 @@ export function normalizeCode(code: string): string {
     return market.toLowerCase() + num
   }
   if (code.startsWith('sh') || code.startsWith('sz')) return code
-  if (code.startsWith('6') || code === '000300') return 'sh' + code
+  // 6开头是上海股票
+  if (code.startsWith('6')) return 'sh' + code
+  // 上海指数（000开头的特定代码）
+  if (SH_INDEX_CODES.includes(code)) return 'sh' + code
+  // 其他默认深圳
   return 'sz' + code
 }
 

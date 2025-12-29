@@ -52,6 +52,20 @@ export interface ChartData {
   lastAvgPrice: number
 }
 
+// 上海指数代码列表（000开头的上海指数）
+const SH_INDEX_CODES = [
+  '000001', // 上证指数
+  '000002', // 上证A股指数
+  '000003', // 上证B股指数
+  '000010', // 上证180
+  '000016', // 上证50
+  '000017', // 新综指
+  '000300', // 沪深300
+  '000688', // 科创50
+  '000905', // 中证500
+  '000852', // 中证1000
+]
+
 /**
  * 获取市场代码
  * 上海: 6开头股票、sh前缀、指数(000001上证指数等)
@@ -65,7 +79,9 @@ function getMarketCode(code: string): string {
   const symbol = code.replace(/^(sh|sz)/, '')
   // 6开头是上海股票
   if (symbol.startsWith('6')) return '1'
-  // 0/3开头是深圳股票
+  // 上海指数（000开头的特定代码）
+  if (SH_INDEX_CODES.includes(symbol)) return '1'
+  // 其他默认深圳
   return '0'
 }
 

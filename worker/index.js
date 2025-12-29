@@ -2189,9 +2189,24 @@ ${stockInfo}${timeInfo}`
   return ''
 }
 
+// 上海指数代码列表（000开头的上海指数）
+const SH_INDEX_CODES = [
+  '000001', '000002', '000003', '000010', '000016', '000017',
+  '000300', '000688', '000905', '000852'
+]
+
+/**
+ * 获取市场代码（上海=1，深圳=0）
+ */
+function getMarketCode(symbol) {
+  if (symbol.startsWith('6')) return 1
+  if (SH_INDEX_CODES.includes(symbol)) return 1
+  return 0
+}
+
 async function fetchRealtimeData(symbol) {
   // 使用单股票查询接口
-  const marketCode = symbol.startsWith('6') ? 1 : 0
+  const marketCode = getMarketCode(symbol)
   const url = 'https://push2.eastmoney.com/api/qt/stock/get'
   const params = new URLSearchParams({
     ut: 'fa5fd1943c7b386f172d6893dbfba10b',
@@ -2223,7 +2238,7 @@ async function fetchRealtimeData(symbol) {
 }
 
 async function fetchKlineData(symbol, period = '101', limit = 30) {
-  const marketCode = symbol.startsWith('6') ? 1 : 0
+  const marketCode = getMarketCode(symbol)
   const url = 'https://push2his.eastmoney.com/api/qt/stock/kline/get'
   const params = new URLSearchParams({
     fields1: 'f1,f2,f3,f4,f5,f6',
@@ -2248,7 +2263,7 @@ async function fetchKlineData(symbol, period = '101', limit = 30) {
 
 // 获取分时数据
 async function fetchIntradayData(symbol) {
-  const marketCode = symbol.startsWith('6') ? 1 : 0
+  const marketCode = getMarketCode(symbol)
   const url = 'https://push2.eastmoney.com/api/qt/stock/trends2/get'
   const params = new URLSearchParams({
     fields1: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13',
@@ -2318,7 +2333,7 @@ function calculateIndicators(klines) {
 
 // 获取资金流向数据
 async function fetchFundFlowData(symbol) {
-  const marketCode = symbol.startsWith('6') ? 1 : 0
+  const marketCode = getMarketCode(symbol)
   const url = 'https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get'
   const params = new URLSearchParams({
     lmt: '5',  // 最近5天

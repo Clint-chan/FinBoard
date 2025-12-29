@@ -37,12 +37,26 @@ export interface StockDetailInfo {
   volumeRatio?: number     // 量比
 }
 
+// 上海指数代码列表（000开头的上海指数）
+const SH_INDEX_CODES = [
+  '000001', '000002', '000003', '000010', '000016', '000017',
+  '000300', '000688', '000905', '000852'
+]
+
 /**
  * 获取股票详细信息 - 东方财富接口
  */
 export async function fetchStockDetailInfo(code: string): Promise<StockDetailInfo> {
   const symbol = code.replace(/^(sh|sz)/, '')
-  const marketCode = symbol.startsWith('6') ? '1' : '0'
+  // 优先使用前缀判断，回退时考虑上海指数
+  let marketCode = '0'
+  if (code.startsWith('sh')) {
+    marketCode = '1'
+  } else if (code.startsWith('sz')) {
+    marketCode = '0'
+  } else if (symbol.startsWith('6') || SH_INDEX_CODES.includes(symbol)) {
+    marketCode = '1'
+  }
   
   const url = 'https://push2.eastmoney.com/api/qt/stock/get'
   const params = new URLSearchParams({
