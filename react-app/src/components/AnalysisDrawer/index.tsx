@@ -308,11 +308,14 @@ export function AnalysisDrawer({
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current)
     }
+    // 先保存位置信息，因为 setTimeout 回调中 e.currentTarget 会变成 null
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const posX = rect.right + 8
+    const posY = rect.top
     // 延迟显示，避免快速划过时闪烁
     hoverTimeoutRef.current = setTimeout(() => {
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
       setHoverChartCode(code)
-      setHoverChartPos({ x: rect.right + 8, y: rect.top })
+      setHoverChartPos({ x: posX, y: posY })
     }, 200)
   }, [])
 
