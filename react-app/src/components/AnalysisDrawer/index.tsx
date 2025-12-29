@@ -302,27 +302,43 @@ export function AnalysisDrawer({
     }
   }, [])
 
+  // 悬停关闭延迟定时器
+  const hoverLeaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   // 股票列表项悬停显示图表
   const handleStockHover = useCallback((code: string, e: React.MouseEvent) => {
-    // 清除之前的定时器
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current)
-    }
-    // 先保存位置信息，因为 setTimeout 回调中 e.currentTarget 会变成 null
+    // 清除所有定时器
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+    if (hoverLeaveTimeoutRef.current) clearTimeout(hoverLeaveTimeoutRef.current)
+    
+    // 先保存位置信息
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const posX = rect.right + 8
+    const posX = rect.right  // 紧贴列表，无间距
     const posY = rect.top
+    
     // 延迟显示，避免快速划过时闪烁
     hoverTimeoutRef.current = setTimeout(() => {
       setHoverChartCode(code)
       setHoverChartPos({ x: posX, y: posY })
-    }, 200)
+    }, 150)
   }, [])
 
   const handleStockLeave = useCallback(() => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current)
-    }
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+    // 延迟关闭，给用户时间移动到弹窗上
+    hoverLeaveTimeoutRef.current = setTimeout(() => {
+      setHoverChartCode(null)
+      setHoverChartPos(null)
+    }, 100)
+  }, [])
+
+  // 鼠标进入弹窗时取消关闭
+  const handleChartEnter = useCallback(() => {
+    if (hoverLeaveTimeoutRef.current) clearTimeout(hoverLeaveTimeoutRef.current)
+  }, [])
+
+  // 鼠标离开弹窗时关闭
+  const handleChartLeave = useCallback(() => {
     setHoverChartCode(null)
     setHoverChartPos(null)
   }, [])
@@ -473,10 +489,8 @@ export function AnalysisDrawer({
                 left: hoverChartPos.x, 
                 top: Math.min(hoverChartPos.y, window.innerHeight - 320)
               }}
-              onMouseEnter={() => {
-                if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
-              }}
-              onMouseLeave={handleStockLeave}
+              onMouseEnter={handleChartEnter}
+              onMouseLeave={handleChartLeave}
             >
               <SuperChart
                 key={`hover-${hoverChartCode}`}
