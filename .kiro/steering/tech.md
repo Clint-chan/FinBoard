@@ -32,9 +32,6 @@ npx wrangler pages deploy . --project-name=stock-board
 # Deploy Worker API (from worker/ directory)
 cd worker
 npx wrangler deploy
-
-# Create KV namespace for cloud sync
-npx wrangler kv namespace create CONFIG_KV
 ```
 
 ## Code Style
