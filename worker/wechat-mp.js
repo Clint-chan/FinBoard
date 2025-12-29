@@ -96,6 +96,19 @@ function buildArticleDigest(reportContent) {
     .substring(0, 120)
 }
 
+/**
+ * 将 class 属性转换为内联 style（微信公众号兼容）
+ * 处理 text-bear-text（绿色/跌）和 text-bull-text（红色/涨）
+ */
+function convertClassToStyle(html) {
+  if (!html) return ''
+  return html
+    .replace(/<span[^>]*class="[^"]*text-bear-text[^"]*"[^>]*>/g, '<span style="color:#059669;font-weight:600;">')
+    .replace(/<span[^>]*class="[^"]*text-bull-text[^"]*"[^>]*>/g, '<span style="color:#dc2626;font-weight:600;">')
+    .replace(/class="[^"]*"/g, '')
+    .replace(/class='[^']*'/g, '')
+}
+
 // SVG 图标（Base64 内联，微信公众号兼容）
 const ICONS = {
   clipboard: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>`,
@@ -215,13 +228,7 @@ function buildPredictionSection(prediction) {
     <!-- 核心逻辑 -->
     <section style="padding: 14px 16px; border-bottom: 1px solid #e5e7eb;">
       <section style="font-size: 14px; line-height: 1.85; color: #374151; text-indent: 0; margin: 0; padding: 0;">
-        ${(prediction.summary || '')
-          .trim()
-          .replace(/^[\s\u3000]+/, '')
-          .replace(/<span[^>]*class="[^"]*text-bear-text[^"]*"[^>]*>/g, '<span style="color:#059669;font-weight:600;">')
-          .replace(/<span[^>]*class="[^"]*text-bull-text[^"]*"[^>]*>/g, '<span style="color:#dc2626;font-weight:600;">')
-          .replace(/class="[^"]*"/g, '')
-          .replace(/class='[^']*'/g, '')}
+        ${convertClassToStyle((prediction.summary || '').trim().replace(/^[\s\u3000]+/, ''))}
       </section>
     </section>
     
@@ -231,11 +238,11 @@ function buildPredictionSection(prediction) {
       <section style="display: flex; gap: 12px;">
         <section style="flex: 1; background: #ffffff; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0;">
           <section style="font-size: 12px; font-weight: 700; color: #1a1a1a; margin-bottom: 6px;">北向资金/外资</section>
-          <section style="font-size: 13px; color: #64748b; line-height: 1.6;">${prediction.northbound || '--'}</section>
+          <section style="font-size: 13px; color: #64748b; line-height: 1.6;">${convertClassToStyle(prediction.northbound) || '--'}</section>
         </section>
         <section style="flex: 1; background: #ffffff; border-radius: 8px; padding: 12px; border: 1px solid #e2e8f0;">
           <section style="font-size: 12px; font-weight: 700; color: #1a1a1a; margin-bottom: 6px;">成交量预期</section>
-          <section style="font-size: 13px; color: #64748b; line-height: 1.6;">${prediction.volume || '--'}</section>
+          <section style="font-size: 13px; color: #64748b; line-height: 1.6;">${convertClassToStyle(prediction.volume) || '--'}</section>
         </section>
       </section>
     </section>
