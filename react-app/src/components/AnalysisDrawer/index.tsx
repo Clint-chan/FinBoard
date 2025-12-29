@@ -75,6 +75,11 @@ export function AnalysisDrawer({
   // 图表和新闻是否渲染（用于动画后延迟卸载）
   const [chartVisible, setChartVisible] = useState(true)
   
+  // 悬停显示图表的股票代码
+  const [hoverChartCode, setHoverChartCode] = useState<string | null>(null)
+  const [hoverChartPos, setHoverChartPos] = useState<{ x: number; y: number } | null>(null)
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  
   // 处理展开/收起切换
   const handleToggleExpand = useCallback(() => {
     if (chatExpanded) {
@@ -297,6 +302,28 @@ export function AnalysisDrawer({
     }
   }, [])
 
+  // 股票列表项悬停显示图表
+  const handleStockHover = useCallback((code: string, e: React.MouseEvent) => {
+    // 清除之前的定时器
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current)
+    }
+    // 延迟显示，避免快速划过时闪烁
+    hoverTimeoutRef.current = setTimeout(() => {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+      setHoverChartCode(code)
+      setHoverChartPos({ x: rect.right + 8, y: rect.top })
+    }, 200)
+  }, [])
+
+  const handleStockLeave = useCallback(() => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current)
+    }
+    setHoverChartCode(null)
+    setHoverChartPos(null)
+  }, [])
+
   // 拖拽调整宽度
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -359,13 +386,15 @@ export function AnalysisDrawer({
   return (
     <div className={`analysis-drawer ${open ? 'open' : ''} ${sidebarExpanded ? 'sidebar-expanded' : ''}`}>
       <div className="drawer-content">
-        {/* 关闭按钮 */}
-        <button className="close-drawer-btn" onClick={onClose} title="关闭">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
-        </button>
+        {/* 关闭按钮 - 展开时隐藏，避免遮挡配额 */}
+        {!chatExpanded && (
+          <button className="close-drawer-btn" onClick={onClose} title="关闭">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        )}
 
         {/* 左侧自选股列表 */}
         <div className="stock-sidebar">
@@ -413,6 +442,8 @@ export function AnalysisDrawer({
                   key={code}
                   className={`stock-item ${isActive ? 'selected' : ''}`}
                   onClick={() => switchStock(code)}
+                  onMouseEnter={(e) => handleStockHover(code, e)}
+                  onMouseLeave={handleStockLeave}
                 >
                   <div className="s-left">
                     <div className="s-name">{d.name || '--'}</div>
@@ -430,6 +461,32 @@ export function AnalysisDrawer({
               )
             })}
           </div>
+          
+          {/* 悬停图表弹窗 */}
+          {hoverChartCode && hoverChartPos && (
+            <div 
+              className="stock-hover-chart"
+              style={{ 
+                left: hoverChartPos.x, 
+                top: Math.min(hoverChartPos.y, window.innerHeight - 320)
+              }}
+              onMouseEnter={() => {
+                if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current)
+              }}
+              onMouseLeave={handleStockLeave}
+            >
+              <SuperChart
+                key={`hover-${hoverChartCode}`}
+                code={hoverChartCode}
+                width={400}
+                isDark={isDark}
+                defaultTab="daily"
+                initialName={stockData[hoverChartCode]?.name}
+                initialPrice={stockData[hoverChartCode]?.price}
+                initialPreClose={stockData[hoverChartCode]?.preClose}
+              />
+            </div>
+          )}
         </div>
 
         {/* 中间图表区域 - 展开时滑出 */}

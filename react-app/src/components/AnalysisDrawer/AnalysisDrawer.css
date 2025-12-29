@@ -1340,3 +1340,30 @@
 [data-theme="dark"] .analysis-drawer .bubble tr:hover td {
   background: #1e293b;
 }
+
+
+/* 悬停图表弹窗 */
+.stock-hover-chart {
+  position: fixed;
+  z-index: 2100;
+  background: var(--bg-surface);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  animation: hoverChartIn 0.2s ease;
+}
+
+@keyframes hoverChartIn {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+[data-theme="dark"] .stock-hover-chart {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
