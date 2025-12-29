@@ -377,17 +377,8 @@ export function AnalysisDrawer({
     }
   }, [chatHistory, currentCode])
 
-  // ESC 关闭
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && open) {
-        e.stopPropagation()
-        onClose()
-      }
-    }
-    document.addEventListener('keydown', handleEsc)
-    return () => document.removeEventListener('keydown', handleEsc)
-  }, [open, onClose])
+  // ESC 键不再由 AnalysisDrawer 处理，统一由 App.tsx 的 handleEscape 处理
+  // 这样按 ESC 会触发老板键，而不是关闭 Insight
 
   if (!open) return null
 

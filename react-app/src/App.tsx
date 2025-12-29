@@ -613,7 +613,8 @@ function App() {
 
   // ESC 键处理
   const handleEscape = useCallback(() => {
-    // 优先级：Fintell > 设置弹窗 > 弹窗 > 分析大屏 > 移动端行情详情 > 老板键
+    // 优先级：Fintell > 设置弹窗 > 弹窗 > 移动端行情详情 > 老板键
+    // 注意：Insight 界面（analysisDrawer）按 ESC 直接触发老板键，不关闭 Insight
     if (fintellOpen) {
       setFintellOpen(false)
     } else if (settingsModalOpen) {
@@ -626,15 +627,14 @@ function App() {
       setAlertModal({ open: false, code: null })
     } else if (costModal.open) {
       setCostModal({ open: false, code: null })
-    } else if (analysisDrawer.open) {
-      setAnalysisDrawer({ open: false, code: '' })
     } else if (isMobile && mobileStockCode) {
       setMobileStockCode('')
       setMobileTab('watchlist')
     } else {
+      // Insight 界面打开时，ESC 也触发老板键
       setBossMode(prev => !prev)
     }
-  }, [fintellOpen, settingsModalOpen, authModalOpen, addStockOpen, alertModal.open, costModal.open, analysisDrawer.open, isMobile, mobileStockCode])
+  }, [fintellOpen, settingsModalOpen, authModalOpen, addStockOpen, alertModal.open, costModal.open, isMobile, mobileStockCode])
 
   // 处理登录成功
   const handleAuthSuccess = useCallback((token: string, username: string, nickname?: string | null) => {
