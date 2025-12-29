@@ -6,8 +6,46 @@ import { SuperChart } from '@/components/SuperChart'
 import { StockNews } from '@/components/StockNews'
 import { ChatMessage as ChatMessageComponent } from './ChatMessage'
 import type { StockData, StockCategory } from '@/types'
+import type { ChartConfig } from '@/components/SuperChart/types'
 import { type AIMode, AI_MODES, type ChatMessage } from './types'
 import './AnalysisDrawer.css'
+
+// 图表配置缓存 key（与 ChartTooltip 共享）
+const CHART_CONFIG_CACHE_KEY = 'market_board_tooltip_config'
+
+// 全局图表配置 - 所有股票共享同一个配置（周期、副图指标等）
+let globalChartConfig: ChartConfig = {
+  tab: 'intraday',
+  subIndicators: ['vol'],
+  showBoll: false
+}
+
+// 从 localStorage 加载全局配置
+function loadGlobalConfig(): void {
+  try {
+    const cached = localStorage.getItem(CHART_CONFIG_CACHE_KEY)
+    if (cached) {
+      const config = JSON.parse(cached)
+      if (config.tab && config.subIndicators) {
+        globalChartConfig = config
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load chart config:', e)
+  }
+}
+
+// 保存全局配置到 localStorage
+function saveGlobalConfig(): void {
+  try {
+    localStorage.setItem(CHART_CONFIG_CACHE_KEY, JSON.stringify(globalChartConfig))
+  } catch (e) {
+    console.warn('Failed to save chart config:', e)
+  }
+}
+
+// 初始化加载配置
+loadGlobalConfig()
 
 interface AnalysisDrawerProps {
   open: boolean
@@ -486,12 +524,18 @@ export function AnalysisDrawer({
               <SuperChart
                 key={`hover-${hoverChartCode}`}
                 code={hoverChartCode}
-                width={400}
+                width={460}
                 isDark={isDark}
-                defaultTab="daily"
+                defaultTab={globalChartConfig.tab}
+                defaultSubIndicators={globalChartConfig.subIndicators}
+                showBoll={globalChartConfig.showBoll}
                 initialName={stockData[hoverChartCode]?.name}
                 initialPrice={stockData[hoverChartCode]?.price}
                 initialPreClose={stockData[hoverChartCode]?.preClose}
+                onConfigChange={(config) => {
+                  globalChartConfig = config
+                  saveGlobalConfig()
+                }}
               />
             </div>
           )}
