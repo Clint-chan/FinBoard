@@ -143,34 +143,6 @@
   outline: none;
 }
 
-/* 全局 select 下拉框样式 */
-select {
-  font-family: inherit;
-  font-size: inherit;
-  color: inherit;
-}
-
-/* option 样式（有限支持，主要靠浏览器渲染） */
-select option {
-  padding: 8px 12px;
-  background: var(--bg-surface);
-  color: var(--text-primary);
-}
-
-select option:checked {
-  background: var(--bg-hover);
-}
-
-/* 深色模式下的 option */
-[data-theme="dark"] select option {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-}
-
-[data-theme="dark"] select option:checked {
-  background: var(--bg-hover);
-}
-
 body {
   /* Inter 用于英文和数字，Noto Sans SC 用于中文 */
   font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
