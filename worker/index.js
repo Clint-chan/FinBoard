@@ -1815,16 +1815,16 @@ export default {
   },
   
   // 定时任务
-  // - 6:00 (UTC 22:00): 生成日报 + 邮件 + 微信草稿
-  // - 7:30 (UTC 23:30): 检查微信是否已发布，未发布则自动发布
+  // - 7:00 (UTC 23:00): 生成日报 + 邮件 + 微信草稿
+  // - 9:00 (UTC 1:00): 检查微信是否已发布，未发布则自动发布
   async scheduled(event, env, ctx) {
     console.log('Cron triggered:', event.cron, new Date().toISOString());
     
-    if (event.cron === '0 22 * * *') {
-      // 6:00 - 生成日报，微信只创建草稿不发布
+    if (event.cron === '0 23 * * *') {
+      // 7:00 - 生成日报，微信只创建草稿不发布
       ctx.waitUntil(generateDailyReport(env, true, false)); // isScheduled=true, autoPublishWechat=false
-    } else if (event.cron === '30 23 * * *') {
-      // 7:30 - 检查并发布微信
+    } else if (event.cron === '0 1 * * *') {
+      // 9:00 - 检查并发布微信
       ctx.waitUntil(checkAndPublishWechat(env));
     }
   }
@@ -2917,7 +2917,7 @@ async function generateDailyReport(env, isScheduled = false, autoPublishWechat =
 
 /**
  * 检查今日微信是否已发布，未发布则自动发布
- * 在 7:30 触发，给用户 1.5 小时手动审核和发布的时间
+ * 在 9:00 触发，给用户 2 小时手动审核和发布的时间
  */
 async function checkAndPublishWechat(env) {
   console.log('检查微信公众号发布状态...');
