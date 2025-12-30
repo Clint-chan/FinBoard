@@ -86,6 +86,33 @@ export function useQuotes(
     refresh(true)
   }, [])
 
+  // 监听 codes 变化，检测新增股票并立即获取数据
+  const prevCodesRef = useRef<string[]>(codes)
+  useEffect(() => {
+    const prevCodes = prevCodesRef.current
+    const newCodes = codes.filter(code => !prevCodes.includes(code))
+    prevCodesRef.current = codes
+    
+    // 如果有新增股票，立即获取其数据
+    if (newCodes.length > 0) {
+      const fetchNewStocks = async () => {
+        try {
+          const normalizedCodes = newCodes.map(c => normalizeCode(c))
+          const data = await fetchQuotes(normalizedCodes, source)
+          setStockData(prev => ({ ...prev, ...data }))
+          // 更新缓存
+          setStockData(prev => {
+            saveCache(prev)
+            return prev
+          })
+        } catch (error) {
+          console.error('Failed to fetch new stock quotes:', error)
+        }
+      }
+      fetchNewStocks()
+    }
+  }, [codes, source])
+
   // 定时刷新 - 使用用户配置的间隔
   useEffect(() => {
     if (timerRef.current) {
