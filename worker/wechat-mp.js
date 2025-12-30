@@ -555,16 +555,20 @@ export async function publishDraft(accessToken, date, env) {
 
 /**
  * 发布日报到微信公众号
+ * 支持从数据库读取配置
  */
 export async function publishToWechatMP(reportContent, date, env, coverImageUrl = null, reportImageUrl = null, autoPublish = true) {
   console.log('开始发布日报到微信公众号...')
   
-  if (!env.WECHAT_MP_APPID || !env.WECHAT_MP_SECRET) {
+  // 获取配置（优先数据库，其次环境变量）
+  const wechatConfig = await getWechatConfig(env)
+  
+  if (!wechatConfig.appId || !wechatConfig.secret) {
     return { success: false, reason: '未配置微信公众号' }
   }
   
   try {
-    const accessToken = await getAccessToken(env)
+    const accessToken = await getAccessTokenWithConfig(wechatConfig, env)
     console.log('获取 access_token 成功')
     
     // 上传封面图
@@ -591,13 +595,6 @@ export async function publishToWechatMP(reportContent, date, env, coverImageUrl 
       content_source_url: `https://board.newestgpt.com/?page=daily&date=${date}`,
       need_open_comment: 1,
       only_fans_can_comment: 0,
-      // 原创声明
-      // 0: 非原创, 1: 原创
-      // 注意：需要公众号已开通原创功能
-      // is_original: 1,  // 暂时注释，需要确认公众号是否有原创权限
-      // 文章类型声明
-      // 投资观点声明：article_type = 1, article_type_info = "investment"
-      // 注意：这些字段可能需要特定权限
     }
     
     // 如果有封面图
@@ -631,12 +628,97 @@ export async function publishToWechatMP(reportContent, date, env, coverImageUrl 
 }
 
 /**
- * 检查配置状态
+ * 检查配置状态（支持环境变量和数据库配置）
  */
-export function checkWechatMPConfig(env) {
+export function checkWechatMPConfig(env, dbConfig = null) {
+  // 优先使用数据库配置，其次使用环境变量
+  const appId = dbConfig?.appId || env.WECHAT_MP_APPID
+  const secret = dbConfig?.secret || env.WECHAT_MP_SECRET
+  
   return {
-    configured: !!(env.WECHAT_MP_APPID && env.WECHAT_MP_SECRET),
-    hasAppId: !!env.WECHAT_MP_APPID,
-    hasSecret: !!env.WECHAT_MP_SECRET
+    configured: !!(appId && secret),
+    hasAppId: !!appId,
+    hasSecret: !!secret,
+    source: dbConfig?.appId ? 'database' : 'env'
   }
+}
+
+/**
+ * 获取微信配置（从数据库或环境变量）
+ */
+export async function getWechatConfig(env) {
+  let dbConfig = null
+  
+  if (env.DB) {
+    try {
+      const appIdRow = await env.DB.prepare(
+        'SELECT config_value FROM system_configs WHERE config_key = ?'
+      ).bind('wechat_appid').first()
+      
+      const secretRow = await env.DB.prepare(
+        'SELECT config_value FROM system_configs WHERE config_key = ?'
+      ).bind('wechat_secret').first()
+      
+      const autoPublishRow = await env.DB.prepare(
+        'SELECT config_value FROM system_configs WHERE config_key = ?'
+      ).bind('wechat_auto_publish').first()
+      
+      const createDraftRow = await env.DB.prepare(
+        'SELECT config_value FROM system_configs WHERE config_key = ?'
+      ).bind('wechat_create_draft').first()
+      
+      if (appIdRow || secretRow) {
+        dbConfig = {
+          appId: appIdRow?.config_value?.replace(/"/g, '') || '',
+          secret: secretRow?.config_value?.replace(/"/g, '') || '',
+          autoPublish: autoPublishRow?.config_value === 'true',
+          createDraft: createDraftRow?.config_value !== 'false' // 默认 true
+        }
+      }
+    } catch (e) {
+      console.error('读取微信数据库配置失败:', e)
+    }
+  }
+  
+  // 合并配置：数据库优先，环境变量兜底
+  return {
+    appId: dbConfig?.appId || env.WECHAT_MP_APPID || '',
+    secret: dbConfig?.secret || env.WECHAT_MP_SECRET || '',
+    autoPublish: dbConfig?.autoPublish ?? false,
+    createDraft: dbConfig?.createDraft ?? true,
+    source: dbConfig?.appId ? 'database' : 'env'
+  }
+}
+
+/**
+ * 使用配置获取 Access Token
+ */
+export async function getAccessTokenWithConfig(config, env) {
+  if (!config.appId || !config.secret) {
+    throw new Error('微信公众号配置缺失')
+  }
+
+  if (env.CONFIG_KV) {
+    const cached = await env.CONFIG_KV.get(ACCESS_TOKEN_KEY, 'json')
+    if (cached && cached.expires_at > Date.now() + 600000) {
+      return cached.access_token
+    }
+  }
+
+  const url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${config.appId}&secret=${config.secret}`
+  const response = await fetch(url)
+  const data = await response.json()
+
+  if (data.errcode) {
+    throw new Error(`获取 access_token 失败: ${data.errcode} ${data.errmsg}`)
+  }
+
+  if (env.CONFIG_KV) {
+    await env.CONFIG_KV.put(ACCESS_TOKEN_KEY, JSON.stringify({
+      access_token: data.access_token,
+      expires_at: Date.now() + data.expires_in * 1000
+    }), { expirationTtl: data.expires_in })
+  }
+
+  return data.access_token
 }

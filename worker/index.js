@@ -1808,6 +1808,132 @@ export default {
         });
       }
 
+      // GET /api/admin/system-config - 获取系统配置（管理员）
+      if (path === '/api/admin/system-config' && request.method === 'GET') {
+        const username = await verifyToken(request, env);
+        if (!username || !ADMIN_USERS.includes(username)) {
+          return jsonResponse({ error: '无权限' }, 403);
+        }
+        
+        if (!env.DB) {
+          return jsonResponse({ error: '数据库未配置' }, 500);
+        }
+        
+        await initDB(env.DB);
+        
+        // 获取所有系统配置
+        const configs = await env.DB.prepare(`
+          SELECT config_key, config_value FROM system_configs
+        `).all();
+        
+        const configMap = {};
+        for (const row of (configs.results || [])) {
+          try {
+            configMap[row.config_key] = JSON.parse(row.config_value);
+          } catch {
+            configMap[row.config_key] = row.config_value;
+          }
+        }
+        
+        // 返回配置，包含默认值
+        return jsonResponse({
+          wechat: {
+            appId: configMap.wechat_appid || '',
+            appSecret: configMap.wechat_secret ? '******' : '', // 不返回明文
+            hasSecret: !!configMap.wechat_secret,
+            autoPublish: configMap.wechat_auto_publish ?? false, // 是否自动发布（需要认证公众号）
+            createDraft: configMap.wechat_create_draft ?? true,  // 是否创建草稿
+          },
+          schedule: {
+            reportHour: configMap.schedule_report_hour ?? 7,     // 日报生成时间（北京时间）
+            emailEnabled: configMap.schedule_email_enabled ?? true,
+            wechatCheckHour: configMap.schedule_wechat_check_hour ?? 9, // 微信检查发布时间
+          }
+        });
+      }
+
+      // POST /api/admin/system-config - 保存系统配置（管理员）
+      if (path === '/api/admin/system-config' && request.method === 'POST') {
+        const username = await verifyToken(request, env);
+        if (!username || !ADMIN_USERS.includes(username)) {
+          return jsonResponse({ error: '无权限' }, 403);
+        }
+        
+        if (!env.DB) {
+          return jsonResponse({ error: '数据库未配置' }, 500);
+        }
+        
+        await initDB(env.DB);
+        
+        const body = await request.json();
+        const { key, value } = body;
+        
+        if (!key) {
+          return jsonResponse({ error: '缺少配置项' }, 400);
+        }
+        
+        // 允许的配置项白名单
+        const allowedKeys = [
+          'wechat_appid', 'wechat_secret', 'wechat_auto_publish', 'wechat_create_draft',
+          'schedule_report_hour', 'schedule_email_enabled', 'schedule_wechat_check_hour'
+        ];
+        
+        if (!allowedKeys.includes(key)) {
+          return jsonResponse({ error: '不支持的配置项' }, 400);
+        }
+        
+        // 保存配置
+        const valueStr = typeof value === 'string' ? value : JSON.stringify(value);
+        await env.DB.prepare(`
+          INSERT INTO system_configs (config_key, config_value, updated_at)
+          VALUES (?, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(config_key) DO UPDATE SET config_value = ?, updated_at = CURRENT_TIMESTAMP
+        `).bind(key, valueStr, valueStr).run();
+        
+        return jsonResponse({ success: true, key, message: '配置已保存' });
+      }
+
+      // POST /api/admin/system-config/batch - 批量保存系统配置（管理员）
+      if (path === '/api/admin/system-config/batch' && request.method === 'POST') {
+        const username = await verifyToken(request, env);
+        if (!username || !ADMIN_USERS.includes(username)) {
+          return jsonResponse({ error: '无权限' }, 403);
+        }
+        
+        if (!env.DB) {
+          return jsonResponse({ error: '数据库未配置' }, 500);
+        }
+        
+        await initDB(env.DB);
+        
+        const body = await request.json();
+        const { configs } = body; // { key1: value1, key2: value2, ... }
+        
+        if (!configs || typeof configs !== 'object') {
+          return jsonResponse({ error: '无效的配置数据' }, 400);
+        }
+        
+        const allowedKeys = [
+          'wechat_appid', 'wechat_secret', 'wechat_auto_publish', 'wechat_create_draft',
+          'schedule_report_hour', 'schedule_email_enabled', 'schedule_wechat_check_hour'
+        ];
+        
+        let savedCount = 0;
+        for (const [key, value] of Object.entries(configs)) {
+          if (!allowedKeys.includes(key)) continue;
+          
+          const valueStr = typeof value === 'string' ? value : JSON.stringify(value);
+          await env.DB.prepare(`
+            INSERT INTO system_configs (config_key, config_value, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(config_key) DO UPDATE SET config_value = ?, updated_at = CURRENT_TIMESTAMP
+          `).bind(key, valueStr, valueStr).run();
+          savedCount++;
+        }
+        
+        return jsonResponse({ success: true, savedCount, message: `已保存 ${savedCount} 项配置` });
+      }
+
       return jsonResponse({ error: 'Not found' }, 404);
     } catch (err) {
       return jsonResponse({ error: err.message }, 500);
@@ -2891,19 +3017,27 @@ async function generateDailyReport(env, isScheduled = false, autoPublishWechat =
     console.error('获取订阅用户失败:', e);
   }
   
-  // 发布到微信公众号（根据 autoPublishWechat 决定是否直接发布）
+  // 发布到微信公众号（根据数据库配置决定是否创建草稿/发布）
   let wechatResult = null;
   try {
-    const { publishToWechatMP, checkWechatMPConfig } = await import('./wechat-mp.js');
-    const wechatConfig = checkWechatMPConfig(env);
+    const { publishToWechatMP, getWechatConfig } = await import('./wechat-mp.js');
+    const wechatConfig = await getWechatConfig(env);
     
-    if (wechatConfig.configured) {
-      // 封面图：Market Tone 卡片截图
-      const coverImageUrl = generateCoverScreenshotUrl(today, env);
-      // 日报截图（放在文章底部）
-      const reportImageUrl = generateDailyReportScreenshotUrl(today, env);
-      wechatResult = await publishToWechatMP(reportJson, today, env, coverImageUrl, reportImageUrl, autoPublishWechat);
-      console.log('微信公众号结果:', wechatResult);
+    if (wechatConfig.appId && wechatConfig.secret) {
+      // 检查是否启用创建草稿
+      if (!wechatConfig.createDraft) {
+        console.log('微信草稿创建已禁用，跳过');
+        wechatResult = { success: true, skipped: true, reason: '草稿创建已禁用' };
+      } else {
+        // 封面图：Market Tone 卡片截图
+        const coverImageUrl = generateCoverScreenshotUrl(today, env);
+        // 日报截图（放在文章底部）
+        const reportImageUrl = generateDailyReportScreenshotUrl(today, env);
+        // 使用数据库配置的 autoPublish，如果是定时任务则强制不自动发布（留给 9 点检查）
+        const shouldAutoPublish = isScheduled ? false : (autoPublishWechat && wechatConfig.autoPublish);
+        wechatResult = await publishToWechatMP(reportJson, today, env, coverImageUrl, reportImageUrl, shouldAutoPublish);
+        console.log('微信公众号结果:', wechatResult);
+      }
     } else {
       console.log('微信公众号未配置，跳过发布');
     }
@@ -2918,20 +3052,27 @@ async function generateDailyReport(env, isScheduled = false, autoPublishWechat =
 /**
  * 检查今日微信是否已发布，未发布则自动发布
  * 在 9:00 触发，给用户 2 小时手动审核和发布的时间
+ * 只有当数据库配置 wechat_auto_publish = true 时才会自动发布
  */
 async function checkAndPublishWechat(env) {
   console.log('检查微信公众号发布状态...');
   
-  const { checkWechatMPConfig, getAccessToken, checkTodayPublished, publishDraft } = await import('./wechat-mp.js');
-  const wechatConfig = checkWechatMPConfig(env);
+  const { getWechatConfig, getAccessTokenWithConfig, checkTodayPublished, publishDraft } = await import('./wechat-mp.js');
+  const wechatConfig = await getWechatConfig(env);
   
-  if (!wechatConfig.configured) {
+  if (!wechatConfig.appId || !wechatConfig.secret) {
     console.log('微信公众号未配置，跳过检查');
     return { success: false, reason: '未配置' };
   }
   
+  // 检查是否启用自动发布
+  if (!wechatConfig.autoPublish) {
+    console.log('微信自动发布已禁用，跳过');
+    return { success: true, skipped: true, reason: '自动发布已禁用' };
+  }
+  
   try {
-    const accessToken = await getAccessToken(env);
+    const accessToken = await getAccessTokenWithConfig(wechatConfig, env);
     
     // 检查今天是否已发布
     const isPublished = await checkTodayPublished(accessToken);

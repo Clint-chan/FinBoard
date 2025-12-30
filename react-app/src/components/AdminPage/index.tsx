@@ -19,6 +19,21 @@ interface DailyReportInfo {
   created_at: string
 }
 
+interface SystemConfig {
+  wechat: {
+    appId: string
+    appSecret: string
+    hasSecret: boolean
+    autoPublish: boolean
+    createDraft: boolean
+  }
+  schedule: {
+    reportHour: number
+    emailEnabled: boolean
+    wechatCheckHour: number
+  }
+}
+
 const SYNC_API = 'https://market-api.newestgpt.com'
 
 // 获取存储的 token
@@ -71,6 +86,15 @@ export function AdminPage() {
   // 微信公众号
   const [wechatConfig, setWechatConfig] = useState<{ configured: boolean; hasAppId: boolean; hasSecret: boolean } | null>(null)
   const [testingWechat, setTestingWechat] = useState(false)
+  
+  // 系统配置
+  const [systemConfig, setSystemConfig] = useState<SystemConfig>({
+    wechat: { appId: '', appSecret: '', hasSecret: false, autoPublish: false, createDraft: true },
+    schedule: { reportHour: 7, emailEnabled: true, wechatCheckHour: 9 }
+  })
+  const [systemConfigLoading, setSystemConfigLoading] = useState(false)
+  const [systemConfigSaving, setSystemConfigSaving] = useState(false)
+  const [wechatSecretInput, setWechatSecretInput] = useState('')
 
   // 加载用户列表
   const loadUsers = useCallback(async () => {
@@ -127,6 +151,7 @@ export function AdminPage() {
     loadAIConfig()
     loadDailyReports()
     loadWechatConfig()
+    loadSystemConfig()
   }, [loadUsers, loadAIConfig])
   
   // 加载微信公众号配置状态
@@ -142,6 +167,71 @@ export function AdminPage() {
       }
     } catch (err) {
       console.error('Failed to load wechat config:', err)
+    }
+  }
+  
+  // 加载系统配置
+  const loadSystemConfig = async () => {
+    if (!token) return
+    setSystemConfigLoading(true)
+    try {
+      const res = await fetch(`${SYNC_API}/api/admin/system-config`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setSystemConfig(data)
+      }
+    } catch (err) {
+      console.error('Failed to load system config:', err)
+    } finally {
+      setSystemConfigLoading(false)
+    }
+  }
+  
+  // 保存系统配置
+  const saveSystemConfig = async () => {
+    if (!token) return
+    setSystemConfigSaving(true)
+    setError('')
+    
+    try {
+      const configs: Record<string, string | boolean | number> = {
+        wechat_appid: systemConfig.wechat.appId,
+        wechat_auto_publish: systemConfig.wechat.autoPublish,
+        wechat_create_draft: systemConfig.wechat.createDraft,
+        schedule_report_hour: systemConfig.schedule.reportHour,
+        schedule_email_enabled: systemConfig.schedule.emailEnabled,
+        schedule_wechat_check_hour: systemConfig.schedule.wechatCheckHour,
+      }
+      
+      // 只有输入了新密钥才更新
+      if (wechatSecretInput) {
+        configs.wechat_secret = wechatSecretInput
+      }
+      
+      const res = await fetch(`${SYNC_API}/api/admin/system-config/batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ configs })
+      })
+      
+      const data = await res.json()
+      if (data.success) {
+        alert(`配置已保存！${data.message}`)
+        setWechatSecretInput('')
+        loadSystemConfig()
+        loadWechatConfig()
+      } else {
+        throw new Error(data.error || '保存失败')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '保存系统配置失败')
+    } finally {
+      setSystemConfigSaving(false)
     }
   }
   
@@ -385,6 +475,142 @@ export function AdminPage() {
         )}
       </div>
 
+      {/* 系统配置 */}
+      <div className="admin-section">
+        <div className="section-header">
+          <h2>系统配置</h2>
+          <button 
+            className="refresh-btn"
+            onClick={loadSystemConfig}
+            disabled={systemConfigLoading}
+          >
+            {systemConfigLoading ? '加载中...' : '刷新'}
+          </button>
+        </div>
+        
+        {systemConfigLoading ? (
+          <div className="admin-loading">加载中...</div>
+        ) : (
+          <div className="system-config-form">
+            {/* 微信公众号配置 */}
+            <div className="config-section">
+              <div className="config-section-title">📱 微信公众号</div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>AppID</label>
+                  <input
+                    type="text"
+                    value={systemConfig.wechat.appId}
+                    onChange={e => setSystemConfig(prev => ({
+                      ...prev,
+                      wechat: { ...prev.wechat, appId: e.target.value }
+                    }))}
+                    placeholder="wx..."
+                  />
+                </div>
+                <div className="form-group">
+                  <label>AppSecret {systemConfig.wechat.hasSecret && <span className="secret-hint">（已配置）</span>}</label>
+                  <input
+                    type="password"
+                    value={wechatSecretInput}
+                    onChange={e => setWechatSecretInput(e.target.value)}
+                    placeholder={systemConfig.wechat.hasSecret ? '留空保持不变' : '输入 AppSecret'}
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={systemConfig.wechat.createDraft}
+                    onChange={e => setSystemConfig(prev => ({
+                      ...prev,
+                      wechat: { ...prev.wechat, createDraft: e.target.checked }
+                    }))}
+                  />
+                  <span>自动创建草稿</span>
+                </label>
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={systemConfig.wechat.autoPublish}
+                    onChange={e => setSystemConfig(prev => ({
+                      ...prev,
+                      wechat: { ...prev.wechat, autoPublish: e.target.checked }
+                    }))}
+                  />
+                  <span>自动发布（需认证公众号）</span>
+                </label>
+              </div>
+              <p className="config-hint">
+                💡 未认证公众号只能创建草稿，需要手动在公众号后台发布
+              </p>
+            </div>
+            
+            {/* 定时任务配置 */}
+            <div className="config-section">
+              <div className="config-section-title">⏰ 定时任务</div>
+              <div className="form-row">
+                <div className="form-group small">
+                  <label>日报生成时间</label>
+                  <div className="time-input">
+                    <input
+                      type="number"
+                      min={0}
+                      max={23}
+                      value={systemConfig.schedule.reportHour}
+                      onChange={e => setSystemConfig(prev => ({
+                        ...prev,
+                        schedule: { ...prev.schedule, reportHour: parseInt(e.target.value) || 7 }
+                      }))}
+                    />
+                    <span>:00 (北京时间)</span>
+                  </div>
+                </div>
+                <div className="form-group small">
+                  <label>微信检查发布时间</label>
+                  <div className="time-input">
+                    <input
+                      type="number"
+                      min={0}
+                      max={23}
+                      value={systemConfig.schedule.wechatCheckHour}
+                      onChange={e => setSystemConfig(prev => ({
+                        ...prev,
+                        schedule: { ...prev.schedule, wechatCheckHour: parseInt(e.target.value) || 9 }
+                      }))}
+                    />
+                    <span>:00 (北京时间)</span>
+                  </div>
+                </div>
+              </div>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={systemConfig.schedule.emailEnabled}
+                  onChange={e => setSystemConfig(prev => ({
+                    ...prev,
+                    schedule: { ...prev.schedule, emailEnabled: e.target.checked }
+                  }))}
+                />
+                <span>启用邮件推送</span>
+              </label>
+              <p className="config-hint">
+                ⚠️ 定时任务时间修改需要重新部署 Worker 才能生效
+              </p>
+            </div>
+            
+            <button 
+              className="save-config-btn"
+              onClick={saveSystemConfig}
+              disabled={systemConfigSaving}
+            >
+              {systemConfigSaving ? '保存中...' : '保存系统配置'}
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* 日报管理 */}
       <div className="admin-section">
         <div className="section-header">
@@ -409,7 +635,7 @@ export function AdminPage() {
         
         <div className="daily-info">
           <p className="daily-hint">
-            💡 日报会在每天北京时间 6:00 自动生成，也可以手动触发生成/重新生成
+            💡 日报会在每天北京时间 7:00 自动生成，也可以手动触发生成/重新生成
           </p>
         </div>
         
