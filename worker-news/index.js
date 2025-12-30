@@ -1,5 +1,8 @@
 // Cloudflare Worker - 中国新闻爬取定时任务
 // 每30分钟从 buzzing.cc 爬取中国相关新闻，存入 D1 数据库
+// 每天下午5点获取A股复盘数据
+
+import { fetchReviewData, storeReviewData, getStoredReview, getReviewByDate, listReviews } from './reviews.js';
 
 /**
  * 初始化数据库表
@@ -351,12 +354,98 @@ export default {
       }
     }
     
-    return jsonResponse({ error: 'Not found', endpoints: ['/news', '/fetch', '/stats'] }, 404);
+    // ============ 复盘相关接口 ============
+    
+    // GET /review - 获取复盘数据
+    // 参数: id (可选) 或 date (可选，格式 YYYY-MM-DD)
+    if (path === '/review' && request.method === 'GET') {
+      const newsId = url.searchParams.get('id');
+      const date = url.searchParams.get('date'); // 新增：按日期查询
+      
+      // 按日期查询
+      if (env.DB && date) {
+        const stored = await getReviewByDate(env.DB, date);
+        if (stored.success) {
+          return jsonResponse({ 
+            success: true, 
+            id: stored.id,
+            date: stored.date,
+            markdown: stored.markdown, 
+            cached: true 
+          });
+        }
+        return jsonResponse({ success: false, error: `No review found for date: ${date}` }, 404);
+      }
+      
+      // 按 ID 查询（先尝试从数据库获取）
+      if (env.DB && newsId) {
+        const stored = await getStoredReview(env.DB, newsId);
+        if (stored.success) {
+          return jsonResponse({ 
+            success: true, 
+            newsId,
+            date: stored.date,
+            markdown: stored.markdown, 
+            cached: true 
+          });
+        }
+      }
+      
+      // 实时获取
+      const result = await fetchReviewData(newsId);
+      if (result.success && env.DB) {
+        // 存储到数据库
+        const storeResult = await storeReviewData(env.DB, result.newsId, result.markdown);
+        return jsonResponse({ ...result, date: storeResult.date });
+      }
+      return jsonResponse(result);
+    }
+    
+    // POST /review/fetch - 手动触发复盘数据获取
+    if (path === '/review/fetch' && request.method === 'POST') {
+      const result = await fetchReviewData();
+      if (result.success && env.DB) {
+        const storeResult = await storeReviewData(env.DB, result.newsId, result.markdown);
+        return jsonResponse({ ...result, stored: storeResult.success });
+      }
+      return jsonResponse(result);
+    }
+    
+    // GET /reviews - 获取复盘列表
+    if (path === '/reviews' && request.method === 'GET') {
+      const limit = parseInt(url.searchParams.get('limit') || '7');
+      const result = await listReviews(env.DB, limit);
+      return jsonResponse(result);
+    }
+    
+    return jsonResponse({ 
+      error: 'Not found', 
+      endpoints: ['/news', '/fetch', '/stats', '/review', '/review/fetch', '/reviews'] 
+    }, 404);
   },
   
-  // 定时任务处理器 - 每30分钟执行
+  // 定时任务处理器
+  // - 每30分钟爬取新闻
+  // - 每天下午5点(北京时间)获取复盘数据
   async scheduled(event, env, ctx) {
     console.log('Cron triggered:', event.cron, new Date().toISOString());
-    ctx.waitUntil(fetchAndStoreNews(env));
+    
+    // 判断是哪个定时任务
+    if (event.cron === '0 9 * * 1-5') {
+      // 北京时间下午5点 = UTC 9点，工作日执行复盘
+      console.log('执行复盘数据获取...');
+      ctx.waitUntil((async () => {
+        const result = await fetchReviewData();
+        if (result.success && env.DB) {
+          await storeReviewData(env.DB, result.newsId, result.markdown);
+          console.log('复盘数据已存储:', result.newsId);
+        } else {
+          console.error('复盘数据获取失败:', result.error);
+        }
+      })());
+    } else {
+      // 默认：新闻爬取
+      ctx.waitUntil(fetchAndStoreNews(env));
+    }
   }
 };

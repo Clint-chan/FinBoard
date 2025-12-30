@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 投研校准系统 V5</title>
+    <style>
+        :root {
+            /* 你的 UI 色系 */
+            --bg-page: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-main: #111827;
+            --text-sub: #6b7280;
+            --primary: #6366f1; /* 品牌紫 */
+            --accent-bull: #fef2f2; --text-bull: #dc2626;
+            --accent-bear: #f0fdf4; --text-bear: #16a34a;
+            --accent-neu: #f3f4f6; --text-neu: #4b5563;
+            --border: #e5e7eb;
+            
+            /* 右侧控制台色系 (专业灰调) */
+            --console-bg: #ffffff;
+            --console-header: #f8fafc;
+            --code-bg: #1e293b;
+            --diff-add: #dcfce7;
+            --diff-del: #fee2e2;
+        }
+
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-page); display: flex; height: 100vh; overflow: hidden; }
+        
+        /* 滚动条隐藏 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+        /* ==================== 左侧：用户 UI 复刻 ==================== */
+        .preview-area {
+            flex: 1;
+            padding: 30px 40px;
+            overflow-y: auto;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .page-header { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; }
+        .logo-icon { width: 32px; height: 32px; background: var(--primary); color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px; }
+
+        /* 1. 情报矩阵 */
+        .matrix-title { font-size: 12px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 16px; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
+        .matrix-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 40px; }
+        
+        .matrix-card { background: var(--card-bg); border-radius: 12px; padding: 20px; border: 1px solid transparent; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .matrix-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid; }
+        
+        .news-item { margin-bottom: 16px; position: relative; }
+        .news-item:last-child { margin-bottom: 0; }
+        .news-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+        .news-title { font-weight: 700; font-size: 15px; color: var(--text-main); }
+        .tag { font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+        .news-summary { font-size: 13px; color: var(--text-sub); line-height: 1.6; text-align: justify; }
+
+        /* 颜色变体 */
+        .card-fin { border-top: 4px solid #34d399; } .card-fin .matrix-card-header { border-color: #ecfdf5; color: #059669; font-weight: 700; }
+        .card-tech { border-top: 4px solid #60a5fa; } .card-tech .matrix-card-header { border-color: #eff6ff; color: #2563eb; font-weight: 700; }
+        .card-geo { border-top: 4px solid #fbbf24; } .card-geo .matrix-card-header { border-color: #fffbeb; color: #d97706; font-weight: 700; }
+        .card-soc { border-top: 4px solid #a78bfa; } .card-soc .matrix-card-header { border-color: #f5f3ff; color: #7c3aed; font-weight: 700; }
+
+        .tag-bull { background: var(--accent-bull); color: var(--text-bull); }
+        .tag-bear { background: var(--accent-bear); color: var(--text-bear); }
+        .tag-neu { background: var(--accent-neu); color: var(--text-neu); }
+
+        /* 2. 核心研判 (Core Prediction) */
+        .prediction-section { background: var(--card-bg); border-radius: 16px; padding: 30px; display: flex; gap: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); border: 1px solid var(--border); position: relative; }
+        
+        /* 左侧主观点 */
+        .pred-main { flex: 0 0 40%; padding-right: 40px; border-right: 1px solid var(--border); }
+        .market-tone-label { background: #e0e7ff; color: #4338ca; font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-bottom: 12px; }
+        .tone-title { font-size: 32px; font-weight: 800; margin: 0 0 16px 0; letter-spacing: -1px; }
+        .tone-sub { font-weight: 700; font-size: 15px; margin-bottom: 20px; color: var(--text-main); }
+        .tone-desc { font-size: 14px; color: var(--text-sub); line-height: 1.7; }
+
+        /* 右侧详情 */
+        .pred-details { flex: 1; display: flex; flex-direction: column; gap: 24px; }
+        .detail-box { background: #f9fafb; padding: 16px; border-radius: 8px; }
+        .detail-title { font-size: 12px; font-weight: 700; margin-bottom: 8px; color: var(--text-main); }
+        .detail-text { font-size: 13px; color: var(--text-sub); line-height: 1.5; }
+        
+        /* 时间轴剧本 */
+        .timeline-item { display: flex; gap: 12px; margin-bottom: 16px; }
+        .timeline-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--primary); margin-top: 5px; background: white; flex-shrink: 0; }
+        .timeline-content h4 { margin: 0 0 4px 0; font-size: 14px; }
+        .timeline-content p { margin: 0; font-size: 13px; color: var(--text-sub); }
+
+        /* 高亮标记 (Annotation Highlight) */
+        .highlight-error { outline: 2px dashed #ef4444; background: rgba(254, 226, 226, 0.3); cursor: pointer; position: relative; }
+        .highlight-miss { outline: 2px dashed #f59e0b; background: rgba(254, 252, 232, 0.3); cursor: pointer; }
+
+        /* ==================== 右侧：分析师控制台 ==================== */
+        .analyst-console {
+            width: 480px;
+            background: var(--console-bg);
+            border-left: 1px solid #d1d5db;
+            display: flex;
+            flex-direction: column;
+            box-shadow: -4px 0 24px rgba(0,0,0,0.08);
+            z-index: 100;
+        }
+
+        .console-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            background: var(--console-header);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .console-title { font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+        .status-badge { font-size: 10px; background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 12px; font-weight: 600; border: 1px solid #fecaca; }
+
+        .console-body { flex: 1; overflow-y: auto; padding: 20px; }
+
+        /* 1. 总评卡片 */
+        .review-card { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+        .score-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid #f3f4f6; padding-bottom: 12px; }
+        .score-val { font-size: 28px; font-weight: 800; color: #b91c1c; } /* 低分警示 */
+        .score-label { font-size: 12px; color: var(--text-sub); text-transform: uppercase; font-weight: 600; }
+        .review-text { font-size: 13px; line-height: 1.5; color: var(--text-main); }
+
+        /* 2. 系统提示词 (代码风) */
+        .prompt-section { margin-bottom: 24px; }
+        .section-label { font-size: 11px; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px; display: flex; justify-content: space-between; }
+        .code-block {
+            background: var(--code-bg); color: #e2e8f0;
+            padding: 12px; border-radius: 6px;
+            font-family: 'Menlo', 'Monaco', monospace; font-size: 11px;
+            line-height: 1.6; border: 1px solid #334155;
+            position: relative;
+        }
+        .code-tag { color: #f472b6; }
+        .code-val { color: #818cf8; }
+
+        /* 3. 诊断与优化 (Diagnostic Feed) */
+        .diagnostic-item {
+            background: white; border: 1px solid var(--border);
+            border-radius: 8px; margin-bottom: 12px;
+            overflow: hidden; transition: all 0.2s;
+            cursor: pointer;
+        }
+        .diagnostic-item:hover { border-color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .diag-header {
+            padding: 12px; background: #f8fafc;
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 12px; font-weight: 700; border-bottom: 1px solid #f1f5f9;
+        }
+        .diag-body { padding: 12px; font-size: 12px; }
+        
+        .error-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; color: white; font-size: 10px; }
+        .tag-critical { background: #ef4444; } /* 事实错误 */
+        .tag-miss { background: #f59e0b; } /* 漏Alpha */
+        .tag-logic { background: #8b5cf6; } /* 逻辑错误 */
+
+        .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; background: #f9fafb; padding: 8px; border-radius: 6px; }
+        .comp-col h5 { margin: 0 0 4px 0; color: #94a3b8; font-size: 10px; }
+        .comp-val { font-weight: 600; color: var(--text-main); }
+        .val-wrong { text-decoration: line-through; color: #ef4444; opacity: 0.8; }
+        .val-right { color: #16a34a; }
+
+        .suggestion-box { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #e2e8f0; }
+        .suggestion-text { color: var(--primary); font-weight: 600; display: flex; gap: 6px; align-items: start; }
+
+        /* SVG Icons */
+        .icon { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+    </style>
+</head>
+<body>
+
+    <div class="preview-area">
+        <div class="page-header">
+            <div class="logo-icon">F</div>
+            <h2 style="margin:0; font-size:20px;">每日早报 <span style="font-weight:400; color:#9ca3af; font-size:16px;">2025.12.30</span></h2>
+        </div>
+
+        <div class="matrix-title">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+            全球情报矩阵 INTELLIGENCE MATRIX
+        </div>
+
+        <div class="matrix-grid">
+            <div class="matrix-card card-fin">
+                <div class="matrix-card-header">
+                    <span>金融宏观</span>
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div class="news-item">
+                    <div class="news-top">
+                        <span class="news-title">数字人民币付息</span>
+                        <span class="tag tag-bull">重磅变革</span>
+                    </div>
+                    <div class="news-summary">数字人民币从单纯的M0替代转向具备生息资产属性，倒逼银行IT系统升级。</div>
+                </div>
+                <div class="news-item">
+                    <div class="news-top">
+                        <span class="news-title">工业利润承压</span>
+                        <span class="tag tag-bear">基本面</span>
+                    </div>
+                    <div class="news-summary">中国工业利润创14个月最大降幅，企业盈利修复尚需时日。</div>
+                </div>
+            </div>
+
+            <div class="matrix-card card-tech">
+                <div class="matrix-card-header">
+                    <span>科技制造</span>
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                </div>
+                <div class="news-item">
+                    <div class="news-top">
+                        <span class="news-title">一汽注资蔚来</span>
+                        <span class="tag tag-bull">央企入局</span>
+                    </div>
+                    <div class="news-summary">央企资金注入新势力，利好整车估值重塑及零部件供应链。</div>
+                </div>
+                <div class="news-item" id="missed-alpha-source" style="border:1px dashed #e5e7eb; padding:4px; border-radius:4px;">
+                    <div class="news-top">
+                        <span class="news-title">AI独角兽IPO</span>
+                        <span class="tag tag-neu">资本竞速</span>
+                    </div>
+                    <div class="news-summary">智谱和MiniMax等抢先在OpenAI前上市，可能对存量资金造成抽血。</div>
+                </div>
+            </div>
+            
+            <div class="matrix-card card-geo">
+                <div class="matrix-card-header">
+                    <span>地缘局势</span>
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"></path></svg>
+                </div>
+                <div class="news-item" id="logic-error-source">
+                    <div class="news-top">
+                        <span class="news-title">台海实弹演习</span>
+                        <span class="tag tag-bear">避险升温</span>
+                    </div>
+                    <div class="news-summary">地缘摩擦加剧压制风险偏好，短期军工板块活跃，大盘受压。</div>
+                </div>
+            </div>
+
+            <div class="matrix-card card-soc">
+                <div class="matrix-card-header">
+                    <span>能源社会</span>
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                </div>
+                <div class="news-item">
+                    <div class="news-top">
+                        <span class="news-title">绿电交易激增</span>
+                        <span class="tag tag-bull">能源转型</span>
+                    </div>
+                    <div class="news-summary">绿电交易量大幅增长，电力运营商及碳捕捉技术向好。</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="matrix-title">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            大盘核心研判 CORE PREDICTION
+        </div>
+        
+        <div class="prediction-section">
+            <div class="pred-main">
+                <span class="market-tone-label">MARKET TONE</span>
+                <h1 class="tone-title highlight-error" id="err-vol">缩量整固</h1>
+                <div class="tone-sub">地缘扰动压制情绪，结构性改革提供支撑</div>
+                <div class="tone-desc">
+                    年末资金面趋紧叠加台海演习，大盘短期难有趋势性行情。数字人民币与央企注资提供结构性方向。
+                </div>
+            </div>
+            
+            <div class="pred-details">
+                <div class="detail-box">
+                    <div class="detail-title">成交量预期 (Volume)</div>
+                    <div class="detail-text">预计成交量较昨日<span class="highlight-error" id="err-vol-text">进一步萎缩</span>，节前效应明显，资金观望情绪浓厚。</div>
+                </div>
+                
+                <div class="detail-box">
+                    <div class="detail-title">全天剧本推演 (Scenario)</div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h4>开盘：低开震荡</h4>
+                            <p>受军演影响低开，军工高开，权重承压。</p>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <h4>盘中：探底回升</h4>
+                            <p>数字货币与<span class="highlight-miss" id="err-alpha">新能源车</span>护盘，上攻乏力。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="analyst-console">
+        <div class="console-header">
+            <div class="console-title">
+                <svg class="icon" style="width:18px; height:18px; color:var(--primary);" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                MODEL CALIBRATION
+            </div>
+            <span class="status-badge">NEEDS OPTIMIZATION</span>
+        </div>
+
+        <div class="console-body">
+            <div class="review-card">
+                <div class="score-row">
+                    <span class="score-val">62</span>
+                    <span class="score-label">ACCURACY SCORE</span>
+                </div>
+                <div class="review-text">
+                    <strong style="color:#b91c1c;">CRITICAL FAILURE:</strong> 虽然对指数大方向（震荡/平收）判断尚可，但严重低估了市场成交量（2.1万亿 vs 预测缩量）。完全错失了今日最强 Alpha 板块“机器人/AI应用”，且对地缘政治影响判断过重，导致策略偏保守。
+                </div>
+            </div>
+
+            <div class="prompt-section">
+                <div class="section-label">
+                    <span>Current System Prompt (v4.2)</span>
+                    <span style="color:var(--primary); cursor:pointer;">Edit</span>
+                </div>
+                <div class="code-block">
+                    <span class="code-tag">Role:</span> Senior Financial Analyst<br>
+                    <span class="code-tag">Task:</span> Summarize market based on news inputs.<br>
+                    <span class="code-tag">Constraints:</span><br>
+                    1. Focus on macro liquidity.<br>
+                    2. Treat geopolitical drills as <span class="code-val">high-impact risk</span>.<br>
+                    3. Assume pre-holiday volume <span class="code-val">shrinkage</span>.
+                </div>
+            </div>
+
+            <div class="section-label" style="margin-top:20px;">DIAGNOSTIC FEED (3 Issues Found)</div>
+
+            <div class="diagnostic-item" onclick="focusIssue('err-vol')">
+                <div class="diag-header">
+                    <span class="error-tag tag-critical">CRITICAL</span>
+                    <span>Market Regime Mismatch</span>
+                </div>
+                <div class="diag-body">
+                    <div style="margin-bottom:6px;">模型依据“节前效应”机械推导缩量，忽视了“十连阳”的技术面惯性。</div>
+                    <div class="comparison">
+                        <div class="comp-col">
+                            <h5>PREDICTION</h5>
+                            <span class="comp-val val-wrong">缩量 / 萎缩</span>
+                        </div>
+                        <div class="comp-col">
+                            <h5>ACTUAL</h5>
+                            <span class="comp-val val-right">2.1万亿 (放量)</span>
+                        </div>
+                    </div>
+                    <div class="suggestion-box">
+                        <div class="suggestion-text">
+                            <svg class="icon" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            Fix Prompt: IF streak > 5 days, IGNORE holiday seasonality.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="diagnostic-item" onclick="focusIssue('err-alpha')">
+                <div class="diag-header">
+                    <span class="error-tag tag-miss">ALPHA LEAK</span>
+                    <span>Missed Sector: Robotics</span>
+                </div>
+                <div class="diag-body">
+                    <div style="margin-bottom:6px;">输入包含"AI独角兽/巨头动态"，模型仅解读为资本事件，未联想到应用层(Agent)爆发。</div>
+                    <div class="comparison">
+                        <div class="comp-col">
+                            <h5>PREDICTION</h5>
+                            <span class="comp-val val-wrong">数字货币, 蔚来</span>
+                        </div>
+                        <div class="comp-col">
+                            <h5>ACTUAL</h5>
+                            <span class="comp-val val-right">机器人, AI Agent</span>
+                        </div>
+                    </div>
+                    <div class="suggestion-box">
+                        <div class="suggestion-text">
+                            <svg class="icon" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            Fix Prompt: Link "AI IPO/Capital" -> "Downstream Application"
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="diagnostic-item" onclick="focusIssue('logic-error-source')">
+                <div class="diag-header">
+                    <span class="error-tag tag-logic">LOGIC</span>
+                    <span>Event Interpretation Error</span>
+                </div>
+                <div class="diag-body">
+                    <div>地缘演习属于明牌。模型预测"军工活跃"，实际"军工调整(神剑跌停)"。符合"利好兑现"逻辑。</div>
+                </div>
+            </div>
+
+            <button style="width:100%; background:var(--text-main); color:white; border:none; padding:12px; border-radius:6px; font-weight:600; margin-top:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+                <svg class="icon" style="stroke-width:3;" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"></path></svg>
+                APPLY OPTIMIZATIONS
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 简单的交互逻辑：点击右侧诊断卡片，左侧对应区域高亮闪烁
+        function focusIssue(elementId) {
+            // 移除所有旧的高亮动画类
+            document.querySelectorAll('.flash-focus').forEach(el => el.classList.remove('flash-focus'));
+            
+            const el = document.getElementById(elementId);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // 添加闪烁动画
+                el.style.transition = "all 0.3s";
+                el.style.transform = "scale(1.05)";
+                el.style.boxShadow = "0 0 0 4px rgba(99, 102, 241, 0.5)";
+                
+                setTimeout(() => {
+                    el.style.transform = "scale(1)";
+                    el.style.boxShadow = "none";
+                }, 1000);
+            }
+        }
+    </script>
+</body>
+</html>

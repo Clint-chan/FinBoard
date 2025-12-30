@@ -8,6 +8,8 @@ binding = "DB"
 database_name = "fintell-db"
 database_id = "047dd4bc-6711-4e54-9719-dccff29c2d66"
 
-# 定时任务 - 每30分钟爬取一次
+# 定时任务
+# - 每30分钟爬取新闻
+# - 每天下午5点(北京时间17:00 = UTC 09:00)获取复盘，仅工作日
 [triggers]
-crons = ["*/30 * * * *"]
+crons = ["*/30 * * * *", "0 9 * * 1-5"]
