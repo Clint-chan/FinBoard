@@ -70,29 +70,22 @@ async function callAI(message, env) {
   
   if (env.DB) {
     try {
-      const apiUrlRow = await env.DB.prepare(
+      // AI 配置存储在 ai_config key 下，是一个 JSON 对象
+      const aiConfigRow = await env.DB.prepare(
         'SELECT config_value FROM system_configs WHERE config_key = ?'
-      ).bind('ai_api_url').first()
+      ).bind('ai_config').first()
       
-      const apiKeyRow = await env.DB.prepare(
-        'SELECT config_value FROM system_configs WHERE config_key = ?'
-      ).bind('ai_api_key').first()
-      
-      const modelRow = await env.DB.prepare(
-        'SELECT config_value FROM system_configs WHERE config_key = ?'
-      ).bind('ai_model').first()
+      if (aiConfigRow) {
+        try {
+          aiConfig = JSON.parse(aiConfigRow.config_value)
+        } catch {
+          console.error('解析 AI 配置失败')
+        }
+      }
       
       const promptRow = await env.DB.prepare(
         'SELECT config_value FROM system_configs WHERE config_key = ?'
       ).bind('wechat_reply_prompt').first()
-      
-      if (apiUrlRow && apiKeyRow) {
-        aiConfig = {
-          apiUrl: apiUrlRow.config_value.replace(/"/g, ''),
-          apiKey: apiKeyRow.config_value.replace(/"/g, ''),
-          model: modelRow?.config_value?.replace(/"/g, '') || 'gpt-4o-mini'
-        }
-      }
       
       if (promptRow) {
         replyPrompt = promptRow.config_value.replace(/^"|"$/g, '')
@@ -151,7 +144,29 @@ async function callAI(message, env) {
     }
     
     const data = await response.json()
-    return data.choices?.[0]?.message?.content || '抱歉，无法生成回复。'
+    
+    // 兼容思考模型和普通模型
+    // 思考模型可能返回 thinking/reasoning 字段，我们只取最终回复
+    const choice = data.choices?.[0]
+    if (!choice) {
+      return '抱歉，无法生成回复。'
+    }
+    
+    // 优先取 message.content，忽略 thinking/reasoning
+    let content = choice.message?.content
+    
+    // 有些模型把思考过程放在 content 开头，用 <think> 标签包裹
+    if (content && content.includes('<think>')) {
+      // 移除 <think>...</think> 部分
+      content = content.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
+    }
+    
+    // 有些模型用 <reasoning>...</reasoning>
+    if (content && content.includes('<reasoning>')) {
+      content = content.replace(/<reasoning>[\s\S]*?<\/reasoning>/g, '').trim()
+    }
+    
+    return content || '抱歉，无法生成回复。'
   } catch (e) {
     console.error('调用 AI 失败:', e)
     return '抱歉，服务出现异常，请稍后再试。'
