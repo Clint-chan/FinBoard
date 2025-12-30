@@ -26,6 +26,11 @@ interface SystemConfig {
     hasSecret: boolean
     autoPublish: boolean
     createDraft: boolean
+    token: string
+    hasToken: boolean
+    encodingAesKey: string
+    hasEncodingAesKey: boolean
+    replyPrompt: string
   }
   schedule: {
     reportHour: number
@@ -89,12 +94,14 @@ export function AdminPage() {
   
   // 系统配置
   const [systemConfig, setSystemConfig] = useState<SystemConfig>({
-    wechat: { appId: '', appSecret: '', hasSecret: false, autoPublish: false, createDraft: true },
+    wechat: { appId: '', appSecret: '', hasSecret: false, autoPublish: false, createDraft: true, token: '', hasToken: false, encodingAesKey: '', hasEncodingAesKey: false, replyPrompt: '' },
     schedule: { reportHour: 7, emailEnabled: true, wechatCheckHour: 9 }
   })
   const [systemConfigLoading, setSystemConfigLoading] = useState(false)
   const [systemConfigSaving, setSystemConfigSaving] = useState(false)
   const [wechatSecretInput, setWechatSecretInput] = useState('')
+  const [wechatTokenInput, setWechatTokenInput] = useState('')
+  const [wechatAesKeyInput, setWechatAesKeyInput] = useState('')
 
   // 加载用户列表
   const loadUsers = useCallback(async () => {
@@ -200,6 +207,7 @@ export function AdminPage() {
         wechat_appid: systemConfig.wechat.appId,
         wechat_auto_publish: systemConfig.wechat.autoPublish,
         wechat_create_draft: systemConfig.wechat.createDraft,
+        wechat_reply_prompt: systemConfig.wechat.replyPrompt,
         schedule_report_hour: systemConfig.schedule.reportHour,
         schedule_email_enabled: systemConfig.schedule.emailEnabled,
         schedule_wechat_check_hour: systemConfig.schedule.wechatCheckHour,
@@ -208,6 +216,12 @@ export function AdminPage() {
       // 只有输入了新密钥才更新
       if (wechatSecretInput) {
         configs.wechat_secret = wechatSecretInput
+      }
+      if (wechatTokenInput) {
+        configs.wechat_token = wechatTokenInput
+      }
+      if (wechatAesKeyInput) {
+        configs.wechat_encoding_aes_key = wechatAesKeyInput
       }
       
       const res = await fetch(`${SYNC_API}/api/admin/system-config/batch`, {
@@ -223,6 +237,8 @@ export function AdminPage() {
       if (data.success) {
         alert(`配置已保存！${data.message}`)
         setWechatSecretInput('')
+        setWechatTokenInput('')
+        setWechatAesKeyInput('')
         loadSystemConfig()
         loadWechatConfig()
       } else {
@@ -545,6 +561,50 @@ export function AdminPage() {
               <p className="config-hint">
                 💡 未认证公众号只能创建草稿，需要手动在公众号后台发布
               </p>
+            </div>
+            
+            {/* 消息接口配置 */}
+            <div className="config-section">
+              <div className="config-section-title">💬 消息接口（AI 自动回复）</div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Token {systemConfig.wechat.hasToken && <span className="secret-hint">（已配置）</span>}</label>
+                  <input
+                    type="text"
+                    value={wechatTokenInput}
+                    onChange={e => setWechatTokenInput(e.target.value)}
+                    placeholder={systemConfig.wechat.hasToken ? '留空保持不变' : '自定义 Token（3-32位英文或数字）'}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>EncodingAESKey {systemConfig.wechat.hasEncodingAesKey && <span className="secret-hint">（已配置）</span>}</label>
+                  <input
+                    type="text"
+                    value={wechatAesKeyInput}
+                    onChange={e => setWechatAesKeyInput(e.target.value)}
+                    placeholder={systemConfig.wechat.hasEncodingAesKey ? '留空保持不变' : '43位加密密钥（可选）'}
+                  />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>AI 回复提示词</label>
+                <textarea
+                  className="prompt-textarea"
+                  value={systemConfig.wechat.replyPrompt}
+                  onChange={e => setSystemConfig(prev => ({
+                    ...prev,
+                    wechat: { ...prev.wechat, replyPrompt: e.target.value }
+                  }))}
+                  placeholder="自定义 AI 回复的系统提示词，留空使用默认提示词"
+                  rows={4}
+                />
+              </div>
+              <div className="config-hint">
+                <p>📋 微信公众号后台配置：</p>
+                <p>• URL: <code>https://market-api.newestgpt.com/api/wechat</code></p>
+                <p>• Token: 填写上方配置的 Token</p>
+                <p>• 消息加解密方式: 建议选择「明文模式」</p>
+              </div>
             </div>
             
             {/* 定时任务配置 */}

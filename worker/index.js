@@ -686,6 +686,70 @@ export default {
     const path = url.pathname;
 
     try {
+      // ============ 微信公众号消息接口 ============
+      // GET /api/wechat - 微信服务器验证
+      if (path === '/api/wechat' && request.method === 'GET') {
+        const { verifySignature, getWechatToken } = await import('./wechat-message.js');
+        
+        const signature = url.searchParams.get('signature');
+        const timestamp = url.searchParams.get('timestamp');
+        const nonce = url.searchParams.get('nonce');
+        const echostr = url.searchParams.get('echostr');
+        
+        if (!signature || !timestamp || !nonce || !echostr) {
+          return new Response('Missing parameters', { status: 400 });
+        }
+        
+        const token = await getWechatToken(env);
+        if (!token) {
+          console.error('微信 Token 未配置');
+          return new Response('Token not configured', { status: 500 });
+        }
+        
+        const isValid = await verifySignature(signature, timestamp, nonce, token);
+        
+        if (isValid) {
+          // 验证成功，返回 echostr
+          return new Response(echostr, {
+            headers: { 'Content-Type': 'text/plain' }
+          });
+        } else {
+          return new Response('Invalid signature', { status: 403 });
+        }
+      }
+      
+      // POST /api/wechat - 接收微信消息
+      if (path === '/api/wechat' && request.method === 'POST') {
+        const { parseWechatXML, handleWechatMessage, getWechatToken, verifySignature } = await import('./wechat-message.js');
+        
+        // 验证签名
+        const signature = url.searchParams.get('signature');
+        const timestamp = url.searchParams.get('timestamp');
+        const nonce = url.searchParams.get('nonce');
+        
+        const token = await getWechatToken(env);
+        if (token) {
+          const isValid = await verifySignature(signature, timestamp, nonce, token);
+          if (!isValid) {
+            return new Response('Invalid signature', { status: 403 });
+          }
+        }
+        
+        // 解析消息
+        const xmlBody = await request.text();
+        console.log('收到微信消息:', xmlBody);
+        
+        const message = parseWechatXML(xmlBody);
+        console.log('解析后的消息:', JSON.stringify(message));
+        
+        // 处理消息并回复
+        const replyXML = await handleWechatMessage(message, env);
+        
+        return new Response(replyXML, {
+          headers: { 'Content-Type': 'application/xml' }
+        });
+      }
+
       // POST /api/send-code - 发送注册验证码
       if (path === '/api/send-code' && request.method === 'POST') {
         const { email } = await request.json();
@@ -1843,6 +1907,11 @@ export default {
             hasSecret: !!configMap.wechat_secret,
             autoPublish: configMap.wechat_auto_publish ?? false, // 是否自动发布（需要认证公众号）
             createDraft: configMap.wechat_create_draft ?? true,  // 是否创建草稿
+            token: configMap.wechat_token || '',  // 消息接口 Token
+            hasToken: !!configMap.wechat_token,
+            encodingAesKey: configMap.wechat_encoding_aes_key ? '******' : '',
+            hasEncodingAesKey: !!configMap.wechat_encoding_aes_key,
+            replyPrompt: configMap.wechat_reply_prompt || '',  // AI 回复提示词
           },
           schedule: {
             reportHour: configMap.schedule_report_hour ?? 7,     // 日报生成时间（北京时间）
@@ -1875,6 +1944,7 @@ export default {
         // 允许的配置项白名单
         const allowedKeys = [
           'wechat_appid', 'wechat_secret', 'wechat_auto_publish', 'wechat_create_draft',
+          'wechat_token', 'wechat_encoding_aes_key', 'wechat_reply_prompt',
           'schedule_report_hour', 'schedule_email_enabled', 'schedule_wechat_check_hour'
         ];
         
@@ -1915,6 +1985,7 @@ export default {
         
         const allowedKeys = [
           'wechat_appid', 'wechat_secret', 'wechat_auto_publish', 'wechat_create_draft',
+          'wechat_token', 'wechat_encoding_aes_key', 'wechat_reply_prompt',
           'schedule_report_hour', 'schedule_email_enabled', 'schedule_wechat_check_hour'
         ];
         
