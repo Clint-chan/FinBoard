@@ -1909,9 +1909,8 @@ export default {
             createDraft: configMap.wechat_create_draft ?? true,  // 是否创建草稿
             token: configMap.wechat_token || '',  // 消息接口 Token
             hasToken: !!configMap.wechat_token,
-            encodingAesKey: configMap.wechat_encoding_aes_key ? '******' : '',
-            hasEncodingAesKey: !!configMap.wechat_encoding_aes_key,
             replyPrompt: configMap.wechat_reply_prompt || '',  // AI 回复提示词
+            replyModel: configMap.wechat_reply_model || '',    // 微信回复专用模型
           },
           schedule: {
             reportHour: configMap.schedule_report_hour ?? 7,     // 日报生成时间（北京时间）
@@ -1944,7 +1943,7 @@ export default {
         // 允许的配置项白名单
         const allowedKeys = [
           'wechat_appid', 'wechat_secret', 'wechat_auto_publish', 'wechat_create_draft',
-          'wechat_token', 'wechat_encoding_aes_key', 'wechat_reply_prompt',
+          'wechat_token', 'wechat_reply_prompt', 'wechat_reply_model',
           'schedule_report_hour', 'schedule_email_enabled', 'schedule_wechat_check_hour'
         ];
         
@@ -1985,7 +1984,7 @@ export default {
         
         const allowedKeys = [
           'wechat_appid', 'wechat_secret', 'wechat_auto_publish', 'wechat_create_draft',
-          'wechat_token', 'wechat_encoding_aes_key', 'wechat_reply_prompt',
+          'wechat_token', 'wechat_reply_prompt', 'wechat_reply_model',
           'schedule_report_hour', 'schedule_email_enabled', 'schedule_wechat_check_hour'
         ];
         

@@ -28,9 +28,8 @@ interface SystemConfig {
     createDraft: boolean
     token: string
     hasToken: boolean
-    encodingAesKey: string
-    hasEncodingAesKey: boolean
     replyPrompt: string
+    replyModel: string  // 微信回复专用模型
   }
   schedule: {
     reportHour: number
@@ -94,14 +93,13 @@ export function AdminPage() {
   
   // 系统配置
   const [systemConfig, setSystemConfig] = useState<SystemConfig>({
-    wechat: { appId: '', appSecret: '', hasSecret: false, autoPublish: false, createDraft: true, token: '', hasToken: false, encodingAesKey: '', hasEncodingAesKey: false, replyPrompt: '' },
+    wechat: { appId: '', appSecret: '', hasSecret: false, autoPublish: false, createDraft: true, token: '', hasToken: false, replyPrompt: '', replyModel: '' },
     schedule: { reportHour: 7, emailEnabled: true, wechatCheckHour: 9 }
   })
   const [systemConfigLoading, setSystemConfigLoading] = useState(false)
   const [systemConfigSaving, setSystemConfigSaving] = useState(false)
   const [wechatSecretInput, setWechatSecretInput] = useState('')
   const [wechatTokenInput, setWechatTokenInput] = useState('')
-  const [wechatAesKeyInput, setWechatAesKeyInput] = useState('')
 
   // 加载用户列表
   const loadUsers = useCallback(async () => {
@@ -208,6 +206,7 @@ export function AdminPage() {
         wechat_auto_publish: systemConfig.wechat.autoPublish,
         wechat_create_draft: systemConfig.wechat.createDraft,
         wechat_reply_prompt: systemConfig.wechat.replyPrompt,
+        wechat_reply_model: systemConfig.wechat.replyModel,
         schedule_report_hour: systemConfig.schedule.reportHour,
         schedule_email_enabled: systemConfig.schedule.emailEnabled,
         schedule_wechat_check_hour: systemConfig.schedule.wechatCheckHour,
@@ -219,9 +218,6 @@ export function AdminPage() {
       }
       if (wechatTokenInput) {
         configs.wechat_token = wechatTokenInput
-      }
-      if (wechatAesKeyInput) {
-        configs.wechat_encoding_aes_key = wechatAesKeyInput
       }
       
       const res = await fetch(`${SYNC_API}/api/admin/system-config/batch`, {
@@ -238,7 +234,6 @@ export function AdminPage() {
         alert(`配置已保存！${data.message}`)
         setWechatSecretInput('')
         setWechatTokenInput('')
-        setWechatAesKeyInput('')
         loadSystemConfig()
         loadWechatConfig()
       } else {
@@ -577,12 +572,15 @@ export function AdminPage() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>EncodingAESKey {systemConfig.wechat.hasEncodingAesKey && <span className="secret-hint">（已配置）</span>}</label>
+                  <label>回复模型</label>
                   <input
                     type="text"
-                    value={wechatAesKeyInput}
-                    onChange={e => setWechatAesKeyInput(e.target.value)}
-                    placeholder={systemConfig.wechat.hasEncodingAesKey ? '留空保持不变' : '43位加密密钥（可选）'}
+                    value={systemConfig.wechat.replyModel}
+                    onChange={e => setSystemConfig(prev => ({
+                      ...prev,
+                      wechat: { ...prev.wechat, replyModel: e.target.value }
+                    }))}
+                    placeholder="留空使用 AI 配置中的模型，建议用快速模型如 gpt-4o-mini"
                   />
                 </div>
               </div>
@@ -603,7 +601,8 @@ export function AdminPage() {
                 <p>📋 微信公众号后台配置：</p>
                 <p>• URL: <code>https://market-api.newestgpt.com/api/wechat</code></p>
                 <p>• Token: 填写上方配置的 Token</p>
-                <p>• 消息加解密方式: 建议选择「明文模式」</p>
+                <p>• 消息加解密方式: 选择「明文模式」</p>
+                <p>⚠️ 微信要求 5 秒内响应，建议使用快速模型（如 gpt-4o-mini）</p>
               </div>
             </div>
             

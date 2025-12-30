@@ -67,6 +67,7 @@ async function callAI(message, env) {
   // 获取 AI 配置
   let aiConfig = null
   let replyPrompt = null
+  let replyModel = null
   
   if (env.DB) {
     try {
@@ -83,12 +84,22 @@ async function callAI(message, env) {
         }
       }
       
+      // 微信专用提示词
       const promptRow = await env.DB.prepare(
         'SELECT config_value FROM system_configs WHERE config_key = ?'
       ).bind('wechat_reply_prompt').first()
       
       if (promptRow) {
         replyPrompt = promptRow.config_value.replace(/^"|"$/g, '')
+      }
+      
+      // 微信专用模型
+      const modelRow = await env.DB.prepare(
+        'SELECT config_value FROM system_configs WHERE config_key = ?'
+      ).bind('wechat_reply_model').first()
+      
+      if (modelRow) {
+        replyModel = modelRow.config_value.replace(/^"|"$/g, '')
       }
     } catch (e) {
       console.error('读取 AI 配置失败:', e)
@@ -98,7 +109,8 @@ async function callAI(message, env) {
   // 使用环境变量兜底
   const apiUrl = aiConfig?.apiUrl || env.AI_API_URL || 'https://api.openai.com/v1/chat/completions'
   const apiKey = aiConfig?.apiKey || env.AI_API_KEY
-  const model = aiConfig?.model || env.AI_MODEL || 'gpt-4o-mini'
+  // 优先使用微信专用模型，其次使用通用模型
+  const model = replyModel || aiConfig?.model || env.AI_MODEL || 'gpt-4o-mini'
   
   // 默认提示词
   const defaultPrompt = `你是 Fintell 智能投资助手，专注于 A 股市场分析。
