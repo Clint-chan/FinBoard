@@ -3,29 +3,34 @@
  * 在 App 层级运行，确保策略检查在后台持续进行，不受页面切换影响
  */
 import { useEffect, useRef, useCallback } from 'react'
-import type { StockData, StrategyAlertHistoryItem } from '@/types'
+import type { StockData, StrategyAlertHistoryItem, StockCategory } from '@/types'
 import type { 
   PriceAlertStrategy, 
   SectorArbStrategy, 
   AHPremiumStrategy, 
-  FakeBreakoutStrategy 
+  FakeBreakoutStrategy,
+  GroupAlertStrategy
 } from '@/types/strategy'
 import {
   loadStrategies,
   saveStrategies,
   checkAllStrategies,
-  getStrategyTypeLabel
+  getStrategyTypeLabel,
+  getGroupAlertTypeLabel
 } from '@/services/strategyService'
+import { checkGroupAlert } from '@/services/groupAlertService'
 import { sendNotification, isMarketOpen } from '@/utils/format'
 
 interface UseStrategyMonitorOptions {
   stockData: Record<string, StockData>
+  categories?: StockCategory[] // 股票分组
   strategyCheckInterval?: number // 非价格策略检查间隔（秒），默认30秒
   onAlertTriggered?: (item: StrategyAlertHistoryItem) => void
 }
 
 export function useStrategyMonitor({
   stockData,
+  categories = [],
   strategyCheckInterval = 30,
   onAlertTriggered
 }: UseStrategyMonitorOptions) {
@@ -143,6 +148,98 @@ export function useStrategyMonitor({
       window.dispatchEvent(new CustomEvent('strategies-updated'))
     }
   }, [stockData, saveAlertHistory, resetIfNewDay])
+
+  // 分组异动实时检查（跟随 stockData 变化）
+  useEffect(() => {
+    if (Object.keys(stockData).length === 0) return
+    if (!isMarketOpen()) return
+    
+    const strategies = loadStrategies()
+    const groupAlertStrategies = strategies.filter(
+      s => s.type === 'group_alert' && s.enabled
+    ) as GroupAlertStrategy[]
+    
+    if (groupAlertStrategies.length === 0) return
+
+    let hasUpdate = false
+    const updatedStrategies = strategies.map(strategy => {
+      if (strategy.type !== 'group_alert' || !strategy.enabled) return strategy
+      
+      const gs = strategy as GroupAlertStrategy
+      
+      // 获取该分组的股票代码
+      const category = categories.find(c => c.id === gs.categoryId)
+      if (!category || category.codes.length === 0) return strategy
+      
+      // 检查异动
+      const triggeredStocks = checkGroupAlert(gs, category.codes, stockData)
+      
+      if (triggeredStocks.length > 0) {
+        hasUpdate = true
+        
+        // 发送浏览器通知
+        for (const stock of triggeredStocks) {
+          const alertKey = `${gs.id}_${stock.code}_${stock.alertType}`
+          if (!notifiedStrategies.current.has(alertKey)) {
+            notifiedStrategies.current.add(alertKey)
+            
+            const typeLabel = getGroupAlertTypeLabel(stock.alertType)
+            const title = `${stock.name} ${typeLabel}`
+            let body = ''
+            
+            if (stock.alertType === 'volume_surge') {
+              body = `成交量放大 ${stock.value} 倍，当前价 ${stock.price.toFixed(2)}`
+            } else if (stock.alertType === 'rapid_rise') {
+              body = `短时涨幅 +${stock.value}%，当前价 ${stock.price.toFixed(2)}`
+            } else if (stock.alertType === 'rapid_fall') {
+              body = `短时跌幅 ${stock.value}%，当前价 ${stock.price.toFixed(2)}`
+            } else if (stock.alertType === 'limit_up') {
+              body = `封涨停！当前价 ${stock.price.toFixed(2)}，涨停价 ${stock.value.toFixed(2)}`
+            } else if (stock.alertType === 'limit_open') {
+              body = `涨停打开！当前价 ${stock.price.toFixed(2)}，涨停价 ${stock.value.toFixed(2)}`
+            }
+            
+            sendNotification(title, body)
+            
+            // 保存到历史记录
+            saveAlertHistory({
+              id: `${gs.id}_${stock.code}_${stock.alertType}_${Date.now()}`,
+              type: 'group_alert',
+              title,
+              description: body,
+              timestamp: Date.now(),
+              data: {
+                code: stock.code,
+                stockName: stock.name,
+                alertType: stock.alertType,
+                value: stock.value,
+                price: stock.price,
+                categoryName: gs.categoryName
+              }
+            })
+          }
+        }
+        
+        return {
+          ...gs,
+          triggeredStocks,
+          lastCheckTime: Date.now(),
+          status: 'triggered' as const,
+          triggeredAt: gs.triggeredAt || Date.now()
+        }
+      }
+      
+      return {
+        ...gs,
+        lastCheckTime: Date.now()
+      }
+    })
+    
+    if (hasUpdate) {
+      saveStrategies(updatedStrategies)
+      window.dispatchEvent(new CustomEvent('strategies-updated'))
+    }
+  }, [stockData, categories, saveAlertHistory])
 
   // 定时检查非价格策略（配对监控、AH溢价等需要请求API）
   useEffect(() => {

@@ -1808,3 +1808,146 @@
     width: 100vw;
   }
 }
+
+
+/* ========== 分组异动策略样式 ========== */
+.type-group-alert {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.group-alert-desc {
+  padding: 12px 0;
+}
+
+.group-alert-config {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+
+.group-alert-config .config-label {
+  color: var(--text-tertiary);
+}
+
+.group-alert-config .config-value {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.group-alert-params {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.group-alert-params .param-tag {
+  padding: 4px 10px;
+  background: var(--bg-hover);
+  border-radius: 12px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.group-alert-triggered {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.group-alert-triggered .triggered-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.triggered-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.triggered-item:last-child {
+  border-bottom: none;
+}
+
+.triggered-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.triggered-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.triggered-code {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+.triggered-data {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.triggered-type {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.triggered-type.type-volume_surge {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.triggered-type.type-rapid_rise {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.triggered-type.type-rapid_fall {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+[data-theme="dark"] .triggered-type.type-volume_surge {
+  background: rgba(217, 119, 6, 0.15);
+}
+
+[data-theme="dark"] .triggered-type.type-rapid_rise {
+  background: rgba(220, 38, 38, 0.15);
+}
+
+[data-theme="dark"] .triggered-type.type-rapid_fall {
+  background: rgba(22, 163, 74, 0.15);
+}
+
+.triggered-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.triggered-value.up {
+  color: var(--color-up);
+}
+
+.triggered-value.down {
+  color: var(--color-down);
+}
+
+.triggered-more {
+  padding: 8px 0;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  text-align: center;
+}

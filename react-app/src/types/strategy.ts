@@ -1,10 +1,10 @@
 /**
  * 策略监控中心 - 类型定义
- * 支持多种策略类型：价格预警、行业套利、AH溢价、假突破/异动
+ * 支持多种策略类型：价格预警、行业套利、AH溢价、假突破/异动、分组异动
  */
 
 // 策略类型
-export type StrategyType = 'price' | 'sector_arb' | 'ah_premium' | 'fake_breakout'
+export type StrategyType = 'price' | 'sector_arb' | 'ah_premium' | 'fake_breakout' | 'group_alert'
 
 // 策略状态
 export type StrategyStatus = 'running' | 'triggered' | 'paused' | 'stopped'
@@ -110,8 +110,36 @@ export interface FakeBreakoutSuspect {
   sectorPct: number      // 板块涨幅
 }
 
+// 分组异动预警策略
+export interface GroupAlertStrategy extends BaseStrategy {
+  type: 'group_alert'
+  categoryId: string     // 分组ID
+  categoryName: string   // 分组名称
+  alertTypes: GroupAlertType[]  // 启用的异动类型
+  // 参数配置
+  volumeSurgeMultiplier: number  // 量能放大倍数阈值，如 3 表示当前1分钟成交量 > 前5根均量 × 3
+  rapidRiseThreshold: number     // 快速拉升阈值，如 2 表示 1分钟涨幅 > 2%
+  rapidFallThreshold: number     // 快速下跌阈值，如 2 表示 1分钟跌幅 > 2%
+  // 实时数据
+  triggeredStocks?: GroupAlertTriggeredStock[]  // 触发的股票列表
+  lastCheckTime?: number  // 上次检查时间
+}
+
+// 分组异动类型
+export type GroupAlertType = 'volume_surge' | 'rapid_rise' | 'rapid_fall' | 'limit_up' | 'limit_open'
+
+// 触发异动的股票信息
+export interface GroupAlertTriggeredStock {
+  code: string
+  name: string
+  alertType: GroupAlertType
+  value: number          // 触发值（量能倍数或涨跌幅）
+  price: number          // 当前价格
+  triggeredAt: number    // 触发时间
+}
+
 // 联合策略类型
-export type Strategy = PriceAlertStrategy | SectorArbStrategy | AHPremiumStrategy | FakeBreakoutStrategy
+export type Strategy = PriceAlertStrategy | SectorArbStrategy | AHPremiumStrategy | FakeBreakoutStrategy | GroupAlertStrategy
 
 // 策略配置（用于存储）
 export interface StrategyConfig {

@@ -8,6 +8,7 @@ interface CategoryTabsProps {
   totalCount: number
   onCategoryChange: (categoryId: string | null) => void
   onCategoriesChange: (categories: StockCategory[]) => void
+  onSetGroupAlert?: (category: StockCategory) => void  // 设置分组预警
 }
 
 // 生成唯一 ID
@@ -18,7 +19,8 @@ export function CategoryTabs({
   activeCategory,
   totalCount,
   onCategoryChange,
-  onCategoriesChange
+  onCategoriesChange,
+  onSetGroupAlert
 }: CategoryTabsProps) {
   const [isAdding, setIsAdding] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
@@ -341,6 +343,25 @@ export function CategoryTabs({
             </svg>
             编辑名称
           </div>
+          {onSetGroupAlert && (
+            <div 
+              className="category-menu-item" 
+              onClick={() => {
+                const category = categories.find(c => c.id === contextMenu.categoryId)
+                if (category) {
+                  onSetGroupAlert(category)
+                }
+                setContextMenu({ open: false, x: 0, y: 0, categoryId: null })
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+              设置异动预警
+            </div>
+          )}
           <div className="category-menu-item danger" onClick={handleDeleteCategory}>
             <svg viewBox="0 0 24 24" width="14" height="14">
               <polyline points="3 6 5 6 21 6"></polyline>

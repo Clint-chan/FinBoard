@@ -1146,3 +1146,151 @@
   border-radius: 4px;
   color: var(--text-tertiary);
 }
+
+
+/* ========== 通用弹窗遮罩层 ========== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+
+/* ========== 分组异动预警弹窗 ========== */
+.group-alert-modal {
+  width: 480px;
+  max-width: 90vw;
+}
+
+.group-alert-header-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--bg-hover);
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.group-alert-label {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+.group-alert-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.group-alert-divider {
+  color: var(--text-tertiary);
+}
+
+.group-alert-count {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+.group-alert-section {
+  margin-bottom: 20px;
+}
+
+.group-alert-section .section-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+/* 异动类型标签 - 横排 */
+.alert-type-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.alert-type-tag {
+  padding: 8px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 20px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.alert-type-tag:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.alert-type-tag.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
+}
+
+[data-theme="dark"] .alert-type-tag.active {
+  background: #3b82f6;
+}
+
+.group-alert-param {
+  margin-bottom: 16px;
+}
+
+.group-alert-param label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.group-alert-param label > span {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.param-input-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.param-input-group input {
+  width: 70px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  text-align: right;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.param-input-group input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.param-unit {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+.param-hint {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .param-input-group input {
+  background: var(--bg-body);
+}

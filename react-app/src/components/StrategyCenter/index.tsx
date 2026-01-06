@@ -1,6 +1,6 @@
 /**
  * StrategyCenter - 策略监控中心
- * 支持多种策略类型：价格预警、行业套利、AH溢价、假突破/异动
+ * 支持多种策略类型：价格预警、行业套利、AH溢价、假突破/异动、分组异动
  */
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
@@ -11,13 +11,15 @@ import type {
   AHPremiumStrategy,
   FakeBreakoutStrategy,
   PriceAlertStrategy,
-  PriceCondition
+  PriceCondition,
+  GroupAlertStrategy
 } from '@/types/strategy'
 import type { StockData, StrategyAlertHistoryItem } from '@/types'
 import {
   loadStrategies,
   saveStrategies,
-  getStrategyTypeLabel
+  getStrategyTypeLabel,
+  getGroupAlertTypeLabel
 } from '@/services/strategyService'
 import { StrategyModal } from './StrategyModal'
 import { initSampleStrategies } from './sampleStrategies'
@@ -36,6 +38,11 @@ const STRATEGY_TABS: { id: StrategyType | 'all'; label: string; icon: JSX.Elemen
     id: 'all', 
     label: '全部策略',
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></svg>
+  },
+  { 
+    id: 'group_alert', 
+    label: '分组异动',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
   },
   { 
     id: 'sector_arb', 
@@ -515,6 +522,7 @@ function getStrategyTagLabel(type: Strategy['type']): string {
     case 'sector_arb': return '配对监控'
     case 'ah_premium': return 'AH溢价'
     case 'fake_breakout': return '假突破预警'
+    case 'group_alert': return '分组异动'
   }
 }
 
@@ -548,6 +556,10 @@ function getStrategyDisplayName(strategy: Strategy): string {
       }
       const fs = strategy as FakeBreakoutStrategy
       return `${fs.sectorName || fs.sectorCode} · 诱多监控`
+    }
+    case 'group_alert': {
+      const gs = strategy as GroupAlertStrategy
+      return gs.categoryName || '未知分组'
     }
   }
 }
@@ -652,6 +664,9 @@ function StrategyCard({ strategy, stockData = {}, onEdit, onDelete, onToggle, on
           )}
           {strategy.type === 'fake_breakout' && (
             <FakeBreakoutContent strategy={strategy as FakeBreakoutStrategy} />
+          )}
+          {strategy.type === 'group_alert' && (
+            <GroupAlertContent strategy={strategy as GroupAlertStrategy} />
           )}
           {strategy.type === 'price' && (
             <PriceAlertContent 
@@ -811,6 +826,64 @@ function FakeBreakoutContent({ strategy }: { strategy: FakeBreakoutStrategy }) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+// 分组异动内容
+function GroupAlertContent({ strategy }: { strategy: GroupAlertStrategy }) {
+  const triggeredStocks = strategy.triggeredStocks || []
+  const alertTypeLabels = strategy.alertTypes.map(t => getGroupAlertTypeLabel(t)).join('、')
+
+  return (
+    <>
+      <div className="group-alert-desc">
+        <div className="group-alert-config">
+          <span className="config-label">监控分组：</span>
+          <span className="config-value">{strategy.categoryName}</span>
+        </div>
+        <div className="group-alert-config">
+          <span className="config-label">异动类型：</span>
+          <span className="config-value">{alertTypeLabels}</span>
+        </div>
+        <div className="group-alert-params">
+          {strategy.alertTypes.includes('volume_surge') && (
+            <span className="param-tag">量能 &gt; {strategy.volumeSurgeMultiplier}倍</span>
+          )}
+          {strategy.alertTypes.includes('rapid_rise') && (
+            <span className="param-tag">拉升 &gt; {strategy.rapidRiseThreshold}%</span>
+          )}
+          {strategy.alertTypes.includes('rapid_fall') && (
+            <span className="param-tag">下跌 &gt; {strategy.rapidFallThreshold}%</span>
+          )}
+        </div>
+      </div>
+      {triggeredStocks.length > 0 && (
+        <div className="group-alert-triggered">
+          <div className="triggered-title">触发异动</div>
+          {triggeredStocks.slice(0, 5).map((stock, idx) => (
+            <div key={`${stock.code}-${idx}`} className="triggered-item">
+              <div className="triggered-info">
+                <span className="triggered-name">{stock.name}</span>
+                <span className="triggered-code">{stock.code}</span>
+              </div>
+              <div className="triggered-data">
+                <span className={`triggered-type type-${stock.alertType}`}>
+                  {getGroupAlertTypeLabel(stock.alertType)}
+                </span>
+                <span className={`triggered-value ${stock.alertType === 'rapid_fall' ? 'down' : 'up'}`}>
+                  {stock.alertType === 'volume_surge' 
+                    ? `${stock.value}倍` 
+                    : `${stock.value >= 0 ? '+' : ''}${stock.value}%`}
+                </span>
+              </div>
+            </div>
+          ))}
+          {triggeredStocks.length > 5 && (
+            <div className="triggered-more">还有 {triggeredStocks.length - 5} 只...</div>
+          )}
         </div>
       )}
     </>

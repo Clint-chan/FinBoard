@@ -37,7 +37,7 @@ export interface AlertConfig {
 // 预警历史记录（策略中心使用的新格式）
 export interface StrategyAlertHistoryItem {
   id: string
-  type: 'sector_arb' | 'ah_premium' | 'fake_breakout' | 'price' | 'system'
+  type: 'sector_arb' | 'ah_premium' | 'fake_breakout' | 'price' | 'group_alert' | 'system'
   title: string
   description: string
   timestamp: number

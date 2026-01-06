@@ -8,7 +8,7 @@ import { useStrategyMonitor } from '@/hooks/useStrategyMonitor'
 import { requestNotificationPermission } from '@/utils/format'
 import { runMigration } from '@/services/migrationService'
 import { loadStrategies, saveStrategies, generateStrategyId } from '@/services/strategyService'
-import type { PriceAlertStrategy, PriceCondition } from '@/types/strategy'
+import type { PriceAlertStrategy, PriceCondition, GroupAlertStrategy } from '@/types/strategy'
 import Sidebar from '@/components/Sidebar'
 import { SettingsModal } from '@/components/SettingsModal'
 import { MobileHeader } from '@/components/MobileHeader'
@@ -22,7 +22,7 @@ import StatusBar from '@/components/StatusBar'
 import ChartTooltip from '@/components/ChartTooltip'
 import ContextMenu from '@/components/ContextMenu'
 import { CategoryTabs } from '@/components/CategoryTabs'
-import { AddStockModal, AlertModal, CostModal, AuthModal } from '@/components/modals'
+import { AddStockModal, AlertModal, CostModal, AuthModal, GroupAlertModal } from '@/components/modals'
 import { AdminPage } from '@/components/AdminPage'
 import { StrategyCenter } from '@/components/StrategyCenter'
 import { AnalysisDrawer } from '@/components/AnalysisDrawer'
@@ -77,6 +77,7 @@ function App() {
   const [addStockOpen, setAddStockOpen] = useState(false)
   const [alertModal, setAlertModal] = useState<{ open: boolean; code: string | null; initialPrice?: number; editIndex?: number }>({ open: false, code: null })
   const [costModal, setCostModal] = useState<{ open: boolean; code: string | null }>({ open: false, code: null })
+  const [groupAlertModal, setGroupAlertModal] = useState<{ open: boolean; category: StockCategory | null }>({ open: false, category: null })
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ open: false, x: 0, y: 0, code: null })
   const [chartTooltip, setChartTooltip] = useState<ChartTooltipState>({ visible: false, code: null, x: 0, y: 0 })
   const [analysisDrawer, setAnalysisDrawer] = useState<{ open: boolean; code: string }>({ open: false, code: '' })
@@ -164,6 +165,7 @@ function App() {
   // 后台策略监控（在 App 层级运行，不受页面切换影响）
   useStrategyMonitor({
     stockData,
+    categories: config.categories || [],
     strategyCheckInterval: config.strategyCheckInterval ?? 30,
     onAlertTriggered: (item) => {
       // 添加新记录到开头，保留最近100条
@@ -506,6 +508,25 @@ function App() {
       updateConfig({ categories: [...categories, newCategory] })
   }, [categories, updateConfig])
 
+  // 保存分组异动预警策略
+  const saveGroupAlertStrategy = useCallback((strategy: GroupAlertStrategy) => {
+    const strategies = loadStrategies()
+    // 检查是否已存在该分组的策略
+    const existingIndex = strategies.findIndex(
+      s => s.type === 'group_alert' && (s as GroupAlertStrategy).categoryId === strategy.categoryId
+    )
+    
+    if (existingIndex >= 0) {
+      // 更新现有策略
+      strategies[existingIndex] = strategy
+    } else {
+      // 添加新策略
+      strategies.push(strategy)
+    }
+    
+    saveStrategies(strategies)
+  }, [])
+
   // 获取当前显示的股票列表（根据分类筛选）
   const getFilteredCodes = useCallback(() => {
     if (!activeCategory) {
@@ -823,6 +844,7 @@ function App() {
               totalCount={config.codes.length}
               onCategoryChange={setActiveCategory}
               onCategoriesChange={updateCategories}
+              onSetGroupAlert={(category) => setGroupAlertModal({ open: true, category })}
             />
             
             <div className="card">
@@ -936,6 +958,13 @@ function App() {
         currentCost={costModal.code ? config.costs[costModal.code] : undefined}
         onClose={() => setCostModal({ open: false, code: null })}
         onSave={saveCost}
+      />
+      
+      <GroupAlertModal
+        open={groupAlertModal.open}
+        category={groupAlertModal.category}
+        onClose={() => setGroupAlertModal({ open: false, category: null })}
+        onSave={saveGroupAlertStrategy}
       />
       
       <ContextMenu

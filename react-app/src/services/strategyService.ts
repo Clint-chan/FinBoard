@@ -9,7 +9,10 @@ import type {
   SectorArbStrategy,
   AHPremiumStrategy,
   FakeBreakoutStrategy,
-  FakeBreakoutSuspect
+  FakeBreakoutSuspect,
+  GroupAlertStrategy,
+  GroupAlertTriggeredStock,
+  GroupAlertType
 } from '@/types/strategy'
 import { fetchQuotes } from './dataService'
 
@@ -517,7 +520,8 @@ export function getStrategyTypeLabel(type: string): string {
     price: '价格预警',
     sector_arb: '配对监控',
     ah_premium: 'AH溢价',
-    fake_breakout: '假突破'
+    fake_breakout: '假突破',
+    group_alert: '分组异动'
   }
   return labels[type] || type
 }
@@ -527,7 +531,177 @@ export function getStrategyTypeColor(type: string): string {
     price: 'type-price',
     sector_arb: 'type-sector-arb',
     ah_premium: 'type-ah-premium',
-    fake_breakout: 'type-fake-breakout'
+    fake_breakout: 'type-fake-breakout',
+    group_alert: 'type-group-alert'
   }
   return colors[type] || 'type-default'
+}
+
+// ============ 1分钟K线数据 ============
+
+interface MinuteKlinePoint {
+  time: string
+  open: number
+  close: number
+  high: number
+  low: number
+  volume: number
+  amount: number
+}
+
+/**
+ * 获取股票1分钟K线数据（最近6根）
+ */
+export async function fetch1MinKline(code: string): Promise<MinuteKlinePoint[]> {
+  const symbol = code.replace(/^(sh|sz)/, '')
+  let marketCode = '0' // 默认深圳
+  
+  if (code.startsWith('sh') || symbol.startsWith('6')) {
+    marketCode = '1'
+  } else if (SH_INDEX_CODES.includes(symbol)) {
+    marketCode = '1'
+  }
+  
+  const url = 'https://push2his.eastmoney.com/api/qt/stock/kline/get'
+  const params = new URLSearchParams({
+    fields1: 'f1,f2,f3,f4,f5,f6',
+    fields2: 'f51,f52,f53,f54,f55,f56,f57',
+    ut: '7eea3edcaed734bea9cbfc24409ed989',
+    klt: '1',  // 1分钟K线
+    fqt: '1',
+    secid: `${marketCode}.${symbol}`,
+    beg: '0',
+    end: '20500000',
+    lmt: '6'  // 只取最近6根
+  })
+
+  const response = await fetch(`${url}?${params}`)
+  const data = await response.json()
+  
+  if (!data.data?.klines) {
+    return []
+  }
+
+  return data.data.klines.map((item: string) => {
+    const p = item.split(',')
+    return {
+      time: p[0],
+      open: parseFloat(p[1]),
+      close: parseFloat(p[2]),
+      high: parseFloat(p[3]),
+      low: parseFloat(p[4]),
+      volume: parseInt(p[5]),
+      amount: parseFloat(p[6])
+    }
+  })
+}
+
+/**
+ * 检查分组异动预警策略
+ */
+export async function checkGroupAlertStrategy(
+  strategy: GroupAlertStrategy,
+  stockCodes: string[],
+  stockNames: Record<string, string>
+): Promise<GroupAlertStrategy> {
+  if (stockCodes.length === 0) {
+    return strategy
+  }
+
+  const triggeredStocks: GroupAlertTriggeredStock[] = []
+  const now = Date.now()
+
+  // 并行获取所有股票的1分钟K线
+  const klinePromises = stockCodes.map(async (code) => {
+    try {
+      const klines = await fetch1MinKline(code)
+      return { code, klines }
+    } catch {
+      return { code, klines: [] }
+    }
+  })
+
+  const results = await Promise.all(klinePromises)
+
+  for (const { code, klines } of results) {
+    if (klines.length < 2) continue
+
+    const latestKline = klines[klines.length - 1]
+    const prevKlines = klines.slice(0, -1)
+    
+    // 计算前5根K线的平均成交量
+    const avgVolume = prevKlines.reduce((sum, k) => sum + k.volume, 0) / prevKlines.length
+    
+    // 计算最新K线的涨跌幅
+    const pctChange = latestKline.open > 0 
+      ? ((latestKline.close - latestKline.open) / latestKline.open) * 100 
+      : 0
+
+    // 检查量能异动
+    if (strategy.alertTypes.includes('volume_surge')) {
+      const volumeMultiplier = avgVolume > 0 ? latestKline.volume / avgVolume : 0
+      if (volumeMultiplier >= strategy.volumeSurgeMultiplier) {
+        triggeredStocks.push({
+          code,
+          name: stockNames[code] || code,
+          alertType: 'volume_surge',
+          value: Math.round(volumeMultiplier * 10) / 10,
+          price: latestKline.close,
+          triggeredAt: now
+        })
+      }
+    }
+
+    // 检查快速拉升
+    if (strategy.alertTypes.includes('rapid_rise')) {
+      if (pctChange >= strategy.rapidRiseThreshold) {
+        triggeredStocks.push({
+          code,
+          name: stockNames[code] || code,
+          alertType: 'rapid_rise',
+          value: Math.round(pctChange * 100) / 100,
+          price: latestKline.close,
+          triggeredAt: now
+        })
+      }
+    }
+
+    // 检查快速下跌
+    if (strategy.alertTypes.includes('rapid_fall')) {
+      if (pctChange <= -strategy.rapidFallThreshold) {
+        triggeredStocks.push({
+          code,
+          name: stockNames[code] || code,
+          alertType: 'rapid_fall',
+          value: Math.round(pctChange * 100) / 100,
+          price: latestKline.close,
+          triggeredAt: now
+        })
+      }
+    }
+  }
+
+  const triggered = triggeredStocks.length > 0
+
+  return {
+    ...strategy,
+    triggeredStocks,
+    lastCheckTime: now,
+    status: triggered ? 'triggered' : 'running',
+    triggeredAt: triggered && strategy.status !== 'triggered' ? now : strategy.triggeredAt
+  }
+}
+
+/**
+ * 获取分组异动类型的中文标签
+ */
+export function getGroupAlertTypeLabel(type: GroupAlertType): string {
+  const labels: Record<GroupAlertType, string> = {
+    volume_surge: '量能异动',
+    rapid_rise: '快速拉升',
+    rapid_fall: '快速下跌',
+    limit_up: '涨停',
+    limit_open: '开板'
+  }
+  return labels[type] || type
 }
