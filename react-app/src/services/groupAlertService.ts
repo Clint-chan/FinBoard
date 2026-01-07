@@ -87,6 +87,7 @@ interface MonitorState {
   snapshots: StockSnapshot[]  // 最近N次快照（环形缓冲）
   lastAlertTime: Record<GroupAlertType, number>  // 上次预警时间（按类型）
   wasLimitUp: boolean  // 上一次是否涨停（用于检测开板）
+  initialPctChecked: boolean  // 是否已检查过开盘涨跌幅
 }
 
 // 全局监控状态
@@ -120,7 +121,8 @@ function updateSnapshot(code: string, stockData: StockData): void {
         limit_up: 0,
         limit_open: 0
       },
-      wasLimitUp: false
+      wasLimitUp: false,
+      initialPctChecked: false
     }
     monitorStates.set(code, state)
   }
@@ -243,6 +245,47 @@ function detectRapidMove(
   return {
     triggered,
     value: Math.round(pctChange * 100) / 100
+  }
+}
+
+/**
+ * 检测开盘涨跌幅（相对昨收）
+ * 用于捕获开盘就高开/低开超过阈值的情况
+ */
+function detectInitialPct(
+  code: string,
+  stockData: StockData,
+  threshold: number,
+  direction: 'rise' | 'fall'
+): { triggered: boolean; value: number } {
+  const state = monitorStates.get(code)
+  if (!state) {
+    return { triggered: false, value: 0 }
+  }
+
+  // 只在首次检查时触发
+  if (state.initialPctChecked) {
+    return { triggered: false, value: 0 }
+  }
+
+  const { price, preClose } = stockData
+  if (!preClose || preClose <= 0) {
+    return { triggered: false, value: 0 }
+  }
+
+  // 计算相对昨收的涨跌幅
+  const pct = ((price - preClose) / preClose) * 100
+
+  let triggered = false
+  if (direction === 'rise') {
+    triggered = pct >= threshold
+  } else {
+    triggered = pct <= -threshold
+  }
+
+  return {
+    triggered,
+    value: Math.round(pct * 100) / 100
   }
 }
 
@@ -409,6 +452,25 @@ export async function checkGroupAlert(
     // 检查快速拉升
     if (strategy.alertTypes.includes('rapid_rise')) {
       if (!isInCooldown(code, 'rapid_rise')) {
+        const state = monitorStates.get(code)
+        
+        // 首次检查：检测开盘涨幅是否已超过阈值
+        if (state && !state.initialPctChecked) {
+          const initialResult = detectInitialPct(code, data, strategy.rapidRiseThreshold, 'rise')
+          if (initialResult.triggered) {
+            recordAlertTime(code, 'rapid_rise')
+            triggeredStocks.push({
+              code,
+              name: data.name,
+              alertType: 'rapid_rise',
+              value: initialResult.value,
+              price: data.price,
+              triggeredAt: now
+            })
+          }
+        }
+        
+        // 常规检查：短时间内的价格变化
         const result = detectRapidMove(code, strategy.rapidRiseThreshold, 'rise')
         if (result.triggered) {
           recordAlertTime(code, 'rapid_rise')
@@ -427,6 +489,25 @@ export async function checkGroupAlert(
     // 检查快速下跌
     if (strategy.alertTypes.includes('rapid_fall')) {
       if (!isInCooldown(code, 'rapid_fall')) {
+        const state = monitorStates.get(code)
+        
+        // 首次检查：检测开盘跌幅是否已超过阈值
+        if (state && !state.initialPctChecked) {
+          const initialResult = detectInitialPct(code, data, strategy.rapidFallThreshold, 'fall')
+          if (initialResult.triggered) {
+            recordAlertTime(code, 'rapid_fall')
+            triggeredStocks.push({
+              code,
+              name: data.name,
+              alertType: 'rapid_fall',
+              value: initialResult.value,
+              price: data.price,
+              triggeredAt: now
+            })
+          }
+        }
+        
+        // 常规检查：短时间内的价格变化
         const result = detectRapidMove(code, strategy.rapidFallThreshold, 'fall')
         if (result.triggered) {
           recordAlertTime(code, 'rapid_fall')
@@ -440,6 +521,12 @@ export async function checkGroupAlert(
           })
         }
       }
+    }
+
+    // 标记已完成首次涨跌幅检查
+    const stateToMark = monitorStates.get(code)
+    if (stateToMark && !stateToMark.initialPctChecked) {
+      stateToMark.initialPctChecked = true
     }
 
     // 检查涨停

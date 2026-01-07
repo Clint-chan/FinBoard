@@ -12,22 +12,46 @@ interface BidAskModalProps {
   onClose: () => void
 }
 
+// 历史记录用于计算变化率
+interface HistoryPoint {
+  ratio: number
+  time: number
+}
+
 export function BidAskModal({ open, code, onClose }: BidAskModalProps) {
   const [data, setData] = useState<BidAskData | null>(null)
   const [loading, setLoading] = useState(false)
   const [autoRefresh, setAutoRefresh] = useState(false)
+  const [history, setHistory] = useState<HistoryPoint[]>([])
 
   const loadData = useCallback(async () => {
     if (!code) return
     setLoading(true)
     const result = await fetchBidAskData(code)
     setData(result)
+    // 记录历史数据（最多保留10个点，约30秒数据）
+    if (result) {
+      setHistory(prev => {
+        const newHistory = [...prev, { ratio: result.dailyOuterRatio, time: Date.now() }]
+        return newHistory.slice(-10)
+      })
+    }
     setLoading(false)
   }, [code])
+
+  // 计算累计外盘占比的变化趋势
+  const getTrend = useCallback(() => {
+    if (history.length < 2) return { delta: 0, isRising: false }
+    const oldest = history[0]
+    const latest = history[history.length - 1]
+    const delta = latest.ratio - oldest.ratio
+    return { delta, isRising: delta > 0.5 } // 上升超过0.5%视为攀升
+  }, [history])
 
   // 首次加载
   useEffect(() => {
     if (open && code) {
+      setHistory([]) // 重置历史
       loadData()
     }
   }, [open, code, loadData])
@@ -172,9 +196,13 @@ export function BidAskModal({ open, code, onClose }: BidAskModalProps) {
                   </span>
                 </div>
                 <div className="bam-signal-item">
-                  <span>累计外盘占比 ≥ 55%</span>
-                  <span className={data.dailyOuterRatio >= 55 ? 'pass' : 'fail'}>
-                    {data.dailyOuterRatio >= 55 ? '✓ 通过' : '— 未达标'}
+                  <span>累计外盘占比趋势攀升</span>
+                  <span className={getTrend().isRising ? 'pass' : 'fail'}>
+                    {getTrend().isRising 
+                      ? `✓ +${getTrend().delta.toFixed(1)}%` 
+                      : history.length < 2 
+                        ? '— 数据采集中...' 
+                        : `— ${getTrend().delta >= 0 ? '+' : ''}${getTrend().delta.toFixed(1)}%`}
                   </span>
                 </div>
               </div>

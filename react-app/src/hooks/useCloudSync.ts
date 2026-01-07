@@ -9,7 +9,7 @@ import {
   verifyToken
 } from '@/services/cloudService'
 import { migrateConfig } from '@/services/migrationService'
-import { loadStrategies, saveStrategies } from '@/services/strategyService'
+import { loadStrategies } from '@/services/strategyService'
 import type { UserConfig } from '@/types'
 
 interface CloudAuth {
@@ -33,9 +33,14 @@ function syncStrategiesToLocal(cloudConfig: Partial<UserConfig>) {
       cloudConfig.strategies.length,
       '个策略'
     )
-    saveStrategies(cloudConfig.strategies as any[])
-    // 触发策略更新事件
-    window.dispatchEvent(new CustomEvent('strategies-updated'))
+    // 直接写入 localStorage，不通过 saveStrategies 避免触发云同步循环
+    try {
+      localStorage.setItem('market_board_strategies', JSON.stringify(cloudConfig.strategies))
+      // 触发 UI 刷新事件，但标记为来自云端，避免再次触发云同步
+      window.dispatchEvent(new CustomEvent('strategies-updated', { detail: { fromCloud: true } }))
+    } catch (e) {
+      console.warn('[CloudSync] 保存策略到本地失败:', e)
+    }
   }
 }
 
@@ -242,8 +247,14 @@ export function useCloudSync({ config, onConfigLoaded }: UseCloudSyncOptions) {
   useEffect(() => {
     if (!auth?.token) return
 
-    const handleStrategiesUpdated = () => {
-      console.log('[CloudSync] 检测到策略更新，触发云同步')
+    const handleStrategiesUpdated = (e: Event) => {
+      // 如果是从云端同步来的，不要再触发云同步，避免循环
+      const customEvent = e as CustomEvent
+      if (customEvent.detail?.fromCloud) {
+        console.log('[CloudSync] 策略从云端同步完成，跳过云同步')
+        return
+      }
+      console.log('[CloudSync] 检测到本地策略更新，触发云同步')
       saveToCloud()
     }
 

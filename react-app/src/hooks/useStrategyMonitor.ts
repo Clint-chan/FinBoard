@@ -143,7 +143,7 @@ export function useStrategyMonitor({
     })
     
     if (hasUpdate) {
-      saveStrategies(updatedStrategies)
+      saveStrategies(updatedStrategies, true) // 静默保存，避免双重触发
       // 触发事件通知 StrategyCenter 刷新
       window.dispatchEvent(new CustomEvent('strategies-updated'))
     }
@@ -340,10 +340,17 @@ export function useStrategyMonitor({
           }
         })
         
-        // 保存更新后的策略
-        saveStrategies(updated)
-        // 触发事件通知 StrategyCenter 刷新
-        window.dispatchEvent(new CustomEvent('strategies-updated'))
+        // 只有当策略有实际变化时才保存和触发事件
+        const hasChanges = updated.some((s, i) => {
+          const old = strategies[i]
+          return s.status !== old?.status || s.triggeredAt !== old?.triggeredAt
+        })
+        
+        if (hasChanges) {
+          saveStrategies(updated, true) // 静默保存，避免双重触发
+          // 触发事件通知 StrategyCenter 刷新
+          window.dispatchEvent(new CustomEvent('strategies-updated'))
+        }
       } catch (err) {
         console.error('[StrategyMonitor] 检查策略失败:', err)
       }
