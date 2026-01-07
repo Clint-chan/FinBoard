@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { StockData, AlertCondition } from '@/types'
 import { fmtNum } from '@/utils/format'
 import './Modal.css'
@@ -17,9 +17,12 @@ interface AlertModalProps {
 function AlertModal({ open, code, stockData, conditions: initialConditions, onClose, onSave, initialPrice, editIndex }: AlertModalProps) {
   const [conditions, setConditions] = useState<AlertCondition[]>([])
   const isEditMode = editIndex !== undefined && editIndex >= 0
+  // 记录上一次的 open 状态，只在从关闭变为打开时初始化
+  const prevOpenRef = useRef(false)
 
   useEffect(() => {
-    if (open) {
+    // 只在弹窗从关闭变为打开时初始化条件
+    if (open && !prevOpenRef.current) {
       if (isEditMode && initialConditions?.[editIndex]) {
         // 编辑模式：只显示要编辑的那一条
         setConditions([{ ...initialConditions[editIndex] }])
@@ -32,7 +35,8 @@ function AlertModal({ open, code, stockData, conditions: initialConditions, onCl
         setConditions(initialConditions?.length ? [...initialConditions] : [])
       }
     }
-  }, [open, initialConditions, initialPrice, stockData, editIndex, isEditMode])
+    prevOpenRef.current = open
+  }, [open]) // 只依赖 open 状态
 
   const addCondition = () => {
     setConditions([...conditions, { type: 'price', operator: 'above', value: 0 }])
