@@ -701,7 +701,8 @@ export function getGroupAlertTypeLabel(type: GroupAlertType): string {
     rapid_rise: '快速拉升',
     rapid_fall: '快速下跌',
     limit_up: '涨停',
-    limit_open: '开板'
+    limit_open: '开板',
+    alpha_lead: '龙头领涨'
   }
   return labels[type] || type
 }

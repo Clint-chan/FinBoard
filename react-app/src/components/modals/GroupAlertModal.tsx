@@ -91,6 +91,9 @@ export function GroupAlertModal({
   const [volumeSurgeMultiplier, setVolumeSurgeMultiplier] = useState(3)
   const [rapidRiseThreshold, setRapidRiseThreshold] = useState(2)
   const [rapidFallThreshold, setRapidFallThreshold] = useState(3)
+  // Alpha Monitor
+  const [alphaMonitorEnabled, setAlphaMonitorEnabled] = useState(false)
+  const [alphaThreshold, setAlphaThreshold] = useState(2)
 
   useEffect(() => {
     if (existingStrategy) {
@@ -98,11 +101,15 @@ export function GroupAlertModal({
       setVolumeSurgeMultiplier(existingStrategy.volumeSurgeMultiplier)
       setRapidRiseThreshold(existingStrategy.rapidRiseThreshold)
       setRapidFallThreshold(existingStrategy.rapidFallThreshold)
+      setAlphaMonitorEnabled(existingStrategy.alphaMonitorEnabled || false)
+      setAlphaThreshold(existingStrategy.alphaThreshold || 2)
     } else {
       setAlertTypes(['limit_up', 'limit_open', 'volume_surge'])
       setVolumeSurgeMultiplier(3)
       setRapidRiseThreshold(2)
       setRapidFallThreshold(3)
+      setAlphaMonitorEnabled(false)
+      setAlphaThreshold(2)
     }
   }, [existingStrategy, open])
 
@@ -110,6 +117,11 @@ export function GroupAlertModal({
     setAlertTypes(prev =>
       prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
     )
+  }
+
+  // 切换 Alpha Monitor
+  const toggleAlphaMonitor = () => {
+    setAlphaMonitorEnabled(!alphaMonitorEnabled)
   }
 
   const handleSave = () => {
@@ -128,7 +140,9 @@ export function GroupAlertModal({
       alertTypes,
       volumeSurgeMultiplier,
       rapidRiseThreshold,
-      rapidFallThreshold
+      rapidFallThreshold,
+      alphaMonitorEnabled,
+      alphaThreshold
     }
     onSave(strategy)
     onClose()
@@ -310,6 +324,58 @@ export function GroupAlertModal({
                     value={volumeSurgeMultiplier}
                     onChange={e => setVolumeSurgeMultiplier(Number(e.target.value))}
                     disabled={!isActive('volume_surge')}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Alpha Monitor - 龙头过滤器 */}
+          <div className="gam-section">
+            <label className="gam-section-label">龙头过滤器 (Alpha Monitor)</label>
+            <div className={`gam-alpha-card ${alphaMonitorEnabled ? 'active-purple' : ''}`}>
+              <div className="gam-alpha-header">
+                <div className="gam-alpha-left">
+                  <div className={`gam-alpha-icon ${alphaMonitorEnabled ? 'icon-purple-solid' : ''}`}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 3v18h18" />
+                      <path d="M7 12l3-3 3 3 5-5" />
+                      <circle cx="18" cy="7" r="2" fill="currentColor" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="gam-alpha-title">
+                      <span>龙头过滤器</span>
+                      <span className="gam-alpha-badge">Alpha</span>
+                    </div>
+                    <p className="gam-alpha-desc">开启后，只有跑赢分组平均的龙头股才会触发异动预警</p>
+                  </div>
+                </div>
+                <div
+                  className={`gam-toggle gam-toggle-lg ${alphaMonitorEnabled ? 'toggle-on-purple' : ''}`}
+                  onClick={toggleAlphaMonitor}
+                >
+                  <div className="gam-toggle-dot" />
+                </div>
+              </div>
+              <div className={`gam-alpha-input ${alphaMonitorEnabled ? '' : 'input-disabled'}`}>
+                <span className="gam-input-label">超额阈值</span>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="5"
+                  step="0.5"
+                  value={alphaThreshold}
+                  onChange={e => setAlphaThreshold(Number(e.target.value))}
+                  disabled={!alphaMonitorEnabled}
+                  className="gam-slider gam-slider-purple"
+                />
+                <div className="gam-alpha-display">
+                  <input
+                    type="number"
+                    value={alphaThreshold}
+                    onChange={e => setAlphaThreshold(Number(e.target.value))}
+                    disabled={!alphaMonitorEnabled}
                   />
                 </div>
               </div>

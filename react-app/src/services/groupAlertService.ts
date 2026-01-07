@@ -54,7 +54,8 @@ function updateSnapshot(code: string, stockData: StockData): void {
         rapid_rise: 0,
         rapid_fall: 0,
         limit_up: 0,
-        limit_open: 0
+        limit_open: 0,
+        alpha_lead: 0
       },
       wasLimitUp: false
     }
@@ -252,6 +253,22 @@ export function checkGroupAlert(
   const triggeredStocks: GroupAlertTriggeredStock[] = []
   const now = Date.now()
 
+  // 计算分组平均涨跌幅（用于 Alpha 监控）
+  let groupAvgPct = 0
+  if (strategy.alertTypes.includes('alpha_lead') && strategy.alphaMonitorEnabled) {
+    const pcts: number[] = []
+    for (const code of stockCodes) {
+      const data = stockData[code]
+      if (data && data.preClose && data.preClose > 0) {
+        const pct = ((data.price - data.preClose) / data.preClose) * 100
+        pcts.push(pct)
+      }
+    }
+    if (pcts.length > 0) {
+      groupAvgPct = pcts.reduce((a, b) => a + b, 0) / pcts.length
+    }
+  }
+
   for (const code of stockCodes) {
     const data = stockData[code]
     if (!data) continue
@@ -351,6 +368,30 @@ export function checkGroupAlert(
             price: data.price,
             triggeredAt: now
           })
+        }
+      }
+    }
+
+    // 检查 Alpha 领先（超额收益）
+    if (strategy.alertTypes.includes('alpha_lead') && strategy.alphaMonitorEnabled) {
+      if (!isInCooldown(code, 'alpha_lead')) {
+        const threshold = strategy.alphaThreshold || 2
+        if (data.preClose && data.preClose > 0) {
+          const stockPct = ((data.price - data.preClose) / data.preClose) * 100
+          const alpha = stockPct - groupAvgPct
+          
+          // 超额收益 > 阈值 且 股票本身是上涨的
+          if (alpha >= threshold && stockPct > 0) {
+            recordAlertTime(code, 'alpha_lead')
+            triggeredStocks.push({
+              code,
+              name: data.name,
+              alertType: 'alpha_lead',
+              value: Math.round(alpha * 100) / 100,
+              price: data.price,
+              triggeredAt: now
+            })
+          }
         }
       }
     }

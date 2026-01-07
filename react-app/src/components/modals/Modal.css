@@ -1992,3 +1992,171 @@
   -webkit-appearance: none;
   margin: 0;
 }
+
+
+/* Alpha Monitor 样式 */
+.gam-alpha-card {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s;
+}
+
+[data-theme="dark"] .gam-alpha-card {
+  background: var(--bg-surface);
+  border-color: var(--border-light);
+}
+
+.gam-alpha-card.active-purple {
+  background: #faf5ff;
+  border-color: #8b5cf6;
+}
+
+[data-theme="dark"] .gam-alpha-card.active-purple {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: #8b5cf6;
+}
+
+.gam-alpha-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.gam-alpha-left {
+  display: flex;
+  gap: 12px;
+}
+
+.gam-alpha-icon {
+  padding: 8px;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #94a3b8;
+}
+
+.gam-alpha-icon.icon-purple-solid {
+  background: #8b5cf6;
+  border-color: #8b5cf6;
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(139, 92, 246, 0.2);
+}
+
+[data-theme="dark"] .gam-alpha-icon {
+  background: var(--bg-hover);
+  border-color: var(--border-light);
+}
+
+.gam-alpha-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+[data-theme="dark"] .gam-alpha-title {
+  color: var(--text-primary);
+}
+
+.gam-alpha-badge {
+  padding: 2px 6px;
+  background: #f3e8ff;
+  color: #7c3aed;
+  border-radius: 4px;
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+[data-theme="dark"] .gam-alpha-badge {
+  background: rgba(139, 92, 246, 0.2);
+}
+
+.gam-alpha-desc {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 4px 0 0;
+}
+
+.gam-alpha-input {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  background: rgba(250, 245, 255, 0.5);
+  border: 1px solid #c4b5fd;
+  border-radius: 6px;
+}
+
+[data-theme="dark"] .gam-alpha-input {
+  background: var(--bg-body);
+  border-color: var(--border-light);
+}
+
+.gam-alpha-input.input-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.gam-alpha-input .gam-input-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.gam-alpha-display {
+  width: 64px;
+  background: #fff;
+  border: 1px solid #c4b5fd;
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .gam-alpha-display {
+  background: var(--bg-surface);
+  border-color: var(--border-light);
+}
+
+.gam-alpha-display input {
+  width: 100%;
+  height: 32px;
+  text-align: center;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #7c3aed;
+  border: none;
+  outline: none;
+  background: transparent;
+}
+
+[data-theme="dark"] .gam-alpha-display input {
+  color: #a78bfa;
+}
+
+/* 隐藏 Alpha display 数字输入框箭头 */
+.gam-alpha-display input[type="number"]::-webkit-inner-spin-button,
+.gam-alpha-display input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Purple toggle */
+.gam-toggle.toggle-on-purple {
+  background: #8b5cf6;
+}
+
+.gam-toggle.toggle-on-purple .gam-toggle-dot {
+  transform: translateX(20px);
+}
+
+/* Purple slider */
+.gam-slider.gam-slider-purple::-webkit-slider-thumb {
+  background: #8b5cf6;
+}
