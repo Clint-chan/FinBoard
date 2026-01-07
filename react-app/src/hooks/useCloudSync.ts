@@ -9,7 +9,7 @@ import {
   verifyToken
 } from '@/services/cloudService'
 import { migrateConfig } from '@/services/migrationService'
-import { loadStrategies, saveStrategies } from '@/services/strategyService'
+import { loadStrategies } from '@/services/strategyService'
 import type { UserConfig } from '@/types'
 
 interface CloudAuth {
