@@ -880,6 +880,7 @@ function App() {
         {activePage === 'strategies' && (
           <StrategyCenter 
             stockData={stockData}
+            categories={config.categories || []}
             alertHistory={config.alertHistory}
             onAlertHistoryChange={(history) => updateConfig({ alertHistory: history })}
           />
