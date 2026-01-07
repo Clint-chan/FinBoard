@@ -296,7 +296,7 @@ export function GroupAlertModal({
                       <span>主动攻击信号</span>
                       <span className="gam-alpha-tag">Pro</span>
                     </div>
-                    <p className="gam-volume-desc">放量 + 价格上涨 + 瞬时外盘占比&gt;60%</p>
+                    <p className="gam-volume-desc">放量 + 价格上涨 + 瞬时外盘占比&gt;70%</p>
                   </div>
                 </div>
                 <div
@@ -307,7 +307,7 @@ export function GroupAlertModal({
                 </div>
               </div>
               <div className={`gam-volume-input ${isActive('volume_surge') ? '' : 'input-disabled'}`}>
-                <span className="gam-input-label">放大倍数</span>
+                <span className="gam-input-label">放量倍数</span>
                 <input
                   type="range"
                   min="1"

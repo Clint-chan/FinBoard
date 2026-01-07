@@ -14,8 +14,8 @@ import type {
   GroupAlertTriggeredStock,
 } from '@/types/strategy'
 
-// 外盘占比阈值（60%以上认为是主动买入）
-const ACTIVE_BUY_RATIO_THRESHOLD = 0.6
+// 外盘占比阈值（70%以上认为是主动买入）
+const ACTIVE_BUY_RATIO_THRESHOLD = 0.7
 // 逐笔数据取最近 N 笔计算外盘占比
 const TICK_COUNT_FOR_RATIO = 30
 
@@ -578,7 +578,7 @@ export async function checkGroupAlert(
     const verifyPromises = volumeSurgeCandidates.map(async (candidate) => {
       const activeBuyRatio = await fetchActiveBuyRatio(candidate.code)
       
-      // 外盘占比 > 60% 才认为是有效的主动攻击
+      // 外盘占比 > 70% 才认为是有效的主动攻击
       if (activeBuyRatio !== null && activeBuyRatio >= ACTIVE_BUY_RATIO_THRESHOLD) {
         recordAlertTime(candidate.code, 'volume_surge')
         return {

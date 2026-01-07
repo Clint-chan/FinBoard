@@ -1,8 +1,8 @@
 /**
- * BidAskModal - 内外盘数据测试弹窗
- * 显示全天累计和瞬时外盘占比
+ * BidAskModal - 内外盘数据弹窗
+ * 显示全天累计和瞬时外盘占比，带历史趋势图
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { fetchBidAskData, type BidAskData } from '@/services/bidAskService'
 import './Modal.css'
 
@@ -12,9 +12,10 @@ interface BidAskModalProps {
   onClose: () => void
 }
 
-// 历史记录用于计算变化率
+// 历史记录点
 interface HistoryPoint {
-  ratio: number
+  buyRatio: number
+  sellRatio: number
   time: number
 }
 
@@ -23,55 +24,58 @@ export function BidAskModal({ open, code, onClose }: BidAskModalProps) {
   const [loading, setLoading] = useState(false)
   const [autoRefresh, setAutoRefresh] = useState(false)
   const [history, setHistory] = useState<HistoryPoint[]>([])
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+  const chartRef = useRef<SVGSVGElement>(null)
 
-  const loadData = useCallback(async () => {
+  // 加载数据（手动刷新不记录历史）
+  const loadData = useCallback(async (recordHistory = false) => {
     if (!code) return
     setLoading(true)
     const result = await fetchBidAskData(code)
     setData(result)
-    // 记录历史数据（最多保留10个点，约30秒数据）
-    if (result) {
+    // 只在自动刷新时记录历史数据
+    if (result && recordHistory) {
       setHistory(prev => {
-        const newHistory = [...prev, { ratio: result.dailyOuterRatio, time: Date.now() }]
-        return newHistory.slice(-10)
+        const newHistory = [
+          ...prev,
+          {
+            buyRatio: result.instantBuyRatio,
+            sellRatio: 100 - result.instantBuyRatio,
+            time: Date.now()
+          }
+        ]
+        return newHistory.slice(-30)
       })
     }
     setLoading(false)
   }, [code])
 
-  // 计算累计外盘占比的变化趋势
-  const getTrend = useCallback(() => {
-    if (history.length < 2) return { delta: 0, isRising: false }
-    const oldest = history[0]
-    const latest = history[history.length - 1]
-    const delta = latest.ratio - oldest.ratio
-    return { delta, isRising: delta > 0.5 } // 上升超过0.5%视为攀升
-  }, [history])
-
-  // 首次加载
+  // 首次加载（不记录历史）
   useEffect(() => {
     if (open && code) {
-      setHistory([]) // 重置历史
-      loadData()
+      setHistory([])
+      loadData(false)
     }
   }, [open, code, loadData])
 
-  // 自动刷新
+  // 自动刷新（记录历史）
   useEffect(() => {
     if (!open || !autoRefresh) return
-    const timer = setInterval(loadData, 3000)
+    // 开启自动刷新时立即记录一个点
+    loadData(true)
+    const timer = setInterval(() => loadData(true), 3000)
     return () => clearInterval(timer)
   }, [open, autoRefresh, loadData])
 
   if (!open) return null
 
-  // 累计数据的颜色判断（55%为偏多阈值）
+  // 累计数据的颜色判断
   const getDailyRatioColor = (ratio: number) => {
-    if (ratio >= 60) return '#ef4444' // 红色 - 强势买入
-    if (ratio >= 55) return '#f97316' // 橙色 - 偏多
-    if (ratio <= 40) return '#22c55e' // 绿色 - 偏空
-    if (ratio <= 45) return '#84cc16' // 浅绿 - 轻微偏空
-    return '#64748b' // 灰色 - 均衡
+    if (ratio >= 60) return '#ef4444'
+    if (ratio >= 55) return '#f97316'
+    if (ratio <= 40) return '#22c55e'
+    if (ratio <= 45) return '#84cc16'
+    return '#64748b'
   }
 
   const getDailyRatioLabel = (ratio: number) => {
@@ -82,13 +86,13 @@ export function BidAskModal({ open, code, onClose }: BidAskModalProps) {
     return '均衡'
   }
 
-  // 瞬时数据的颜色判断（更激进，70%为强势阈值）
+  // 瞬时数据的颜色判断（更激进）
   const getInstantRatioColor = (ratio: number) => {
-    if (ratio >= 70) return '#ef4444' // 红色 - 强势买入
-    if (ratio >= 60) return '#f97316' // 橙色 - 偏多
-    if (ratio <= 30) return '#22c55e' // 绿色 - 偏空
-    if (ratio <= 40) return '#84cc16' // 浅绿 - 轻微偏空
-    return '#64748b' // 灰色 - 均衡
+    if (ratio >= 70) return '#ef4444'
+    if (ratio >= 60) return '#f97316'
+    if (ratio <= 30) return '#22c55e'
+    if (ratio <= 40) return '#84cc16'
+    return '#64748b'
   }
 
   const getInstantRatioLabel = (ratio: number) => {
@@ -98,6 +102,56 @@ export function BidAskModal({ open, code, onClose }: BidAskModalProps) {
     if (ratio <= 40) return '轻微偏空'
     return '均衡'
   }
+
+  // 生成堆叠面积图路径
+  const generateChartPaths = () => {
+    if (history.length < 2) return { buyPath: '', sellPath: '' }
+    
+    const width = 340
+    const height = 80
+    const padding = 0
+    const chartWidth = width - padding * 2
+    const chartHeight = height - padding * 2
+    
+    const xStep = chartWidth / (history.length - 1)
+    
+    // 买盘区域（从底部到buyRatio高度）
+    let buyPath = `M ${padding} ${height - padding}`
+    history.forEach((point, i) => {
+      const x = padding + i * xStep
+      const y = height - padding - (point.buyRatio / 100) * chartHeight
+      buyPath += ` L ${x} ${y}`
+    })
+    buyPath += ` L ${padding + (history.length - 1) * xStep} ${height - padding} Z`
+    
+    // 卖盘区域（从buyRatio高度到顶部）
+    let sellPath = `M ${padding} ${height - padding - (history[0].buyRatio / 100) * chartHeight}`
+    history.forEach((point, i) => {
+      const x = padding + i * xStep
+      const y = height - padding - (point.buyRatio / 100) * chartHeight
+      sellPath += ` L ${x} ${y}`
+    })
+    // 连接到顶部
+    for (let i = history.length - 1; i >= 0; i--) {
+      const x = padding + i * xStep
+      sellPath += ` L ${x} ${padding}`
+    }
+    sellPath += ' Z'
+    
+    return { buyPath, sellPath }
+  }
+
+  // 处理鼠标移动
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!chartRef.current || history.length < 2) return
+    const rect = chartRef.current.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const width = 340
+    const index = Math.round((x / width) * (history.length - 1))
+    setHoveredIndex(Math.max(0, Math.min(history.length - 1, index)))
+  }
+
+  const { buyPath, sellPath } = generateChartPaths()
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -184,6 +238,86 @@ export function BidAskModal({ open, code, onClose }: BidAskModalProps) {
                     <span className="bam-value sell">{data.instantSellVol}手</span>
                   </div>
                 </div>
+
+                {/* 瞬时数据历史趋势图 */}
+                {history.length >= 2 && (
+                  <div className="bam-chart-container">
+                    <svg 
+                      ref={chartRef}
+                      className="bam-chart"
+                      viewBox="0 0 340 80"
+                      onMouseMove={handleMouseMove}
+                      onMouseLeave={() => setHoveredIndex(null)}
+                    >
+                      {/* 50%参考线 */}
+                      <line x1="0" y1="40" x2="340" y2="40" stroke="#94a3b8" strokeWidth="1" strokeDasharray="4 2" opacity="0.5" />
+                      
+                      {/* 卖盘区域（上方绿色） */}
+                      <path d={sellPath} fill="#22c55e" opacity="0.6" />
+                      
+                      {/* 买盘区域（下方红色） */}
+                      <path d={buyPath} fill="#ef4444" opacity="0.6" />
+                      
+                      {/* 分界线 */}
+                      {history.length >= 2 && (
+                        <path 
+                          d={history.map((p, i) => {
+                            const x = (i / (history.length - 1)) * 340
+                            const y = 80 - (p.buyRatio / 100) * 80
+                            return `${i === 0 ? 'M' : 'L'} ${x} ${y}`
+                          }).join(' ')}
+                          fill="none"
+                          stroke="#fff"
+                          strokeWidth="2"
+                        />
+                      )}
+                      
+                      {/* 悬停指示器 */}
+                      {hoveredIndex !== null && history[hoveredIndex] && (
+                        <>
+                          <line 
+                            x1={(hoveredIndex / (history.length - 1)) * 340} 
+                            y1="0" 
+                            x2={(hoveredIndex / (history.length - 1)) * 340} 
+                            y2="80" 
+                            stroke="#fff" 
+                            strokeWidth="1"
+                            opacity="0.8"
+                          />
+                          <circle 
+                            cx={(hoveredIndex / (history.length - 1)) * 340}
+                            cy={80 - (history[hoveredIndex].buyRatio / 100) * 80}
+                            r="4"
+                            fill="#fff"
+                            stroke="#333"
+                            strokeWidth="1"
+                          />
+                        </>
+                      )}
+                    </svg>
+                    
+                    {/* 悬停提示 */}
+                    {hoveredIndex !== null && history[hoveredIndex] && (
+                      <div className="bam-chart-tooltip">
+                        <span className="buy">买 {history[hoveredIndex].buyRatio.toFixed(1)}%</span>
+                        <span className="sell">卖 {history[hoveredIndex].sellRatio.toFixed(1)}%</span>
+                      </div>
+                    )}
+                    
+                    {/* 图例 */}
+                    <div className="bam-chart-legend">
+                      <span className="legend-item"><span className="dot buy"></span>买盘</span>
+                      <span className="legend-item"><span className="dot sell"></span>卖盘</span>
+                      <span className="legend-hint">共 {history.length} 个采样点</span>
+                    </div>
+                  </div>
+                )}
+                
+                {history.length < 2 && autoRefresh && (
+                  <div className="bam-chart-placeholder">
+                    <span>📊 趋势图采集中...</span>
+                  </div>
+                )}
               </div>
 
               {/* 信号判断 */}
@@ -193,16 +327,6 @@ export function BidAskModal({ open, code, onClose }: BidAskModalProps) {
                   <span>瞬时外盘占比 ≥ 70%</span>
                   <span className={data.instantBuyRatio >= 70 ? 'pass' : 'fail'}>
                     {data.instantBuyRatio >= 70 ? '✓ 通过' : '— 未达标'}
-                  </span>
-                </div>
-                <div className="bam-signal-item">
-                  <span>累计外盘占比趋势攀升</span>
-                  <span className={getTrend().isRising ? 'pass' : 'fail'}>
-                    {getTrend().isRising 
-                      ? `✓ +${getTrend().delta.toFixed(1)}%` 
-                      : history.length < 2 
-                        ? '— 数据采集中...' 
-                        : `— ${getTrend().delta >= 0 ? '+' : ''}${getTrend().delta.toFixed(1)}%`}
                   </span>
                 </div>
               </div>
@@ -221,7 +345,7 @@ export function BidAskModal({ open, code, onClose }: BidAskModalProps) {
             />
             <span>自动刷新 (3秒)</span>
           </label>
-          <button className="bam-refresh-btn" onClick={loadData} disabled={loading}>
+          <button className="bam-refresh-btn" onClick={() => loadData(false)} disabled={loading}>
             {loading ? '刷新中...' : '手动刷新'}
           </button>
         </div>

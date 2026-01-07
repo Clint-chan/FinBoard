@@ -2451,3 +2451,95 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* 瞬时数据趋势图 */
+.bam-chart-container {
+  margin-top: 16px;
+  position: relative;
+}
+
+.bam-chart {
+  width: 100%;
+  height: 80px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  cursor: crosshair;
+}
+
+[data-theme="dark"] .bam-chart {
+  background: var(--bg-body);
+}
+
+.bam-chart-tooltip {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  gap: 12px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] .bam-chart-tooltip {
+  background: rgba(30, 41, 59, 0.9);
+}
+
+.bam-chart-tooltip .buy {
+  color: #ef4444;
+}
+
+.bam-chart-tooltip .sell {
+  color: #22c55e;
+}
+
+.bam-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.bam-chart-legend .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.bam-chart-legend .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.bam-chart-legend .dot.buy {
+  background: #ef4444;
+}
+
+.bam-chart-legend .dot.sell {
+  background: #22c55e;
+}
+
+.bam-chart-legend .legend-hint {
+  margin-left: auto;
+  color: #94a3b8;
+}
+
+.bam-chart-placeholder {
+  margin-top: 16px;
+  padding: 20px;
+  text-align: center;
+  background: #f8fafc;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .bam-chart-placeholder {
+  background: var(--bg-body);
+}
