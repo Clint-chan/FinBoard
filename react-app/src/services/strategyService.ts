@@ -33,15 +33,17 @@ export function loadStrategies(): Strategy[] {
   return []
 }
 
-export function saveStrategies(strategies: Strategy[]): void {
+export function saveStrategies(strategies: Strategy[], silent: boolean = false): void {
   try {
     const config: StrategyConfig = {
       strategies,
       lastUpdated: Date.now()
     }
     localStorage.setItem(STRATEGY_STORAGE_KEY, JSON.stringify(config))
-    // 触发策略更新事件，通知云同步
-    window.dispatchEvent(new CustomEvent('strategies-updated'))
+    // 只有非静默模式才触发事件（用于用户主动操作）
+    if (!silent) {
+      window.dispatchEvent(new CustomEvent('strategies-updated'))
+    }
   } catch (e) {
     console.warn('Failed to save strategies:', e)
   }
