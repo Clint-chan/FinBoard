@@ -902,7 +902,7 @@ function GroupAlertContent({ strategy }: { strategy: GroupAlertStrategy }) {
     alertTypeTags.push({ type: 'limit_open', label: '开板', color: 'orange' })
   }
   if (strategy.alertTypes.includes('volume_surge')) {
-    alertTypeTags.push({ type: 'volume_surge', label: `量能>${strategy.volumeSurgeMultiplier}倍`, color: 'blue' })
+    alertTypeTags.push({ type: 'volume_surge', label: `攻击>${strategy.volumeSurgeMultiplier}倍`, color: 'blue' })
   }
   if (strategy.alertTypes.includes('rapid_rise')) {
     alertTypeTags.push({ type: 'rapid_rise', label: `拉升>${strategy.rapidRiseThreshold}%`, color: 'red' })

@@ -129,7 +129,7 @@ export interface GroupAlertStrategy extends BaseStrategy {
 }
 
 // 分组异动类型
-export type GroupAlertType = 'volume_surge' | 'rapid_rise' | 'rapid_fall' | 'limit_up' | 'limit_open' | 'alpha_lead'
+export type GroupAlertType = 'volume_surge' | 'rapid_rise' | 'rapid_fall' | 'limit_up' | 'limit_open'
 
 // 触发异动的股票信息
 export interface GroupAlertTriggeredStock {

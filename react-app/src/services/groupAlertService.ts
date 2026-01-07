@@ -1,14 +1,78 @@
 /**
  * 分组异动监控服务 - 基于实时行情数据检测异动
- * 
+ *
  * 算法原理：
- * 1. 量能异动：当前刷新周期的成交量增量 > 前N次平均增量 × 倍数阈值
+ * 1. 主动攻击信号：量能放大 + 价格上涨 + 瞬时外盘占比>55%（三重验证）
  * 2. 快速拉升：短时间内价格涨幅 > 阈值
  * 3. 快速下跌：短时间内价格跌幅 > 阈值
  */
 
 import type { StockData } from '@/types'
-import type { GroupAlertStrategy, GroupAlertType, GroupAlertTriggeredStock } from '@/types/strategy'
+import type {
+  GroupAlertStrategy,
+  GroupAlertType,
+  GroupAlertTriggeredStock,
+} from '@/types/strategy'
+
+// 外盘占比阈值（60%以上认为是主动买入）
+const ACTIVE_BUY_RATIO_THRESHOLD = 0.6
+// 逐笔数据取最近 N 笔计算外盘占比
+const TICK_COUNT_FOR_RATIO = 30
+
+/**
+ * 获取股票最近N笔成交的外盘占比（瞬时）
+ * @param code 股票代码（如 sh600519, sz000001）
+ * @returns 外盘占比（0-1），获取失败返回 null
+ */
+async function fetchActiveBuyRatio(code: string): Promise<number | null> {
+  try {
+    // 解析代码
+    const market = code.startsWith('sh') ? 1 : 0
+    const symbol = code.slice(2)
+
+    // 使用逐笔成交接口，获取最近 N 笔
+    const url = `https://push2.eastmoney.com/api/qt/stock/details/get?fields1=f1,f2,f3,f4&fields2=f51,f52,f53,f54,f55&pos=-${TICK_COUNT_FOR_RATIO}&secid=${market}.${symbol}`
+    const response = await fetch(url)
+    const data = await response.json()
+
+    if (data.rc !== 0 || !data.data || !data.data.details) {
+      return null
+    }
+
+    const details = data.data.details as string[]
+    if (details.length === 0) {
+      return null
+    }
+
+    // 统计买盘和卖盘的成交量
+    let buyVol = 0
+    let sellVol = 0
+
+    for (const detail of details) {
+      const parts = detail.split(',')
+      // parts[2] = 成交量（手）, parts[4] = 买卖方向（1=卖盘, 2=买盘, 4=中性）
+      const vol = parseInt(parts[2]) || 0
+      const direction = parts[4]
+
+      if (direction === '2') {
+        buyVol += vol // 买盘 = 外盘
+      } else if (direction === '1') {
+        sellVol += vol // 卖盘 = 内盘
+      }
+      // 中性盘(4)不计入
+    }
+
+    const total = buyVol + sellVol
+    if (total <= 0) {
+      return null
+    }
+
+    return buyVol / total
+  } catch (err) {
+    console.error('获取逐笔数据失败:', code, err)
+    return null
+  }
+}
 
 // 股票快照数据
 interface StockSnapshot {
@@ -54,8 +118,7 @@ function updateSnapshot(code: string, stockData: StockData): void {
         rapid_rise: 0,
         rapid_fall: 0,
         limit_up: 0,
-        limit_open: 0,
-        alpha_lead: 0
+        limit_open: 0
       },
       wasLimitUp: false
     }
@@ -70,16 +133,20 @@ function updateSnapshot(code: string, stockData: StockData): void {
 }
 
 /**
- * 检测量能异动
- * 算法：当前成交量增量 > 前N次平均增量 × 倍数阈值
+ * 检测量能异动（初筛）
+ * 算法：
+ * 1. 当前成交量增量 > 前N次平均增量 × 倍数阈值
+ * 2. 放量期间价格上涨（当前价 > 放量开始时的价格）
+ * 
+ * @returns triggered: 是否通过初筛, value: 放量倍数, priceRise: 放量期间涨幅
  */
-function detectVolumeSurge(
+function detectVolumeSurgePrescreen(
   code: string,
   multiplierThreshold: number
-): { triggered: boolean; value: number } {
+): { triggered: boolean; value: number; priceRise: number } {
   const state = monitorStates.get(code)
   if (!state || state.snapshots.length < MIN_SNAPSHOTS_FOR_VOLUME + 1) {
-    return { triggered: false, value: 0 }
+    return { triggered: false, value: 0, priceRise: 0 }
   }
 
   const snapshots = state.snapshots
@@ -95,7 +162,7 @@ function detectVolumeSurge(
   }
 
   if (volumeDeltas.length < MIN_SNAPSHOTS_FOR_VOLUME) {
-    return { triggered: false, value: 0 }
+    return { triggered: false, value: 0, priceRise: 0 }
   }
 
   // 最新增量
@@ -106,15 +173,36 @@ function detectVolumeSurge(
   const avgDelta = prevDeltas.reduce((a, b) => a + b, 0) / prevDeltas.length
 
   if (avgDelta <= 0) {
-    return { triggered: false, value: 0 }
+    return { triggered: false, value: 0, priceRise: 0 }
   }
 
   const multiplier = latestDelta / avgDelta
-  const triggered = multiplier >= multiplierThreshold
+  
+  // 条件1：量能放大
+  if (multiplier < multiplierThreshold) {
+    return { triggered: false, value: 0, priceRise: 0 }
+  }
+
+  // 条件2：放量期间价格上涨
+  // 取最早快照的价格作为基准
+  const baselinePrice = snapshots[0].price
+  const currentPrice = snapshots[len - 1].price
+  
+  if (baselinePrice <= 0) {
+    return { triggered: false, value: 0, priceRise: 0 }
+  }
+  
+  const priceRise = ((currentPrice - baselinePrice) / baselinePrice) * 100
+  
+  // 价格必须上涨（涨幅 > 0.3%）
+  if (priceRise < 0.3) {
+    return { triggered: false, value: 0, priceRise: 0 }
+  }
 
   return {
-    triggered,
-    value: Math.round(multiplier * 10) / 10
+    triggered: true,
+    value: Math.round(multiplier * 10) / 10,
+    priceRise: Math.round(priceRise * 100) / 100
   }
 }
 
@@ -245,17 +333,19 @@ function detectLimitOpen(
  * @param stockData 当前行情数据
  * @returns 触发的异动列表
  */
-export function checkGroupAlert(
+export async function checkGroupAlert(
   strategy: GroupAlertStrategy,
   stockCodes: string[],
   stockData: Record<string, StockData>
-): GroupAlertTriggeredStock[] {
+): Promise<GroupAlertTriggeredStock[]> {
   const triggeredStocks: GroupAlertTriggeredStock[] = []
   const now = Date.now()
 
-  // 计算分组平均涨跌幅（用于 Alpha 监控）
+  // 计算分组平均涨跌幅（用于 Alpha 过滤）
   let groupAvgPct = 0
-  if (strategy.alertTypes.includes('alpha_lead') && strategy.alphaMonitorEnabled) {
+  const alphaThreshold = strategy.alphaThreshold || 2
+  
+  if (strategy.alphaMonitorEnabled) {
     const pcts: number[] = []
     for (const code of stockCodes) {
       const data = stockData[code]
@@ -269,6 +359,15 @@ export function checkGroupAlert(
     }
   }
 
+  // 收集需要二次验证的量能异动候选
+  const volumeSurgeCandidates: Array<{
+    code: string
+    name: string
+    multiplier: number
+    priceRise: number
+    price: number
+  }> = []
+
   for (const code of stockCodes) {
     const data = stockData[code]
     if (!data) continue
@@ -276,19 +375,32 @@ export function checkGroupAlert(
     // 更新快照
     updateSnapshot(code, data)
 
-    // 检查量能异动
+    // Alpha 过滤器检查：如果启用了龙头过滤，只处理跑赢分组平均的股票
+    let passAlphaFilter = true
+    if (strategy.alphaMonitorEnabled && data.preClose && data.preClose > 0) {
+      const stockPct = ((data.price - data.preClose) / data.preClose) * 100
+      const alpha = stockPct - groupAvgPct
+      // 必须跑赢分组平均 + 阈值，且股票本身上涨
+      passAlphaFilter = alpha >= alphaThreshold && stockPct > 0
+    }
+
+    // 如果没有通过 Alpha 过滤器，跳过所有异动检测
+    if (!passAlphaFilter) {
+      continue
+    }
+
+    // 检查量能异动（初筛：放量 + 价格上涨）
     if (strategy.alertTypes.includes('volume_surge')) {
       if (!isInCooldown(code, 'volume_surge')) {
-        const result = detectVolumeSurge(code, strategy.volumeSurgeMultiplier)
+        const result = detectVolumeSurgePrescreen(code, strategy.volumeSurgeMultiplier)
         if (result.triggered) {
-          recordAlertTime(code, 'volume_surge')
-          triggeredStocks.push({
+          // 通过初筛，加入候选列表等待二次验证
+          volumeSurgeCandidates.push({
             code,
             name: data.name,
-            alertType: 'volume_surge',
-            value: result.value,
-            price: data.price,
-            triggeredAt: now
+            multiplier: result.value,
+            priceRise: result.priceRise,
+            price: data.price
           })
         }
       }
@@ -371,28 +483,37 @@ export function checkGroupAlert(
         }
       }
     }
+  }
 
-    // 检查 Alpha 领先（超额收益）
-    if (strategy.alertTypes.includes('alpha_lead') && strategy.alphaMonitorEnabled) {
-      if (!isInCooldown(code, 'alpha_lead')) {
-        const threshold = strategy.alphaThreshold || 2
-        if (data.preClose && data.preClose > 0) {
-          const stockPct = ((data.price - data.preClose) / data.preClose) * 100
-          const alpha = stockPct - groupAvgPct
-          
-          // 超额收益 > 阈值 且 股票本身是上涨的
-          if (alpha >= threshold && stockPct > 0) {
-            recordAlertTime(code, 'alpha_lead')
-            triggeredStocks.push({
-              code,
-              name: data.name,
-              alertType: 'alpha_lead',
-              value: Math.round(alpha * 100) / 100,
-              price: data.price,
-              triggeredAt: now
-            })
-          }
+  // 二次验证：对量能异动候选进行外盘占比检测
+  if (volumeSurgeCandidates.length > 0) {
+    // 并行请求所有候选股票的内外盘数据
+    const verifyPromises = volumeSurgeCandidates.map(async (candidate) => {
+      const activeBuyRatio = await fetchActiveBuyRatio(candidate.code)
+      
+      // 外盘占比 > 60% 才认为是有效的主动攻击
+      if (activeBuyRatio !== null && activeBuyRatio >= ACTIVE_BUY_RATIO_THRESHOLD) {
+        recordAlertTime(candidate.code, 'volume_surge')
+        return {
+          code: candidate.code,
+          name: candidate.name,
+          alertType: 'volume_surge' as GroupAlertType,
+          value: candidate.multiplier,
+          price: candidate.price,
+          triggeredAt: now,
+          // 额外信息：外盘占比
+          activeBuyRatio: Math.round(activeBuyRatio * 100)
         }
+      }
+      return null
+    })
+
+    const verifyResults = await Promise.all(verifyPromises)
+    
+    // 添加通过二次验证的股票
+    for (const result of verifyResults) {
+      if (result) {
+        triggeredStocks.push(result)
       }
     }
   }

@@ -293,10 +293,10 @@ export function GroupAlertModal({
                   </div>
                   <div>
                     <div className="gam-volume-title">
-                      <span>量能瞬间爆发</span>
-                      <span className="gam-alpha-tag">Alpha</span>
+                      <span>主动攻击信号</span>
+                      <span className="gam-alpha-tag">Pro</span>
                     </div>
-                    <p className="gam-volume-desc">最新成交量增量 &gt; 均值 × 倍数</p>
+                    <p className="gam-volume-desc">放量 + 价格上涨 + 瞬时外盘占比&gt;60%</p>
                   </div>
                 </div>
                 <div
