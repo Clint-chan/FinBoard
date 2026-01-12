@@ -120,6 +120,9 @@ export interface GroupAlertStrategy extends BaseStrategy {
   volumeSurgeMultiplier: number  // 量能放大倍数阈值，如 3 表示当前1分钟成交量 > 前5根均量 × 3
   rapidRiseThreshold: number     // 快速拉升阈值，如 2 表示 1分钟涨幅 > 2%
   rapidFallThreshold: number     // 快速下跌阈值，如 2 表示 1分钟跌幅 > 2%
+  // Alpha Monitor - 超额收益监控
+  alphaMonitorEnabled?: boolean  // 是否启用超额收益监控
+  alphaThreshold?: number        // 超额收益阈值，如 2 表示相对分组均值超额 > 2%
   // 实时数据
   triggeredStocks?: GroupAlertTriggeredStock[]  // 触发的股票列表
   lastCheckTime?: number  // 上次检查时间

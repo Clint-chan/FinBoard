@@ -23,6 +23,7 @@ import ChartTooltip from '@/components/ChartTooltip'
 import ContextMenu from '@/components/ContextMenu'
 import { CategoryTabs } from '@/components/CategoryTabs'
 import { AddStockModal, AlertModal, CostModal, AuthModal, GroupAlertModal } from '@/components/modals'
+import { BidAskModal } from '@/components/modals/BidAskModal'
 import { AdminPage } from '@/components/AdminPage'
 import { StrategyCenter } from '@/components/StrategyCenter'
 import { AnalysisDrawer } from '@/components/AnalysisDrawer'
@@ -80,6 +81,7 @@ function App() {
   const [groupAlertModal, setGroupAlertModal] = useState<{ open: boolean; category: StockCategory | null }>({ open: false, category: null })
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ open: false, x: 0, y: 0, code: null })
   const [chartTooltip, setChartTooltip] = useState<ChartTooltipState>({ visible: false, code: null, x: 0, y: 0 })
+  const [bidAskModal, setBidAskModal] = useState<{ open: boolean; code: string }>({ open: false, code: '' })
   const [analysisDrawer, setAnalysisDrawer] = useState<{ open: boolean; code: string }>({ open: false, code: '' })
   const [bossMode, setBossMode] = useState(false)
   const [authModalOpen, setAuthModalOpen] = useState(false)
@@ -880,6 +882,7 @@ function App() {
         {activePage === 'strategies' && (
           <StrategyCenter 
             stockData={stockData}
+            categories={config.categories || []}
             alertHistory={config.alertHistory}
             onAlertHistoryChange={(history) => updateConfig({ alertHistory: history })}
           />
@@ -987,6 +990,18 @@ function App() {
             createCategoryAndAddStock(name, contextMenu.code)
           }
         }}
+        onViewBidAsk={() => {
+          if (contextMenu.code) {
+            setBidAskModal({ open: true, code: contextMenu.code })
+          }
+        }}
+      />
+      
+      {/* 内外盘测试弹窗 */}
+      <BidAskModal
+        open={bidAskModal.open}
+        code={bidAskModal.code}
+        onClose={() => setBidAskModal({ open: false, code: '' })}
       />
       
       <ChartTooltip

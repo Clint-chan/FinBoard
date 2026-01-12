@@ -161,84 +161,97 @@ export function useStrategyMonitor({
     
     if (groupAlertStrategies.length === 0) return
 
-    let hasUpdate = false
-    const updatedStrategies = strategies.map(strategy => {
-      if (strategy.type !== 'group_alert' || !strategy.enabled) return strategy
+    // 异步检查分组异动
+    const checkGroupAlerts = async () => {
+      let hasUpdate = false
+      const updatedStrategies = [...strategies]
       
-      const gs = strategy as GroupAlertStrategy
-      
-      // 获取该分组的股票代码
-      const category = categories.find(c => c.id === gs.categoryId)
-      if (!category || category.codes.length === 0) return strategy
-      
-      // 检查异动
-      const triggeredStocks = checkGroupAlert(gs, category.codes, stockData)
-      
-      if (triggeredStocks.length > 0) {
-        hasUpdate = true
+      for (let i = 0; i < updatedStrategies.length; i++) {
+        const strategy = updatedStrategies[i]
+        if (strategy.type !== 'group_alert' || !strategy.enabled) continue
         
-        // 发送浏览器通知
-        for (const stock of triggeredStocks) {
-          const alertKey = `${gs.id}_${stock.code}_${stock.alertType}`
-          if (!notifiedStrategies.current.has(alertKey)) {
-            notifiedStrategies.current.add(alertKey)
-            
-            const typeLabel = getGroupAlertTypeLabel(stock.alertType)
-            const title = `${stock.name} ${typeLabel}`
-            let body = ''
-            
-            if (stock.alertType === 'volume_surge') {
-              body = `成交量放大 ${stock.value} 倍，当前价 ${stock.price.toFixed(2)}`
-            } else if (stock.alertType === 'rapid_rise') {
-              body = `短时涨幅 +${stock.value}%，当前价 ${stock.price.toFixed(2)}`
-            } else if (stock.alertType === 'rapid_fall') {
-              body = `短时跌幅 ${stock.value}%，当前价 ${stock.price.toFixed(2)}`
-            } else if (stock.alertType === 'limit_up') {
-              body = `封涨停！当前价 ${stock.price.toFixed(2)}，涨停价 ${stock.value.toFixed(2)}`
-            } else if (stock.alertType === 'limit_open') {
-              body = `涨停打开！当前价 ${stock.price.toFixed(2)}，涨停价 ${stock.value.toFixed(2)}`
-            }
-            
-            sendNotification(title, body)
-            
-            // 保存到历史记录
-            saveAlertHistory({
-              id: `${gs.id}_${stock.code}_${stock.alertType}_${Date.now()}`,
-              type: 'group_alert',
-              title,
-              description: body,
-              timestamp: Date.now(),
-              data: {
-                code: stock.code,
-                stockName: stock.name,
-                alertType: stock.alertType,
-                value: stock.value,
-                price: stock.price,
-                categoryName: gs.categoryName
+        const gs = strategy as GroupAlertStrategy
+        
+        // 获取该分组的股票代码
+        const category = categories.find(c => c.id === gs.categoryId)
+        if (!category || category.codes.length === 0) continue
+        
+        // 检查异动（异步，包含二次验证）
+        const triggeredStocks = await checkGroupAlert(gs, category.codes, stockData)
+        
+        if (triggeredStocks.length > 0) {
+          hasUpdate = true
+          
+          // 发送浏览器通知
+          for (const stock of triggeredStocks) {
+            const alertKey = `${gs.id}_${stock.code}_${stock.alertType}`
+            if (!notifiedStrategies.current.has(alertKey)) {
+              notifiedStrategies.current.add(alertKey)
+              
+              const typeLabel = getGroupAlertTypeLabel(stock.alertType)
+              const title = `${stock.name} ${typeLabel}`
+              let body = ''
+              
+              if (stock.alertType === 'volume_surge') {
+                // 显示外盘占比信息（如果有）
+                const extraInfo = (stock as any).activeBuyRatio 
+                  ? `，外盘占比 ${(stock as any).activeBuyRatio}%` 
+                  : ''
+                body = `主动攻击 ${stock.value} 倍放量${extraInfo}，当前价 ${stock.price.toFixed(2)}`
+              } else if (stock.alertType === 'rapid_rise') {
+                body = `短时涨幅 +${stock.value}%，当前价 ${stock.price.toFixed(2)}`
+              } else if (stock.alertType === 'rapid_fall') {
+                body = `短时跌幅 ${stock.value}%，当前价 ${stock.price.toFixed(2)}`
+              } else if (stock.alertType === 'limit_up') {
+                body = `封涨停！当前价 ${stock.price.toFixed(2)}，涨停价 ${stock.value.toFixed(2)}`
+              } else if (stock.alertType === 'limit_open') {
+                body = `涨停打开！当前价 ${stock.price.toFixed(2)}，涨停价 ${stock.value.toFixed(2)}`
               }
-            })
+              
+              sendNotification(title, body)
+              
+              // 保存到历史记录
+              saveAlertHistory({
+                id: `${gs.id}_${stock.code}_${stock.alertType}_${Date.now()}`,
+                type: 'group_alert',
+                title,
+                description: body,
+                timestamp: Date.now(),
+                data: {
+                  code: stock.code,
+                  stockName: stock.name,
+                  alertType: stock.alertType,
+                  value: stock.value,
+                  price: stock.price,
+                  categoryName: gs.categoryName,
+                  activeBuyRatio: (stock as any).activeBuyRatio
+                }
+              })
+            }
+          }
+          
+          updatedStrategies[i] = {
+            ...gs,
+            triggeredStocks,
+            lastCheckTime: Date.now(),
+            status: 'triggered' as const,
+            triggeredAt: gs.triggeredAt || Date.now()
+          }
+        } else {
+          updatedStrategies[i] = {
+            ...gs,
+            lastCheckTime: Date.now()
           }
         }
-        
-        return {
-          ...gs,
-          triggeredStocks,
-          lastCheckTime: Date.now(),
-          status: 'triggered' as const,
-          triggeredAt: gs.triggeredAt || Date.now()
-        }
       }
       
-      return {
-        ...gs,
-        lastCheckTime: Date.now()
+      if (hasUpdate) {
+        saveStrategies(updatedStrategies)
+        window.dispatchEvent(new CustomEvent('strategies-updated'))
       }
-    })
-    
-    if (hasUpdate) {
-      saveStrategies(updatedStrategies, true) // 静默保存，避免双重触发
-      window.dispatchEvent(new CustomEvent('strategies-updated'))
     }
+
+    checkGroupAlerts()
   }, [stockData, categories, saveAlertHistory])
 
   // 定时检查非价格策略（配对监控、AH溢价等需要请求API）

@@ -4,8 +4,8 @@
  */
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import type { 
-  Strategy, 
+import type {
+  Strategy,
   StrategyType,
   SectorArbStrategy,
   AHPremiumStrategy,
@@ -14,7 +14,7 @@ import type {
   PriceCondition,
   GroupAlertStrategy
 } from '@/types/strategy'
-import type { StockData, StrategyAlertHistoryItem } from '@/types'
+import type { StockData, StrategyAlertHistoryItem, StockCategory } from '@/types'
 import {
   loadStrategies,
   saveStrategies,
@@ -22,12 +22,14 @@ import {
   getGroupAlertTypeLabel
 } from '@/services/strategyService'
 import { StrategyModal } from './StrategyModal'
+import { GroupAlertModal } from '@/components/modals/GroupAlertModal'
 import { initSampleStrategies } from './sampleStrategies'
 import './StrategyCenter.css'
 
 // Props 类型
 interface StrategyCenterProps {
   stockData?: Record<string, StockData>
+  categories?: StockCategory[]
   alertHistory?: StrategyAlertHistoryItem[]
   onAlertHistoryChange?: (history: StrategyAlertHistoryItem[]) => void
 }
@@ -113,7 +115,12 @@ const Icons = {
 // 筛选状态类型
 type FilterStatus = 'all' | 'triggered' | 'running'
 
-export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHistoryChange }: StrategyCenterProps) {
+export function StrategyCenter({
+  stockData = {},
+  categories = [],
+  alertHistory = [],
+  onAlertHistoryChange
+}: StrategyCenterProps) {
   const [strategies, setStrategies] = useState<Strategy[]>([])
   const [activeTab, setActiveTab] = useState<StrategyType | 'all'>('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -122,15 +129,21 @@ export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHisto
   const [highlightConditionIndex, setHighlightConditionIndex] = useState<number | null>(null)
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all')
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false)
-  
+  // 分组异动弹窗状态
+  const [groupAlertModalOpen, setGroupAlertModalOpen] = useState(false)
+  const [editingGroupAlert, setEditingGroupAlert] = useState<GroupAlertStrategy | null>(null)
+
   // 保存预警历史记录（通过 props 回调，支持云同步）
-  const saveAlertHistory = useCallback((item: StrategyAlertHistoryItem) => {
-    if (!onAlertHistoryChange) return
-    
-    // 添加新记录到开头，保留最近100条
-    const newHistory = [item, ...alertHistory].slice(0, 100)
-    onAlertHistoryChange(newHistory)
-  }, [alertHistory, onAlertHistoryChange])
+  const saveAlertHistory = useCallback(
+    (item: StrategyAlertHistoryItem) => {
+      if (!onAlertHistoryChange) return
+
+      // 添加新记录到开头，保留最近100条
+      const newHistory = [item, ...alertHistory].slice(0, 100)
+      onAlertHistoryChange(newHistory)
+    },
+    [alertHistory, onAlertHistoryChange]
+  )
 
   // 加载策略
   useEffect(() => {
@@ -256,10 +269,33 @@ export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHisto
 
   // 编辑策略
   const handleEditStrategy = useCallback((strategy: Strategy, conditionIndex?: number) => {
+    // 分组异动策略使用专门的弹窗
+    if (strategy.type === 'group_alert') {
+      setEditingGroupAlert(strategy as GroupAlertStrategy)
+      setGroupAlertModalOpen(true)
+      return
+    }
     setEditingStrategy(strategy)
     setHighlightConditionIndex(conditionIndex ?? null)
     setModalOpen(true)
   }, [])
+
+  // 保存分组异动策略
+  const handleSaveGroupAlert = useCallback(
+    (strategy: GroupAlertStrategy) => {
+      setStrategies(prev => {
+        const exists = prev.find(s => s.id === strategy.id)
+        const updated = exists
+          ? prev.map(s => (s.id === strategy.id ? strategy : s))
+          : [...prev, strategy]
+        saveStrategies(updated)
+        return updated
+      })
+      setGroupAlertModalOpen(false)
+      setEditingGroupAlert(null)
+    },
+    []
+  )
 
   // 新建策略
   const handleNewStrategy = useCallback(() => {
@@ -268,8 +304,9 @@ export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHisto
   }, [])
 
   // 确认价格预警条件 - 标记为已确认并加入历史记录
-  const handleConfirmCondition = useCallback((strategyId: string, conditionIndex: number, condition: PriceCondition) => {
-    // 找到对应的策略
+  const handleConfirmCondition = useCallback(
+    (strategyId: string, conditionIndex: number, condition: PriceCondition) => {
+      // 找到对应的策略
     const strategy = strategies.find(s => s.id === strategyId) as PriceAlertStrategy | undefined
     if (!strategy) return
 
@@ -499,6 +536,26 @@ export function StrategyCenter({ stockData = {}, alertHistory = [], onAlertHisto
           setHighlightConditionIndex(null)
         }}
         onSave={handleSaveStrategy}
+      />
+
+      {/* 分组异动策略编辑弹窗 */}
+      <GroupAlertModal
+        open={groupAlertModalOpen}
+        category={
+          editingGroupAlert
+            ? categories.find(c => c.id === editingGroupAlert.categoryId) || {
+                id: editingGroupAlert.categoryId,
+                name: editingGroupAlert.categoryName,
+                codes: []
+              }
+            : null
+        }
+        existingStrategy={editingGroupAlert}
+        onClose={() => {
+          setGroupAlertModalOpen(false)
+          setEditingGroupAlert(null)
+        }}
+        onSave={handleSaveGroupAlert}
       />
     </div>
   )
@@ -832,61 +889,87 @@ function FakeBreakoutContent({ strategy }: { strategy: FakeBreakoutStrategy }) {
   )
 }
 
-// 分组异动内容
+// 分组异动内容 - 优化UI与其他策略卡片一致
 function GroupAlertContent({ strategy }: { strategy: GroupAlertStrategy }) {
   const triggeredStocks = strategy.triggeredStocks || []
-  const alertTypeLabels = strategy.alertTypes.map(t => getGroupAlertTypeLabel(t)).join('、')
+  
+  // 构建异动类型标签
+  const alertTypeTags: { type: string; label: string; color: string }[] = []
+  if (strategy.alertTypes.includes('limit_up')) {
+    alertTypeTags.push({ type: 'limit_up', label: '涨停', color: 'red' })
+  }
+  if (strategy.alertTypes.includes('limit_open')) {
+    alertTypeTags.push({ type: 'limit_open', label: '开板', color: 'orange' })
+  }
+  if (strategy.alertTypes.includes('volume_surge')) {
+    alertTypeTags.push({ type: 'volume_surge', label: `攻击>${strategy.volumeSurgeMultiplier}倍`, color: 'blue' })
+  }
+  if (strategy.alertTypes.includes('rapid_rise')) {
+    alertTypeTags.push({ type: 'rapid_rise', label: `拉升>${strategy.rapidRiseThreshold}%`, color: 'red' })
+  }
+  if (strategy.alertTypes.includes('rapid_fall')) {
+    alertTypeTags.push({ type: 'rapid_fall', label: `下跌>${strategy.rapidFallThreshold}%`, color: 'green' })
+  }
 
   return (
-    <>
-      <div className="group-alert-desc">
-        <div className="group-alert-config">
-          <span className="config-label">监控分组：</span>
-          <span className="config-value">{strategy.categoryName}</span>
-        </div>
-        <div className="group-alert-config">
-          <span className="config-label">异动类型：</span>
-          <span className="config-value">{alertTypeLabels}</span>
-        </div>
-        <div className="group-alert-params">
-          {strategy.alertTypes.includes('volume_surge') && (
-            <span className="param-tag">量能 &gt; {strategy.volumeSurgeMultiplier}倍</span>
-          )}
-          {strategy.alertTypes.includes('rapid_rise') && (
-            <span className="param-tag">拉升 &gt; {strategy.rapidRiseThreshold}%</span>
-          )}
-          {strategy.alertTypes.includes('rapid_fall') && (
-            <span className="param-tag">下跌 &gt; {strategy.rapidFallThreshold}%</span>
-          )}
-        </div>
+    <div className="group-alert-content">
+      {/* 监控配置 */}
+      <div className="group-alert-tags">
+        {alertTypeTags.map(tag => (
+          <span key={tag.type} className={`ga-tag ga-tag-${tag.color}`}>
+            {tag.label}
+          </span>
+        ))}
       </div>
+      
+      {/* 触发的股票列表 */}
       {triggeredStocks.length > 0 && (
         <div className="group-alert-triggered">
-          <div className="triggered-title">触发异动</div>
-          {triggeredStocks.slice(0, 5).map((stock, idx) => (
-            <div key={`${stock.code}-${idx}`} className="triggered-item">
-              <div className="triggered-info">
-                <span className="triggered-name">{stock.name}</span>
-                <span className="triggered-code">{stock.code}</span>
+          <div className="triggered-title">
+            <span className="pulse-dot" />
+            触发异动 ({triggeredStocks.length})
+          </div>
+          <div className="triggered-list">
+            {triggeredStocks.slice(0, 5).map((stock, idx) => (
+              <div key={`${stock.code}-${idx}`} className="triggered-item">
+                <div className="triggered-left">
+                  <span className="triggered-name">{stock.name}</span>
+                  <span className="triggered-code">{stock.code.toUpperCase()}</span>
+                </div>
+                <div className="triggered-right">
+                  <span className={`triggered-type-tag type-${stock.alertType}`}>
+                    {getGroupAlertTypeLabel(stock.alertType)}
+                  </span>
+                  <span className={`triggered-value ${stock.alertType === 'rapid_fall' ? 'down' : 'up'}`}>
+                    {stock.alertType === 'volume_surge' 
+                      ? `${stock.value}倍` 
+                      : stock.alertType === 'limit_up' || stock.alertType === 'limit_open'
+                        ? `¥${stock.price.toFixed(2)}`
+                        : `${stock.value >= 0 ? '+' : ''}${stock.value}%`}
+                  </span>
+                </div>
               </div>
-              <div className="triggered-data">
-                <span className={`triggered-type type-${stock.alertType}`}>
-                  {getGroupAlertTypeLabel(stock.alertType)}
-                </span>
-                <span className={`triggered-value ${stock.alertType === 'rapid_fall' ? 'down' : 'up'}`}>
-                  {stock.alertType === 'volume_surge' 
-                    ? `${stock.value}倍` 
-                    : `${stock.value >= 0 ? '+' : ''}${stock.value}%`}
-                </span>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
           {triggeredStocks.length > 5 && (
-            <div className="triggered-more">还有 {triggeredStocks.length - 5} 只...</div>
+            <div className="triggered-more">还有 {triggeredStocks.length - 5} 只股票触发...</div>
           )}
         </div>
       )}
-    </>
+      
+      {/* 无触发时显示监控状态 */}
+      {triggeredStocks.length === 0 && (
+        <div className="group-alert-idle">
+          <span className="idle-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </span>
+          <span>实时监控中，等待异动触发...</span>
+        </div>
+      )}
+    </div>
   )
 }
 

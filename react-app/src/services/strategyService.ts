@@ -699,7 +699,7 @@ export async function checkGroupAlertStrategy(
  */
 export function getGroupAlertTypeLabel(type: GroupAlertType): string {
   const labels: Record<GroupAlertType, string> = {
-    volume_surge: '量能异动',
+    volume_surge: '主动攻击',
     rapid_rise: '快速拉升',
     rapid_fall: '快速下跌',
     limit_up: '涨停',
