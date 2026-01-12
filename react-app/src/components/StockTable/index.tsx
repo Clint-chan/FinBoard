@@ -119,7 +119,6 @@ function StockRow({ code, data, cost, hasAlert, onContextMenu, onChartShow, onCh
         onMouseLeave?.(e)
       }}
       onDoubleClick={() => onDoubleClick(code)}
-      onMouseDown={onDragStart}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchMove}
@@ -246,14 +245,7 @@ function StockTable({
     onReorder
   })
   
-  // 简化的拖动处理（用于触发 useDragSort）
-  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, _index: number) => {
-    // useDragSort 会自动处理，这里只需要阻止默认行为
-    const handle = (e.target as HTMLElement).closest('.drag-handle')
-    if (handle) {
-      e.preventDefault()
-    }
-  }, [])
+  // 移除这个不需要的处理函数，useDragSort 会自动处理所有拖动逻辑
 
   return (
     <div className="table-responsive">
@@ -283,7 +275,7 @@ function StockTable({
                 onChartShow={onChartShow}
                 onChartHide={onChartHide}
                 onDoubleClick={onDoubleClick}
-                onDragStart={(e) => handleDragStart(e, index)}
+                onDragStart={() => {}} // 空函数，实际拖动由 useDragSort 处理
                 // 对照原版：最后一行悬停时展开添加行
                 onMouseEnter={isLastRow ? () => setAddRowShow(true) : undefined}
                 onMouseLeave={isLastRow ? (e) => {
