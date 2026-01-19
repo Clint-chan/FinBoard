@@ -237,12 +237,26 @@ function StockTable({
     return sortAsc ? 'sort-asc' : 'sort-desc'
   }
 
+  // 拖拽排序回调：将排序后的索引映射回原始索引
+  const handleReorder = useCallback((fromIndex: number, toIndex: number) => {
+    // 如果启用了排序，需要将 sortedCodes 的索引映射回原始 codes 的索引
+    if (sortColumn) {
+      const fromCode = sortedCodes[fromIndex]
+      const toCode = sortedCodes[toIndex]
+      const originalFromIndex = codes.findIndex(c => normalizeCode(c) === fromCode)
+      const originalToIndex = codes.findIndex(c => normalizeCode(c) === toCode)
+      onReorder(originalFromIndex, originalToIndex)
+    } else {
+      onReorder(fromIndex, toIndex)
+    }
+  }, [sortColumn, sortedCodes, codes, onReorder])
+
   // 使用 useDragSort hook 实现拖拽
   useDragSort({
     containerRef: tableRef,
     itemSelector: 'tbody tr:not(.add-stock-row)',
     handleSelector: '.drag-handle',
-    onReorder
+    onReorder: handleReorder
   })
   
   // 移除这个不需要的处理函数，useDragSort 会自动处理所有拖动逻辑

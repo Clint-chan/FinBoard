@@ -13,13 +13,16 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
 
   const setValue = useCallback((value: T | ((prev: T) => T)) => {
     try {
-      const valueToStore = value instanceof Function ? value(storedValue) : value
-      setStoredValue(valueToStore)
-      localStorage.setItem(key, JSON.stringify(valueToStore))
+      // 使用 setStoredValue 的函数形式确保获取最新值
+      setStoredValue(prevValue => {
+        const valueToStore = value instanceof Function ? value(prevValue) : value
+        localStorage.setItem(key, JSON.stringify(valueToStore))
+        return valueToStore
+      })
     } catch (error) {
       console.error('Error writing localStorage:', error)
     }
-  }, [key, storedValue])
+  }, [key])
 
   return [storedValue, setValue]
 }
