@@ -28,15 +28,54 @@ interface UseStrategyMonitorOptions {
   onAlertTriggered?: (item: StrategyAlertHistoryItem) => void
 }
 
+// localStorage key for notified strategies cache
+const NOTIFIED_CACHE_KEY = 'fintell_notified_strategies'
+
+// 从 localStorage 加载已通知记录
+function loadNotifiedCache(): { date: string; notified: string[] } {
+  try {
+    const cached = localStorage.getItem(NOTIFIED_CACHE_KEY)
+    if (cached) {
+      return JSON.parse(cached)
+    }
+  } catch (e) {
+    console.warn('Failed to load notified cache:', e)
+  }
+  return { date: new Date().toDateString(), notified: [] }
+}
+
+// 保存已通知记录到 localStorage
+function saveNotifiedCache(date: string, notified: Set<string>) {
+  try {
+    localStorage.setItem(NOTIFIED_CACHE_KEY, JSON.stringify({
+      date,
+      notified: Array.from(notified)
+    }))
+  } catch (e) {
+    console.warn('Failed to save notified cache:', e)
+  }
+}
+
 export function useStrategyMonitor({
   stockData,
   categories = [],
   strategyCheckInterval = 30,
   onAlertTriggered
 }: UseStrategyMonitorOptions) {
-  // 已通知的策略记录，避免重复通知（每日重置）
+  // 已通知的策略记录，避免重复通知（每日重置，持久化到 localStorage）
   const notifiedStrategies = useRef<Set<string>>(new Set())
   const lastResetDate = useRef<string>(new Date().toDateString())
+  
+  // 初始化时从 localStorage 恢复
+  useEffect(() => {
+    const cache = loadNotifiedCache()
+    const today = new Date().toDateString()
+    // 如果是今天的缓存，恢复；否则清空
+    if (cache.date === today) {
+      notifiedStrategies.current = new Set(cache.notified)
+    }
+    lastResetDate.current = today
+  }, [])
   
   // 每日重置通知记录
   const resetIfNewDay = useCallback(() => {
@@ -44,6 +83,7 @@ export function useStrategyMonitor({
     if (today !== lastResetDate.current) {
       notifiedStrategies.current.clear()
       lastResetDate.current = today
+      saveNotifiedCache(today, notifiedStrategies.current)
     }
   }, [])
 
@@ -95,6 +135,8 @@ export function useStrategyMonitor({
           const alertKey = `${ps.id}_cond${condIdx}`
           if (!notifiedStrategies.current.has(alertKey)) {
             notifiedStrategies.current.add(alertKey)
+            // 持久化到 localStorage
+            saveNotifiedCache(lastResetDate.current, notifiedStrategies.current)
             
             const condTypeLabel = cond.type === 'price' ? '价格' : '涨跌幅'
             const condOpLabel = cond.operator === 'above' ? '突破' : '跌破'
@@ -187,6 +229,8 @@ export function useStrategyMonitor({
             const alertKey = `${gs.id}_${stock.code}_${stock.alertType}`
             if (!notifiedStrategies.current.has(alertKey)) {
               notifiedStrategies.current.add(alertKey)
+              // 持久化到 localStorage
+              saveNotifiedCache(lastResetDate.current, notifiedStrategies.current)
               
               const typeLabel = getGroupAlertTypeLabel(stock.alertType)
               const title = `${stock.name} ${typeLabel}`
@@ -277,6 +321,8 @@ export function useStrategyMonitor({
               !notifiedStrategies.current.has(strategy.id)) {
             
             notifiedStrategies.current.add(strategy.id)
+            // 持久化到 localStorage
+            saveNotifiedCache(lastResetDate.current, notifiedStrategies.current)
             
             // 根据策略类型生成通知内容
             let title = ''
