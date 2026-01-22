@@ -13,3 +13,4 @@ AGENTS.md
 .dev.vars
 worker/.dev.vars
 /worker/node_modules
+/worker-news/__pycache__

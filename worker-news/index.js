@@ -406,9 +406,100 @@ export default {
       const result = await fetchReviewData();
       if (result.success && env.DB) {
         const storeResult = await storeReviewData(env.DB, result.newsId, result.markdown);
-        return jsonResponse({ ...result, stored: storeResult.success });
+        console.log('Store result:', storeResult);
+        return jsonResponse({ 
+          ...result, 
+          stored: storeResult.success,
+          storeError: storeResult.error,
+          date: storeResult.date
+        });
+      }
+      if (!env.DB) {
+        return jsonResponse({ ...result, stored: false, error: 'DB not configured' });
       }
       return jsonResponse(result);
+    }
+    
+    // POST /review/backfill - 批量补全历史数据
+    // 参数: days (可选，默认30天)
+    if (path === '/review/backfill' && request.method === 'POST') {
+      if (!env.DB) {
+        return jsonResponse({ error: 'DB not configured' }, 500);
+      }
+      
+      try {
+        const body = await request.json().catch(() => ({}));
+        const days = parseInt(body.days) || 30;
+        
+        console.log(`开始补全最近 ${days} 天的复盘数据...`);
+        
+        // 生成日期范围（跳过周末）
+        const dates = [];
+        const now = new Date();
+        
+        for (let i = 0; i < days * 2; i++) { // *2 确保有足够的工作日
+          const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          const beijingTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+          const dayOfWeek = beijingTime.getUTCDay();
+          
+          // 跳过周末
+          if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+          
+          const year = beijingTime.getUTCFullYear();
+          const month = String(beijingTime.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(beijingTime.getUTCDate()).padStart(2, '0');
+          dates.push(`${year}${month}${day}`);
+          
+          if (dates.length >= days) break;
+        }
+        
+        const results = { success: [], failed: [], skipped: [] };
+        
+        for (const dateStr of dates) {
+          // 检查数据库中是否已存在
+          const existingCheck = await env.DB.prepare(`
+            SELECT id FROM daily_reviews WHERE date = ?
+          `).bind(`${dateStr.slice(0, 4)}-${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`).first();
+          
+          if (existingCheck) {
+            results.skipped.push(dateStr);
+            continue;
+          }
+          
+          // 优先尝试收评（02），然后午评（01）
+          let success = false;
+          for (const suffix of ['02', '01']) {
+            const newsId = `${dateStr}${suffix}`;
+            const result = await fetchReviewData(newsId);
+            
+            if (result.success) {
+              const storeResult = await storeReviewData(env.DB, result.newsId, result.markdown);
+              if (storeResult.success) {
+                results.success.push(newsId);
+                success = true;
+                break; // 成功后不再尝试午评
+              }
+            }
+          }
+          
+          if (!success) {
+            results.failed.push(dateStr);
+          }
+        }
+        
+        return jsonResponse({
+          success: true,
+          days,
+          total: dates.length,
+          successCount: results.success.length,
+          failedCount: results.failed.length,
+          skippedCount: results.skipped.length,
+          results
+        });
+      } catch (e) {
+        console.error('批量补全失败:', e);
+        return jsonResponse({ error: e.message }, 500);
+      }
     }
     
     // GET /reviews - 获取复盘列表

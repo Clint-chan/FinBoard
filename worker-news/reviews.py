@@ -56,8 +56,13 @@ def parse_sqry(content_dict):
         cnt = stock.get("cnt", "0")
         
         # 涨跌幅加颜色符号（Markdown无法直接变色，用箭头表示）
-        arrow = "🔺" if float(zdf) > 0 else "dg"
-        arrow = "🔻" if float(zdf) < 0 else arrow
+        zdf_num = float(zdf) if zdf else 0
+        if zdf_num > 0:
+            arrow = "�"
+        elif zdf_num < 0:
+            arrow = "🔻"
+        else:
+            arrow = ""
         
         lines.append(f"- **{name}** {arrow} {zdf}% (热度: {cnt})")
         

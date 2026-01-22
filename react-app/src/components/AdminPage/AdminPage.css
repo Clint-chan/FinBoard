@@ -691,3 +691,60 @@
 .prompt-textarea::placeholder {
   color: var(--text-tertiary);
 }
+
+/* 复盘管理样式 */
+.backfill-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.backfill-input {
+  width: 80px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.backfill-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.preview-link {
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.preview-link:hover {
+  background: var(--bg-hover);
+  border-color: var(--primary-color);
+}
+
+.code-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.view-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.view-link:hover {
+  text-decoration: underline;
+}

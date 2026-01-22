@@ -101,6 +101,12 @@ export function AdminPage() {
   const [wechatSecretInput, setWechatSecretInput] = useState('')
   const [wechatTokenInput, setWechatTokenInput] = useState('')
 
+  // 复盘管理状态
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [reviews, setReviews] = useState<Array<{id: string, date: string, created_at: string}>>([])
+  const [backfilling, setBackfilling] = useState(false)
+  const [backfillDays, setBackfillDays] = useState(30)
+
   // 加载用户列表
   const loadUsers = useCallback(async () => {
     if (!token) return
@@ -157,6 +163,7 @@ export function AdminPage() {
     loadDailyReports()
     loadWechatConfig()
     loadSystemConfig()
+    loadReviews()
   }, [loadUsers, loadAIConfig])
   
   // 加载微信公众号配置状态
@@ -409,6 +416,71 @@ export function AdminPage() {
   const filteredUsers = users.filter(u => 
     u.username.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  // 加载复盘列表
+  const loadReviews = useCallback(async () => {
+    setReviewsLoading(true)
+    try {
+      const res = await fetch('https://news.newestgpt.com/reviews?limit=30')
+      if (res.ok) {
+        const data = await res.json()
+        setReviews(data.reviews || [])
+      }
+    } catch (err) {
+      console.error('Failed to load reviews:', err)
+    } finally {
+      setReviewsLoading(false)
+    }
+  }, [])
+
+  // 手动获取今日复盘
+  const fetchTodayReview = async () => {
+    if (!token) return
+    setError('')
+    
+    try {
+      const res = await fetch('https://news.newestgpt.com/review/fetch', {
+        method: 'POST'
+      })
+      
+      const data = await res.json()
+      if (data.success && data.stored) {
+        alert(`复盘数据已获取并存储！\nID: ${data.newsId}\n日期: ${data.date}`)
+        loadReviews()
+      } else {
+        throw new Error(data.error || data.storeError || '获取失败')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '获取复盘失败')
+    }
+  }
+
+  // 批量补全历史数据
+  const backfillReviews = async () => {
+    if (!token || backfilling) return
+    setBackfilling(true)
+    setError('')
+    
+    try {
+      const res = await fetch('https://news.newestgpt.com/review/backfill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days: backfillDays })
+      })
+      
+      const data = await res.json()
+      if (data.success) {
+        alert(`补全完成！\n成功: ${data.successCount} 条\n失败: ${data.failedCount} 条\n跳过: ${data.skippedCount} 条`)
+        loadReviews()
+      } else {
+        throw new Error(data.error || '补全失败')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '批量补全失败')
+    } finally {
+      setBackfilling(false)
+    }
+  }
 
   // 统计数据
   const totalUsers = users.length
@@ -775,6 +847,102 @@ export function AdminPage() {
                     </td>
                     <td>{report.news_count} 条</td>
                     <td>{new Date(report.created_at).toLocaleString('zh-CN')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* 复盘管理 */}
+      <div className="admin-section">
+        <div className="section-header">
+          <h2>A股复盘管理</h2>
+          <div className="section-actions">
+            <button 
+              className="refresh-btn" 
+              onClick={loadReviews} 
+              disabled={reviewsLoading}
+            >
+              {reviewsLoading ? '加载中...' : '刷新'}
+            </button>
+          </div>
+        </div>
+
+        <div className="daily-actions">
+          <button 
+            className="generate-btn"
+            onClick={fetchTodayReview}
+            disabled={!token}
+          >
+            📥 获取今日复盘
+          </button>
+          
+          <div className="backfill-group">
+            <input
+              type="number"
+              className="backfill-input"
+              value={backfillDays}
+              onChange={e => setBackfillDays(parseInt(e.target.value) || 30)}
+              min="1"
+              max="90"
+              disabled={backfilling}
+            />
+            <button 
+              className="generate-btn"
+              onClick={backfillReviews}
+              disabled={!token || backfilling}
+            >
+              {backfilling ? '补全中...' : '📦 批量补全历史'}
+            </button>
+          </div>
+          
+          <a 
+            href="https://news.newestgpt.com/review" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="preview-link"
+          >
+            👁️ 预览复盘数据
+          </a>
+        </div>
+
+        <div className="daily-list">
+          {reviewsLoading ? (
+            <div className="admin-loading">加载中...</div>
+          ) : reviews.length === 0 ? (
+            <div className="table-empty">暂无复盘记录</div>
+          ) : (
+            <table className="user-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>日期</th>
+                  <th>生成时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reviews.map(review => (
+                  <tr key={review.id}>
+                    <td>
+                      <span className="code-badge">{review.id}</span>
+                    </td>
+                    <td>
+                      <span className="date-badge">{review.date}</span>
+                    </td>
+                    <td>{new Date(review.created_at).toLocaleString('zh-CN')}</td>
+                    <td>
+                      <a 
+                        href={`https://news.newestgpt.com/review?id=${review.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="view-link"
+                      >
+                        查看
+                      </a>
+                    </td>
                   </tr>
                 ))}
               </tbody>
