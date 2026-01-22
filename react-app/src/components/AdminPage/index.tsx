@@ -106,6 +106,9 @@ export function AdminPage() {
   const [reviews, setReviews] = useState<Array<{id: string, date: string, created_at: string}>>([])
   const [backfilling, setBackfilling] = useState(false)
   const [backfillDays, setBackfillDays] = useState(30)
+  const [reviewsPage, setReviewsPage] = useState(1)
+  const [reviewsPageSize, setReviewsPageSize] = useState(10)
+  const [reviewsTotal, setReviewsTotal] = useState(0)
 
   // 加载用户列表
   const loadUsers = useCallback(async () => {
@@ -421,10 +424,13 @@ export function AdminPage() {
   const loadReviews = useCallback(async () => {
     setReviewsLoading(true)
     try {
-      const res = await fetch('https://news.newestgpt.com/reviews?limit=30')
+      // 获取所有数据以支持分页
+      const res = await fetch('https://news.newestgpt.com/reviews?limit=100')
       if (res.ok) {
         const data = await res.json()
-        setReviews(data.reviews || [])
+        const allReviews = data.reviews || []
+        setReviews(allReviews)
+        setReviewsTotal(allReviews.length)
       }
     } catch (err) {
       console.error('Failed to load reviews:', err)
@@ -908,6 +914,62 @@ export function AdminPage() {
           </a>
         </div>
 
+        {/* 分页控制 */}
+        {reviewsTotal > 0 && (
+          <div className="pagination-controls">
+            <div className="pagination-info">
+              共 {reviewsTotal} 条记录，每页显示
+              <select 
+                className="page-size-select"
+                value={reviewsPageSize}
+                onChange={e => {
+                  setReviewsPageSize(parseInt(e.target.value))
+                  setReviewsPage(1)
+                }}
+              >
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+              </select>
+              条
+            </div>
+            <div className="pagination-buttons">
+              <button 
+                className="page-btn"
+                onClick={() => setReviewsPage(1)}
+                disabled={reviewsPage === 1}
+              >
+                首页
+              </button>
+              <button 
+                className="page-btn"
+                onClick={() => setReviewsPage(p => Math.max(1, p - 1))}
+                disabled={reviewsPage === 1}
+              >
+                上一页
+              </button>
+              <span className="page-indicator">
+                第 {reviewsPage} / {Math.ceil(reviewsTotal / reviewsPageSize)} 页
+              </span>
+              <button 
+                className="page-btn"
+                onClick={() => setReviewsPage(p => Math.min(Math.ceil(reviewsTotal / reviewsPageSize), p + 1))}
+                disabled={reviewsPage >= Math.ceil(reviewsTotal / reviewsPageSize)}
+              >
+                下一页
+              </button>
+              <button 
+                className="page-btn"
+                onClick={() => setReviewsPage(Math.ceil(reviewsTotal / reviewsPageSize))}
+                disabled={reviewsPage >= Math.ceil(reviewsTotal / reviewsPageSize)}
+              >
+                末页
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="daily-list">
           {reviewsLoading ? (
             <div className="admin-loading">加载中...</div>
@@ -924,27 +986,29 @@ export function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {reviews.map(review => (
-                  <tr key={review.id}>
-                    <td>
-                      <span className="code-badge">{review.id}</span>
-                    </td>
-                    <td>
-                      <span className="date-badge">{review.date}</span>
-                    </td>
-                    <td>{new Date(review.created_at).toLocaleString('zh-CN')}</td>
-                    <td>
-                      <a 
-                        href={`https://news.newestgpt.com/review?id=${review.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="view-link"
-                      >
-                        查看
-                      </a>
-                    </td>
-                  </tr>
-                ))}
+                {reviews
+                  .slice((reviewsPage - 1) * reviewsPageSize, reviewsPage * reviewsPageSize)
+                  .map(review => (
+                    <tr key={review.id}>
+                      <td>
+                        <span className="code-badge">{review.id}</span>
+                      </td>
+                      <td>
+                        <span className="date-badge">{review.date}</span>
+                      </td>
+                      <td>{new Date(review.created_at).toLocaleString('zh-CN')}</td>
+                      <td>
+                        <a 
+                          href={`https://news.newestgpt.com/review?id=${review.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="view-link"
+                        >
+                          查看
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           )}

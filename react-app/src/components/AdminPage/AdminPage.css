@@ -693,6 +693,16 @@
 }
 
 /* 复盘管理样式 */
+.daily-actions {
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--bg-body);
+  border-bottom: 1px solid var(--border-light);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .backfill-group {
   display: flex;
   gap: 8px;
@@ -702,37 +712,41 @@
 .backfill-input {
   width: 80px;
   padding: 8px 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-light);
   border-radius: 6px;
   font-size: 14px;
   text-align: center;
+  background: var(--bg-surface);
+  color: var(--text-primary);
 }
 
 .backfill-input:focus {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: #7c3aed;
 }
 
 .preview-link {
   padding: 8px 16px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
   color: var(--text-primary);
   text-decoration: none;
-  font-size: 14px;
+  font-size: 0.85rem;
+  font-weight: 500;
   transition: all 0.2s;
 }
 
 .preview-link:hover {
-  background: var(--bg-hover);
-  border-color: var(--primary-color);
+  background: var(--border-light);
+  border-color: #7c3aed;
+  color: #7c3aed;
 }
 
 .code-badge {
   display: inline-block;
   padding: 4px 8px;
-  background: var(--bg-secondary);
+  background: var(--bg-hover);
   border-radius: 4px;
   font-family: 'Courier New', monospace;
   font-size: 12px;
@@ -740,11 +754,116 @@
 }
 
 .view-link {
-  color: var(--primary-color);
+  color: #7c3aed;
   text-decoration: none;
   font-size: 14px;
+  font-weight: 500;
 }
 
 .view-link:hover {
   text-decoration: underline;
+}
+
+/* 分页控制 */
+.pagination-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--bg-body);
+  border-top: 1px solid var(--border-light);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pagination-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.page-size-select {
+  padding: 4px 8px;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.page-size-select:focus {
+  outline: none;
+  border-color: #7c3aed;
+}
+
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-btn {
+  padding: 6px 12px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: var(--border-light);
+  color: var(--text-primary);
+  border-color: #7c3aed;
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-indicator {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .daily-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .backfill-group {
+    width: 100%;
+  }
+  
+  .backfill-input {
+    flex: 1;
+  }
+  
+  .preview-link {
+    text-align: center;
+  }
+  
+  .pagination-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .pagination-info {
+    justify-content: center;
+  }
+  
+  .pagination-buttons {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
 }
