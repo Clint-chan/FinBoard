@@ -2938,7 +2938,7 @@ async function generateDailyReport(env, isScheduled = false, autoPublishWechat =
   // 从 daily_news 表读取新闻
   await initDB(env.DB);
   const newsResult = await env.DB.prepare(`
-    SELECT title, summary FROM daily_news 
+    SELECT title FROM daily_news 
     WHERE published_at >= ? AND published_at < ?
     ORDER BY published_at DESC
   `).bind(startTime.toISOString(), endTime.toISOString()).all();
@@ -2963,7 +2963,7 @@ async function generateDailyReport(env, isScheduled = false, autoPublishWechat =
   
   // 构建提示词
   const systemPrompt = buildDailyReportPrompt();
-  const userPrompt = `今天是 ${today}，以下是过去24小时的中国相关新闻标题：\n\n${newsInput}\n\n请根据以上新闻生成今日早报。`;
+  const userPrompt = `今天是 ${today}，以下是过去24小时的全球财经新闻标题（共 ${newsList.length} 条）：\n\n${newsInput}\n\n请从中筛选出对A股市场有重要影响的新闻，生成今日早报。`;
   
   // 调用 LLM
   console.log('调用 LLM 生成日报...');
@@ -3174,7 +3174,13 @@ function buildDailyReportPrompt() {
   return `你是顶级投行的首席A股策略分析师，拥有20年市场研究经验，曾任职于高盛、中金。你的早报被机构投资者视为每日必读，以精准的市场嗅觉、深度的逻辑推演和独到的板块洞察著称。
 
 ## 核心任务
-从海量新闻中筛选出对A股最具影响力的信息，生成结构化早报 JSON。
+从全球财经新闻中筛选出对A股市场最具影响力的信息，生成结构化早报 JSON。
+
+**重要提示**：输入的新闻来自全球各地，你需要：
+1. 识别并筛选出与中国经济、A股市场相关的新闻
+2. 分析国际事件对A股的传导影响（如美联储政策、地缘政治、大宗商品等）
+3. 忽略与A股无关的纯海外新闻（如美国地方新闻、欧洲社会新闻等）
+4. 优先关注：中国政策、中美关系、科技封锁、产业链、大宗商品、外资动向
 
 ## 输出格式
 \`\`\`json

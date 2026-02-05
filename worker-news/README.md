@@ -15,6 +15,21 @@ https://news.newestgpt.com/news?since=2025-12-23 18:00:00
 # 也可以只传日期+小时
 https://news.newestgpt.com/news?since=2025-12-23 18:00
 
+## 数据源策略
+
+### 主数据源
+- **china.buzzing.cc** - 中国相关新闻（优先）
+
+### 备用数据源
+- **bloombergnew.buzzing.cc/lite** - Bloomberg 全球新闻
+- 触发条件：当主数据源爬取无新增数据时自动切换
+- 确保即使主数据源暂时无更新，也能持续获取新闻
+
+### 爬取逻辑
+1. 首先尝试从 china.buzzing.cc 爬取中国新闻
+2. 如果新增数据为 0，自动切换到 bloombergnew.buzzing.cc/lite
+3. 返回结果会标注数据来源（china 或 bloomberg(backup)）
+
 ## 复盘功能
 
 ### 接口

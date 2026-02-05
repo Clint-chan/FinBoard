@@ -6,14 +6,13 @@ import { fetchReviewData, storeReviewData, getStoredReview, getReviewByDate, lis
 
 /**
  * 初始化数据库表
- * 简化结构：id, title, summary, published_at, created_at
+ * 简化结构：id, title, published_at, created_at
  */
 async function initDB(db) {
   await db.prepare(`
     CREATE TABLE IF NOT EXISTS daily_news (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
-      summary TEXT,
       published_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -25,21 +24,11 @@ async function initDB(db) {
 }
 
 /**
- * 爬取并存储中国新闻
+ * 从指定数据源爬取新闻
  */
-async function fetchAndStoreNews(env) {
-  if (!env.DB) {
-    console.error('D1 数据库未配置');
-    return { success: false, error: 'DB not configured' };
-  }
-  
-  console.log('开始爬取新闻...');
-  
+async function fetchFromSource(url, db, sourceName) {
   try {
-    await initDB(env.DB);
-    
-    // 爬取 buzzing.cc
-    const response = await fetch('https://china.buzzing.cc/', {
+    const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       }
@@ -52,7 +41,7 @@ async function fetchAndStoreNews(env) {
     const html = await response.text();
     const news = parseNewsFromHTML(html);
     
-    console.log(`解析到 ${news.length} 条新闻`);
+    console.log(`[${sourceName}] 解析到 ${news.length} 条新闻`);
 
     // 批量插入数据库
     let insertedCount = 0;
@@ -60,13 +49,12 @@ async function fetchAndStoreNews(env) {
     
     for (const item of news) {
       try {
-        const result = await env.DB.prepare(`
-          INSERT OR IGNORE INTO daily_news (id, title, summary, published_at)
-          VALUES (?, ?, ?, ?)
+        const result = await db.prepare(`
+          INSERT OR IGNORE INTO daily_news (id, title, published_at)
+          VALUES (?, ?, ?)
         `).bind(
           item.id,
           item.title,
-          item.summary,
           item.publishedAt
         ).run();
         
@@ -78,13 +66,55 @@ async function fetchAndStoreNews(env) {
           skippedCount++;
         }
       } catch (e) {
-        console.error('插入新闻失败:', item.title, e);
+        console.error(`[${sourceName}] 插入新闻失败:`, item.title, e);
         skippedCount++;
       }
     }
     
-    console.log(`完成: 新增 ${insertedCount} 条, 跳过 ${skippedCount} 条重复`);
+    console.log(`[${sourceName}] 完成: 新增 ${insertedCount} 条, 跳过 ${skippedCount} 条重复`);
     return { success: true, inserted: insertedCount, skipped: skippedCount, total: news.length };
+  } catch (e) {
+    console.error(`[${sourceName}] 爬取失败:`, e);
+    return { success: false, error: e.message, inserted: 0, skipped: 0, total: 0 };
+  }
+}
+
+/**
+ * 爬取并存储中国新闻 (带备用数据源)
+ */
+async function fetchAndStoreNews(env) {
+  if (!env.DB) {
+    console.error('D1 数据库未配置');
+    return { success: false, error: 'DB not configured' };
+  }
+  
+  console.log('开始爬取新闻...');
+  
+  try {
+    await initDB(env.DB);
+    
+    // 主数据源: 中国新闻
+    console.log('尝试主数据源: china.buzzing.cc');
+    let result = await fetchFromSource('https://china.buzzing.cc/', env.DB, 'china');
+    
+    // 如果主数据源没有新增任何新闻,尝试备用数据源
+    if (result.success && result.inserted === 0) {
+      console.log('主数据源无新增,切换到备用数据源: bloombergnew.buzzing.cc/lite');
+      const backupResult = await fetchFromSource('https://bloombergnew.buzzing.cc/lite/', env.DB, 'bloomberg');
+      
+      // 合并结果
+      return {
+        success: true,
+        inserted: backupResult.inserted,
+        skipped: result.skipped + backupResult.skipped,
+        total: result.total + backupResult.total,
+        source: backupResult.inserted > 0 ? 'bloomberg(backup)' : 'china(no-new-data)',
+        primaryResult: result,
+        backupResult: backupResult
+      };
+    }
+    
+    return { ...result, source: 'china' };
   } catch (e) {
     console.error('爬取新闻失败:', e);
     return { success: false, error: e.message };
@@ -101,7 +131,7 @@ async function fetchAndStoreNews(env) {
  */
 function parseNewsFromHTML(html) {
   const news = [];
-  const seen = new Set(); // 用于去重：time + summary
+  const seen = new Set(); // 用于去重：time + title
   
   // 匹配 article 块（class 包含 card 和 article）
   const articleRegex = /<article[^>]*class="[^"]*card[^"]*article[^"]*"[^>]*>([\s\S]*?)<\/article>/gi;
@@ -122,33 +152,22 @@ function parseNewsFromHTML(html) {
       // 去掉标题前的序号（如 "1. "、"12. "）
       title = title.replace(/^\d+\.\s*/, '');
       
-      // 提取摘要 - p-summary 内的第一个 div
-      let summary = '';
-      const summaryMatch = articleHtml.match(/<div[^>]*class="[^"]*p-summary[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
-      if (summaryMatch) {
-        // 提取括号前的英文原文
-        const innerMatch = summaryMatch[1].match(/<div[^>]*>([^<(]+)/i);
-        if (innerMatch) {
-          summary = decodeHTMLEntities(innerMatch[1].trim());
-        }
-      }
-      
       // 提取时间 - <time class="dt-published published" datetime="...">
       const timeMatch = articleHtml.match(/<time[^>]*datetime="([^"]*)"[^>]*>/i);
       const publishedAt = timeMatch ? timeMatch[1] : null;
       
-      // 去重：time + summary 相同则跳过
-      const dedupeKey = `${publishedAt}|${summary}`;
+      // 去重：time + title 相同则跳过
+      const dedupeKey = `${publishedAt}|${title}`;
       if (seen.has(dedupeKey)) {
         continue;
       }
       seen.add(dedupeKey);
       
-      // 用 time + summary 生成唯一 ID（更稳定的去重）
-      const id = generateNewsId(summary, publishedAt);
+      // 用 time + title 生成唯一 ID
+      const id = generateNewsId(title, publishedAt);
       
       if (title && publishedAt) {
-        news.push({ id, title, summary, publishedAt });
+        news.push({ id, title, publishedAt });
       }
     } catch (e) {
       continue;
@@ -159,10 +178,10 @@ function parseNewsFromHTML(html) {
 }
 
 /**
- * 生成新闻唯一 ID（基于 summary + time）
+ * 生成新闻唯一 ID（基于 title + time）
  */
-function generateNewsId(summary, publishedAt) {
-  const str = `${summary}-${publishedAt}`;
+function generateNewsId(title, publishedAt) {
+  const str = `${title}-${publishedAt}`;
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
@@ -277,7 +296,7 @@ export default {
         if (date) {
           // 按日期筛选
           query = `
-            SELECT title, summary, published_at
+            SELECT title, published_at
             FROM daily_news 
             WHERE date(published_at, '+8 hours') = ?
             ORDER BY published_at DESC 
@@ -289,7 +308,7 @@ export default {
           // 北京时间减8小时 = UTC
           const sinceUtc = beijingToUtc(since);
           query = `
-            SELECT title, summary, published_at
+            SELECT title, published_at
             FROM daily_news 
             WHERE published_at >= ?
             ORDER BY published_at DESC 
@@ -298,7 +317,7 @@ export default {
           params = [sinceUtc, limit, offset];
         } else {
           query = `
-            SELECT title, summary, published_at
+            SELECT title, published_at
             FROM daily_news 
             ORDER BY published_at DESC 
             LIMIT ? OFFSET ?
@@ -308,11 +327,10 @@ export default {
         
         const result = await env.DB.prepare(query).bind(...params).all();
         
-        // 转换为简洁格式：时间(北京时间) + 标题 + 摘要
+        // 转换为简洁格式：时间(北京时间) + 标题
         const news = (result.results || []).map(item => ({
           time: utcToBeijing(item.published_at),
-          title: item.title,
-          summary: item.summary || ''
+          title: item.title
         }));
         
         return jsonResponse({ news, total: news.length });

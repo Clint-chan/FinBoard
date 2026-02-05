@@ -13,3 +13,5 @@ AGENTS.md
 .dev.vars
 worker/.dev.vars
 /worker/node_modules
+.ace-tool/
+/.claude
