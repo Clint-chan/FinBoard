@@ -2887,6 +2887,51 @@ async function handleAIConfig(request, env) {
 // ============ Daily Report 生成功能 ============
 
 /**
+ * 格式化新闻列表,按日期分组并添加时间
+ * 格式: 
+ * 2026-02-05
+ * 1. 标题1 - 21:01
+ * 2. 标题2 - 20:30
+ * 
+ * 2026-02-04
+ * 3. 标题3 - 23:45
+ */
+function formatNewsWithTime(newsList) {
+  const grouped = {};
+  
+  // 按日期分组
+  newsList.forEach(news => {
+    const utcDate = new Date(news.published_at);
+    // 转北京时间
+    const beijingDate = new Date(utcDate.getTime() + 8 * 60 * 60 * 1000);
+    const date = beijingDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    const time = beijingDate.toISOString().split('T')[1].substring(0, 5); // HH:MM
+    
+    if (!grouped[date]) {
+      grouped[date] = [];
+    }
+    grouped[date].push({ title: news.title, time });
+  });
+  
+  // 格式化输出
+  const lines = [];
+  let counter = 1;
+  
+  // 按日期倒序排列
+  const dates = Object.keys(grouped).sort().reverse();
+  
+  dates.forEach(date => {
+    lines.push(`\n${date}`);
+    grouped[date].forEach(item => {
+      lines.push(`${counter}. ${item.title} - ${item.time}`);
+      counter++;
+    });
+  });
+  
+  return lines.join('\n').trim();
+}
+
+/**
  * 生成每日早报
  * @param {Object} env - Worker 环境
  * @param {boolean} isScheduled - 是否是定时任务触发（6点自动生成，邮件7点推送）
@@ -2938,7 +2983,7 @@ async function generateDailyReport(env, isScheduled = false, autoPublishWechat =
   // 从 daily_news 表读取新闻
   await initDB(env.DB);
   const newsResult = await env.DB.prepare(`
-    SELECT title FROM daily_news 
+    SELECT title, published_at FROM daily_news 
     WHERE published_at >= ? AND published_at < ?
     ORDER BY published_at DESC
   `).bind(startTime.toISOString(), endTime.toISOString()).all();
@@ -2950,8 +2995,8 @@ async function generateDailyReport(env, isScheduled = false, autoPublishWechat =
     return { success: false, error: '没有新闻数据' };
   }
   
-  // 构建精简的新闻输入
-  const newsInput = newsList.map((n, i) => `${i + 1}. ${n.title}`).join('\n');
+  // 按日期分组并格式化新闻
+  const newsInput = formatNewsWithTime(newsList);
   
   // 获取 AI 配置（从 D1）
   let config = AI_DEFAULT_CONFIG;
