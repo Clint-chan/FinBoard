@@ -87,11 +87,13 @@ function parseSqry(contentDict) {
 
 /**
  * 获取复盘数据并生成 Markdown
- * @param {string} newsId - 可选，指定日期ID，默认当天
+ * @param {string} newsId - 可选，指定日期ID，默认当天（优先02收评，否则01午评）
  * @returns {Promise<{success: boolean, markdown?: string, newsId?: string, error?: string}>}
  */
 export async function fetchReviewData(newsId = null) {
-  // 生成 ID: YYYYMMDD02 (02 表示下午复盘)
+  // 生成 ID: 优先 YYYYMMDD02 (收评)，如果不存在则尝试 YYYYMMDD01 (午评)
+  let tryIds = [];
+  
   if (!newsId) {
     const now = new Date();
     // 转北京时间
@@ -99,103 +101,125 @@ export async function fetchReviewData(newsId = null) {
     const year = beijingTime.getUTCFullYear();
     const month = String(beijingTime.getUTCMonth() + 1).padStart(2, '0');
     const day = String(beijingTime.getUTCDate()).padStart(2, '0');
-    newsId = `${year}${month}${day}02`;
+    const baseId = `${year}${month}${day}`;
+    
+    // 优先尝试收评（02），然后午评（01）
+    tryIds = [`${baseId}02`, `${baseId}01`];
+  } else {
+    tryIds = [newsId];
   }
 
-  const url = `https://snp.tenpay.com/cgi/cgi-bin/snp/newsDailyInfo/getPushDailyDetail?id=${newsId}`;
+  let lastError = null;
+  
+  // 依次尝试每个 ID
+  for (const id of tryIds) {
+    const url = `https://snp.tenpay.com/cgi/cgi-bin/snp/newsDailyInfo/getPushDailyDetail?id=${id}`;
 
-  try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0' }
-    });
+    try {
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
 
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
+      if (!res.ok) {
+        lastError = `HTTP ${res.status}`;
+        continue; // 尝试下一个 ID
+      }
 
-    const jsonData = await res.json();
-    // 兼容处理：优先取 'data'
-    const data = jsonData.data || jsonData;
-
-    // 生成 Markdown
-    const lines = [];
-    const genTime = new Date().toISOString().replace('T', ' ').slice(0, 19);
-    
-    lines.push(`# A股复盘日报 (${newsId})`);
-    lines.push(`> 生成时间: ${genTime}`);
-    lines.push('---');
-    lines.push('');
-
-    // 不需要副标题的板块
-    const noSubtitleKeys = ['jryw', 'hsyp'];
-
-    for (const [key, section] of Object.entries(data)) {
-      if (!section || typeof section !== 'object') continue;
+      const jsonData = await res.json();
       
-      const tabTitle = section.tab_title;
-      if (!tabTitle) continue;
-
-      // 标题输出
-      lines.push(`## 📊 ${tabTitle}`);
-      
-      // 主标题
-      if (section.title) {
-        lines.push(`### ${section.title}`);
+      // 检查响应是否有效
+      if (jsonData.code !== 0 || !jsonData.data) {
+        lastError = jsonData.msg || 'No data';
+        continue;
       }
       
-      // 副标题
-      const subTitle = section.sub_title || '';
-      if (subTitle && !noSubtitleKeys.includes(key)) {
-        lines.push(`_${subTitle}_`);
-      }
+      const data = jsonData.data;
+
+      // 生成 Markdown
+      const lines = [];
+      const genTime = new Date().toISOString().replace('T', ' ').slice(0, 19);
       
-      lines.push('');
-
-      // 内容处理
-      const rawContent = section.content;
-
-      // CASE 1: 题材热点 (tcrd)
-      if (key === 'tcrd') {
-        const tcrdLines = parseTcrd(rawContent);
-        lines.push(...tcrdLines);
-      }
-      // CASE 2: 社区热议 (sqry)
-      else if (key === 'sqry') {
-        const sqryLines = parseSqry(rawContent);
-        lines.push(...sqryLines);
-      }
-      // CASE 3: 通用列表
-      else if (Array.isArray(rawContent)) {
-        for (const item of rawContent) {
-          // 过滤图片
-          if (item.type === 'image') continue;
-          
-          const desc = cleanText(item.desc);
-          if (desc) {
-            lines.push(`- ${desc}`);
-          }
-        }
-      }
-
-      lines.push('');
+      lines.push(`# A股复盘日报 (${id})`);
+      lines.push(`> 生成时间: ${genTime}`);
       lines.push('---');
       lines.push('');
+
+      // 不需要副标题的板块
+      const noSubtitleKeys = ['jryw', 'hsyp'];
+
+      for (const [key, section] of Object.entries(data)) {
+        if (!section || typeof section !== 'object') continue;
+        
+        const tabTitle = section.tab_title;
+        if (!tabTitle) continue;
+
+        // 标题输出
+        lines.push(`## 📊 ${tabTitle}`);
+        
+        // 主标题
+        if (section.title) {
+          lines.push(`### ${section.title}`);
+        }
+        
+        // 副标题
+        const subTitle = section.sub_title || '';
+        if (subTitle && !noSubtitleKeys.includes(key)) {
+          lines.push(`_${subTitle}_`);
+        }
+        
+        lines.push('');
+
+        // 内容处理
+        const rawContent = section.content;
+
+        // CASE 1: 题材热点 (tcrd)
+        if (key === 'tcrd') {
+          const tcrdLines = parseTcrd(rawContent);
+          lines.push(...tcrdLines);
+        }
+        // CASE 2: 社区热议 (sqry)
+        else if (key === 'sqry') {
+          const sqryLines = parseSqry(rawContent);
+          lines.push(...sqryLines);
+        }
+        // CASE 3: 通用列表
+        else if (Array.isArray(rawContent)) {
+          for (const item of rawContent) {
+            // 过滤图片
+            if (item.type === 'image') continue;
+            
+            const desc = cleanText(item.desc);
+            if (desc) {
+              lines.push(`- ${desc}`);
+            }
+          }
+        }
+
+        lines.push('');
+        lines.push('---');
+        lines.push('');
+      }
+
+      // 成功获取数据，返回结果
+      return {
+        success: true,
+        markdown: lines.join('\n'),
+        newsId: id
+      };
+
+    } catch (e) {
+      console.error(`获取复盘数据失败 (${id}):`, e);
+      lastError = e.message;
+      continue; // 尝试下一个 ID
     }
-
-    return {
-      success: true,
-      markdown: lines.join('\n'),
-      newsId
-    };
-
-  } catch (e) {
-    console.error('获取复盘数据失败:', e);
-    return {
-      success: false,
-      error: e.message,
-      newsId
-    };
   }
+  
+  // 所有 ID 都失败了
+  return {
+    success: false,
+    error: lastError || 'No valid review data found',
+    newsId: tryIds[0]
+  };
 }
 
 /**

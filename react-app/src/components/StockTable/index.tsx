@@ -119,7 +119,6 @@ function StockRow({ code, data, cost, hasAlert, onContextMenu, onChartShow, onCh
         onMouseLeave?.(e)
       }}
       onDoubleClick={() => onDoubleClick(code)}
-      onMouseDown={onDragStart}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchMove}
@@ -238,22 +237,29 @@ function StockTable({
     return sortAsc ? 'sort-asc' : 'sort-desc'
   }
 
+  // 拖拽排序回调：将排序后的索引映射回原始索引
+  const handleReorder = useCallback((fromIndex: number, toIndex: number) => {
+    // 如果启用了排序，需要将 sortedCodes 的索引映射回原始 codes 的索引
+    if (sortColumn) {
+      const fromCode = sortedCodes[fromIndex]
+      const toCode = sortedCodes[toIndex]
+      const originalFromIndex = codes.findIndex(c => normalizeCode(c) === fromCode)
+      const originalToIndex = codes.findIndex(c => normalizeCode(c) === toCode)
+      onReorder(originalFromIndex, originalToIndex)
+    } else {
+      onReorder(fromIndex, toIndex)
+    }
+  }, [sortColumn, sortedCodes, codes, onReorder])
+
   // 使用 useDragSort hook 实现拖拽
   useDragSort({
     containerRef: tableRef,
     itemSelector: 'tbody tr:not(.add-stock-row)',
     handleSelector: '.drag-handle',
-    onReorder
+    onReorder: handleReorder
   })
   
-  // 简化的拖动处理（用于触发 useDragSort）
-  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, _index: number) => {
-    // useDragSort 会自动处理，这里只需要阻止默认行为
-    const handle = (e.target as HTMLElement).closest('.drag-handle')
-    if (handle) {
-      e.preventDefault()
-    }
-  }, [])
+  // 移除这个不需要的处理函数，useDragSort 会自动处理所有拖动逻辑
 
   return (
     <div className="table-responsive">
@@ -283,7 +289,7 @@ function StockTable({
                 onChartShow={onChartShow}
                 onChartHide={onChartHide}
                 onDoubleClick={onDoubleClick}
-                onDragStart={(e) => handleDragStart(e, index)}
+                onDragStart={() => {}} // 空函数，实际拖动由 useDragSort 处理
                 // 对照原版：最后一行悬停时展开添加行
                 onMouseEnter={isLastRow ? () => setAddRowShow(true) : undefined}
                 onMouseLeave={isLastRow ? (e) => {

@@ -74,11 +74,16 @@ export function useDragSort({
     }
   }, [containerRef])
 
+  // 使用 useRef 存储回调函数，避免循环依赖
+  const handleDragMoveRef = useRef<(e: MouseEvent | TouchEvent) => void>()
+  const handleDragEndRef = useRef<(e?: MouseEvent | TouchEvent) => void>()
+
   // 拖拽移动
-  const handleDragMove = useCallback((e: MouseEvent | TouchEvent) => {
+  handleDragMoveRef.current = useCallback((e: MouseEvent | TouchEvent) => {
     const state = dragState.current
     if (!state.isDragging) return
     e.preventDefault()
+    e.stopPropagation()
 
     const clientY = 'touches' in e ? e.touches[0]?.clientY : e.clientY
     if (clientY !== undefined) {
@@ -87,17 +92,14 @@ export function useDragSort({
   }, [updatePositions])
 
   // 拖拽结束
-  const handleDragEnd = useCallback(() => {
+  handleDragEndRef.current = useCallback((e?: MouseEvent | TouchEvent) => {
     const state = dragState.current
     if (!state.isDragging) return
 
-    // 移除全局事件
-    document.removeEventListener('mousemove', handleDragMove)
-    document.removeEventListener('mouseup', handleDragEnd)
-    document.removeEventListener('touchmove', handleDragMove)
-    document.removeEventListener('touchend', handleDragEnd)
-    
-    document.body.classList.remove('dragging') // 移除 body class
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
 
     const positionChanged = state.currentIndex !== state.initialIndex && state.currentIndex >= 0
 
@@ -106,12 +108,13 @@ export function useDragSort({
       row.classList.remove('drag-shift-up', 'drag-shift-down', 'drag-source')
       row.style.transform = ''
     })
+    
+    document.body.classList.remove('dragging')
 
-    // 如果位置改变了，触发回调
-    if (positionChanged) {
-      onReorder(state.initialIndex, state.currentIndex)
-    }
-
+    // 保存索引
+    const fromIndex = state.initialIndex
+    const toIndex = state.currentIndex
+    
     // 重置状态
     dragState.current = {
       isDragging: false,
@@ -122,7 +125,23 @@ export function useDragSort({
       rowHeight: 0,
       rows: []
     }
-  }, [handleDragMove, onReorder])
+
+    // 移除全局事件
+    const moveHandler = handleDragMoveRef.current
+    const endHandler = handleDragEndRef.current
+    if (moveHandler && endHandler) {
+      document.removeEventListener('mousemove', moveHandler as any)
+      document.removeEventListener('mouseup', endHandler as any)
+      document.removeEventListener('touchmove', moveHandler as any)
+      document.removeEventListener('touchend', endHandler as any)
+      document.removeEventListener('mouseleave', endHandler as any)
+    }
+
+    // 如果位置改变了，触发回调
+    if (positionChanged) {
+      onReorder(fromIndex, toIndex)
+    }
+  }, [onReorder])
 
   // 拖拽开始
   const handleDragStart = useCallback((e: MouseEvent | TouchEvent, element: HTMLElement) => {
@@ -135,12 +154,15 @@ export function useDragSort({
     if (!handle) return
 
     e.preventDefault()
+    e.stopPropagation()
 
     const clientY = 'touches' in e ? e.touches[0]?.clientY : e.clientY
     if (clientY === undefined) return
 
     const rows = Array.from(containerRef.current.querySelectorAll(itemSelector)) as HTMLElement[]
     const initialIndex = rows.indexOf(element)
+    
+    if (initialIndex === -1) return
 
     dragState.current = {
       isDragging: true,
@@ -153,14 +175,19 @@ export function useDragSort({
     }
 
     element.classList.add('drag-source')
-    document.body.classList.add('dragging') // 添加 body class
+    document.body.classList.add('dragging')
 
     // 添加全局事件
-    document.addEventListener('mousemove', handleDragMove)
-    document.addEventListener('mouseup', handleDragEnd)
-    document.addEventListener('touchmove', handleDragMove, { passive: false })
-    document.addEventListener('touchend', handleDragEnd)
-  }, [containerRef, itemSelector, handleSelector, handleDragMove, handleDragEnd])
+    const moveHandler = handleDragMoveRef.current
+    const endHandler = handleDragEndRef.current
+    if (moveHandler && endHandler) {
+      document.addEventListener('mousemove', moveHandler as any, { passive: false })
+      document.addEventListener('mouseup', endHandler as any, { passive: false })
+      document.addEventListener('touchmove', moveHandler as any, { passive: false })
+      document.addEventListener('touchend', endHandler as any, { passive: false })
+      document.addEventListener('mouseleave', endHandler as any, { passive: false })
+    }
+  }, [containerRef, itemSelector, handleSelector])
 
   // 绑定容器事件
   useEffect(() => {
